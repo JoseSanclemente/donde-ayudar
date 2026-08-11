@@ -2,7 +2,7 @@ import { groupReports } from "../cluster";
 import { getReports, onChange } from "../data/reports";
 import { onUpdates } from "../data/updates";
 import { flyTo } from "../map";
-import { collapseSheet } from "../sheet";
+import { closeSheet } from "../sheet";
 import { isBlocked, statusInfo } from "../status";
 import { $, scheduleRender } from "../ui/dom";
 import { relativeTime } from "../ui/time";
@@ -60,7 +60,7 @@ export function initAlertBanner(): void {
         button.type = "button";
         button.className = "w-full text-left text-xs leading-snug hover:underline";
         button.addEventListener("click", () => {
-          collapseSheet();
+          closeSheet();
           void flyTo(group.lat, group.lng);
         });
 

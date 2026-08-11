@@ -22,7 +22,7 @@ import {
   type MarkerExtra,
 } from "../map";
 import { CHIP_OFF, chipOnClass } from "../resources";
-import { collapseSheet } from "../sheet";
+import { closeSheet } from "../sheet";
 import { isBlocked, statusInfo, STATUSES, type ReportStatus } from "../status";
 import { chipLabel, chipStyle } from "../ui/chips";
 import { telUrl, whatsappUrl } from "../ui/contact";
@@ -49,13 +49,6 @@ let listFilter: string | null = null;
  * confirmaron»; si solo se mirara la fecha de creación, un edificio reportado
  * anteayer y visitado hace diez minutos se vería igual de viejo.
  */
-function freshnessOf(report: Report): MarkerExtra {
-  const last = latestUpdateFor(report.id);
-  const freshAt = newestIso(report.createdAt, report.statusAt, last?.createdAt);
-  return { freshAt, stale: isStale(freshAt), lastUpdate: last?.body };
-}
-
-/** La misma cuenta, para toda la zona. */
 function groupFreshAt(group: ReportGroup): string {
   return newestIso(
     group.latestAt,
@@ -304,7 +297,7 @@ export function initReportList(): void {
     view.className = "text-xs font-medium text-slate-600 transition hover:text-red-600";
     view.textContent = "Ver en el mapa";
     view.addEventListener("click", () => {
-      collapseSheet();
+      closeSheet();
       void flyTo(group.lat, group.lng);
     });
     actions.append(view);
@@ -393,17 +386,26 @@ export function initReportList(): void {
   }
 
   /** Reconcilia los marcadores con la lista: agrega, actualiza y quita. */
-  function syncMarkers(reports: Report[]) {
+  function syncMarkers(groups: ReportGroup[]) {
     const live = new Set<string>();
-    for (const report of reports) {
-      live.add(report.id);
-      const extra = freshnessOf(report);
-      if (drawn.has(report.id)) {
-        // El popup se enlaza una sola vez en addMarker: sin esto queda viejo.
-        updateMarker(report, extra);
-      } else {
-        addMarker(report, extra);
-        drawn.add(report.id);
+    for (const group of groups) {
+      // La frescura es la de la zona, la misma que pinta la tarjeta: si no, el
+      // popup y la lista se contradicen sobre el mismo punto.
+      const freshAt = groupFreshAt(group);
+      const extra: MarkerExtra = {
+        freshAt,
+        stale: isStale(freshAt),
+        lastUpdate: groupLastUpdate(group)?.body,
+      };
+      for (const report of group.reports) {
+        live.add(report.id);
+        if (drawn.has(report.id)) {
+          // El popup se enlaza una sola vez en addMarker: sin esto queda viejo.
+          updateMarker(report, group, extra);
+        } else {
+          addMarker(report, group, extra);
+          drawn.add(report.id);
+        }
       }
     }
     for (const id of drawn) {
@@ -506,7 +508,7 @@ export function initReportList(): void {
     reportSummary.textContent = groups.length > 0 ? partes.join(" · ") : "";
 
     paintEmptyState(shown.length, groups.length);
-    syncMarkers(reports);
+    syncMarkers(groups);
   }
 
   const scheduled = scheduleRender(render);

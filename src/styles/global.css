@@ -336,16 +336,25 @@ body {
   color: #475569;
 }
 
-/* ---- FAB «Realizar reporte» ----
+/* ---- Botones flotantes: «Ver panel» y «Realizar reporte» ----
    El desplazamiento vertical vive acá y no en clases de Tailwind porque necesita
-   `env(safe-area-inset-bottom)`. En móvil se apoya sobre el peek del sheet, que
-   `sheet.ts` mide y publica en `--peek`: un valor fijo lo dejaba tapado en cuanto
-   el sheet crecía. El respaldo del `var()` cubre el instante antes del primer
-   measure. En escritorio va sobre la atribución de CARTO, esquina inferior
-   derecha del mapa. */
+   `env(safe-area-inset-bottom)`. Van apilados en la esquina inferior derecha: el
+   FAB abajo y el menú justo encima (2.75rem de alto del FAB + 0.75rem de aire).
+   Con el sheet cerrado el mapa queda libre, así que ya no hay peek que esquivar.
+   En escritorio el FAB va sobre la atribución de CARTO y el menú no existe. */
 
 .fab-report {
-  bottom: calc(var(--peek, 11rem) + 0.75rem + env(safe-area-inset-bottom));
+  bottom: calc(1rem + env(safe-area-inset-bottom));
+}
+
+.sheet-toggle {
+  bottom: calc(4.5rem + env(safe-area-inset-bottom));
+}
+
+/* Sin el FAB (formulario abierto) el menú baja a su lugar: dejar el hueco haría
+   ver un botón flotando sin razón. */
+#fab-report[hidden] ~ .sheet-toggle {
+  bottom: calc(1rem + env(safe-area-inset-bottom));
 }
 
 @media (min-width: 1024px) {
@@ -398,19 +407,38 @@ body {
     color: #b91c1c;
   }
 
-  /* Colapsado el contenido no scrollea: el gesto vertical arrastra el sheet. */
-  #sheet[data-state="collapsed"] #sheet-body {
+  /* Cerrado el sheet está fuera de la pantalla: no debe atrapar ni el scroll ni
+     los toques que van al mapa. */
+  #sheet[data-state="closed"] {
+    pointer-events: none;
+  }
+
+  #sheet[data-state="closed"] #sheet-body {
     overflow-y: hidden;
     touch-action: none;
   }
 
-  /* Los controles de Leaflet quedarían bajo el header flotante y el sheet. */
+  /* Los controles de Leaflet quedarían bajo el header flotante. */
   .leaflet-top {
     top: 6rem;
   }
 
+  /* La atribución va pegada al borde inferior y a la izquierda: subirla para
+     esquivar los botones flotantes la dejaba flotando en mitad del mapa, y la
+     esquina derecha es de ellos. El ancho tope le impide llegar hasta el FAB. */
   .leaflet-bottom {
-    bottom: calc(11.5rem + env(safe-area-inset-bottom));
+    bottom: 0;
+  }
+
+  .leaflet-bottom.leaflet-right {
+    right: auto;
+    left: 0;
+  }
+
+  .leaflet-control-attribution {
+    margin: 0;
+    max-width: calc(100vw - 12rem);
+    padding-bottom: max(2px, env(safe-area-inset-bottom));
   }
 }
 

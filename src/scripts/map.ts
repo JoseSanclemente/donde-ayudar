@@ -1,15 +1,17 @@
 import L from "leaflet";
 import type { Report } from "./data/reports";
+import type { ReportGroup } from "./cluster";
 import { recibeInsumos, type Centro } from "./centros";
 import {
   ALBERGUE_FILTER,
+  byCategory,
   categoryChip,
   categoryLabel,
-  chipClass,
   COVERED_CHIP,
   SANGRE_FILTER,
 } from "./resources";
 import { markerEstado, statusInfo } from "./status";
+import { chipLabel, chipStyle } from "./ui/chips";
 import { telUrl, whatsappUrl } from "./ui/contact";
 import { directionsUrl, escapeHtml, NAV_ICON } from "./ui/html";
 import { relativeTime } from "./ui/time";
@@ -47,14 +49,6 @@ export type MarkerExtra = {
   stale: boolean;
 };
 
-function isCovered(report: Report, resource: string): boolean {
-  return report.covered.includes(resource);
-}
-
-function allCovered(report: Report): boolean {
-  return report.resources.length > 0 && report.resources.every((r) => isCovered(report, r));
-}
-
 /** Bloque de contacto del popup: nombre en texto y, si hay número, CTA a WhatsApp. */
 function contactHtml(name: string, phone: string | null): string {
   const who = `<p class="text-xs text-slate-600">Contacto: ${escapeHtml(name)}</p>`;
@@ -69,26 +63,50 @@ function contactHtml(name: string, phone: string | null): string {
     >${escapeHtml(phone)} — confirma antes de ir</a>`;
 }
 
-function popupHtml(report: Report, extra: MarkerExtra): string {
-  const pending = report.resources.filter((r) => !isCovered(report, r));
-  const covered = report.resources.filter((r) => isCovered(report, r));
-  const chips = [...pending, ...covered]
-    .map((r) => {
-      const done = isCovered(report, r);
-      const style = done ? COVERED_CHIP : chipClass(r);
-      const label = `${done ? "✓ " : ""}${escapeHtml(r)}`;
-      return `<span class="inline-block rounded-full px-2 py-0.5 text-xs font-medium ${style}">${label}</span>`;
-    })
-    .join(" ");
-  const date = new Date(report.createdAt).toLocaleString("es-CO", {
+/**
+ * Los recursos de la zona, repartidos por categoría: doce chips seguidos no
+ * dicen si falta agua o falta herramienta. Dentro de cada bloque se respeta el
+ * orden que ya trae el grupo — pendientes primero, cubiertos al final.
+ */
+function resourcesHtml(group: ReportGroup): string {
+  const blocks = byCategory(group.resources, (resource) => resource.name).map((bucket) => {
+    const chips = bucket.items
+      .map(
+        (resource) =>
+          `<span class="inline-block ${chipStyle(resource.name, resource.covered)}">${escapeHtml(
+            chipLabel(resource.name, resource.covered),
+          )}</span>`,
+      )
+      .join(" ");
+    return `
+      <div>
+        <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">${escapeHtml(bucket.label)}</p>
+        <div class="mt-1 flex flex-wrap gap-1">${chips}</div>
+      </div>`;
+  });
+  return blocks.join("");
+}
+
+function popupHtml(group: ReportGroup, extra: MarkerExtra): string {
+  const lead = group.lead;
+  const date = new Date(lead.createdAt).toLocaleString("es-CO", {
     dateStyle: "medium",
     timeStyle: "short",
   });
-  const resolved = allCovered(report)
-    ? '<p class="text-xs font-medium text-emerald-700">Necesidades cubiertas</p>'
-    : "";
+  const resolved =
+    group.resources.length > 0 && group.pending === 0
+      ? '<p class="text-xs font-medium text-emerald-700">Necesidades cubiertas</p>'
+      : "";
 
-  const info = statusInfo(report.status);
+  // Sin esta línea, los recursos de tres reportes distintos aparecerían juntos
+  // sin explicación de por qué.
+  const count = group.reports.length;
+  const cuantos =
+    count > 1
+      ? `<p class="text-xs text-slate-500">${count} reportes en este punto</p>`
+      : "";
+
+  const info = statusInfo(group.status);
   // El estado encabeza el popup: antes de saber qué falta hay que saber si se
   // puede llegar.
   const kicker = `<span class="inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${info.chip}">${escapeHtml(info.aviso)}</span>`;
@@ -100,21 +118,30 @@ function popupHtml(report: Report, extra: MarkerExtra): string {
     ? `<p class="text-xs text-slate-600">«${escapeHtml(extra.lastUpdate)}»</p>`
     : "";
 
-  const note = report.note
-    ? `<p class="text-xs leading-snug text-slate-600">“${escapeHtml(report.note)}”</p>`
-    : "";
+  // Las notas y los contactos son de toda la zona, con el mismo tope de dos que
+  // usa la lista: más que eso convierte el popup en un muro.
+  const notes = group.reports
+    .filter((r) => r.note)
+    .slice(0, 2)
+    .map((r) => `<p class="text-xs leading-snug text-slate-600">“${escapeHtml(r.note as string)}”</p>`)
+    .join("");
 
   // Confirmar antes de desplazarse es el consejo que repite toda la página: sin
   // un botón para hacerlo, es un consejo sin salida.
-  const contacto = report.contactName ? contactHtml(report.contactName, report.contactPhone) : "";
+  const contacto = group.reports
+    .filter((r) => r.contactName)
+    .slice(0, 2)
+    .map((r) => contactHtml(r.contactName as string, r.contactPhone))
+    .join("");
 
   return `
     <div class="space-y-2">
       ${kicker}
-      <p class="text-sm font-semibold text-slate-900">${escapeHtml(report.name)}</p>
-      <div class="flex flex-wrap gap-1">${chips}</div>
+      <p class="text-sm font-semibold text-slate-900">${escapeHtml(lead.name)}</p>
+      ${cuantos}
+      <div class="space-y-2">${resourcesHtml(group)}</div>
       ${resolved}
-      ${note}
+      ${notes}
       ${lastUpdate}
       ${fresh}
       ${contacto}
@@ -198,28 +225,34 @@ export function hideDraft(): void {
  * Un solo atributo con la forma que toca, y no cinco clases que se pisan. La
  * precedencia entre estado, cubierto y urgencia vive en `status.ts`.
  */
-function paintEstado(marker: L.Marker, report: Report, extra: MarkerExtra): void {
+function paintEstado(marker: L.Marker, group: ReportGroup, extra: MarkerExtra): void {
   const el = marker.getElement();
   if (!el) return;
-  el.dataset.estado = markerEstado(report.status, allCovered(report));
+  const covered = group.resources.length > 0 && group.pending === 0;
+  el.dataset.estado = markerEstado(group.status, covered);
   el.classList.toggle("is-stale", extra.stale);
 }
 
-export function addMarker(report: Report, extra: MarkerExtra): L.Marker {
+/**
+ * Un marcador por reporte, pero el popup habla de la zona: dos reportes del
+ * mismo edificio son dos puntos encimados, y cada uno contando solo su pedazo
+ * de la necesidad no sirve de nada.
+ */
+export function addMarker(report: Report, group: ReportGroup, extra: MarkerExtra): L.Marker {
   const marker = L.marker([report.lat, report.lng], { icon: pulseIcon })
     .addTo(map)
-    .bindPopup(popupHtml(report, extra));
+    .bindPopup(popupHtml(group, extra));
   markers.set(report.id, marker);
-  paintEstado(marker, report, extra);
+  paintEstado(marker, group, extra);
   return marker;
 }
 
-/** Refresca el popup y la forma del marcador cuando cambia algo del reporte. */
-export function updateMarker(report: Report, extra: MarkerExtra): void {
+/** Refresca el popup y la forma del marcador cuando cambia algo de la zona. */
+export function updateMarker(report: Report, group: ReportGroup, extra: MarkerExtra): void {
   const marker = markers.get(report.id);
   if (!marker) return;
-  marker.setPopupContent(popupHtml(report, extra));
-  paintEstado(marker, report, extra);
+  marker.setPopupContent(popupHtml(group, extra));
+  paintEstado(marker, group, extra);
 }
 
 /** Inner wrapper of a marker — safe to animate, unlike the positioned root. */

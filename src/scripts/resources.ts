@@ -17,13 +17,7 @@ export const CATEGORIES: ResourceCategory[] = [
     // usan los `recibe` de los centros curados y los reportes ya guardados.
     id: "herramientas",
     label: "Protección personal",
-    items: [
-      "Guantes",
-      "Guantes de carnaza",
-      "Gafas",
-      "Tapabocas N95",
-      "Cascos",
-    ],
+    items: ["Guantes de construcción", "Gafas", "Tapabocas N95", "Cascos"],
     chip: "bg-amber-50 text-amber-800",
     chipOn: "border-amber-500 bg-amber-500 text-white",
   },
@@ -112,7 +106,7 @@ export const CATEGORIES: ResourceCategory[] = [
       "Transporte de insumos",
       "Operadores de máquinas pesadas",
       "Donantes de sangre",
-      "Ayuda en centros de acopio",
+      "Ayuda para organizar donaciones",
     ],
     chip: "bg-violet-50 text-violet-800",
     chipOn: "border-violet-600 bg-violet-600 text-white",
@@ -191,6 +185,41 @@ export function categoryChip(categoryId: string): string {
 
 export function categoryLabel(categoryId: string): string {
   return BY_ID.get(categoryId)?.label ?? categoryId;
+}
+
+export type CategoryBucket<T> = { id: string; label: string; items: T[] };
+
+/** Categoría de lo que alguien escribió a mano o quedó fuera del catálogo. */
+const OTHER_BUCKET = { id: "otros", label: "Otros" };
+
+/**
+ * Reparte recursos en sus categorías, en el orden de `CATEGORIES`, y deja al
+ * final lo que no está en el catálogo. Solo devuelve categorías con ítems: una
+ * zona pide cinco cosas, no las siete familias.
+ *
+ * Genérica a propósito — la llaman tanto con `string[]` como con los recursos
+ * agregados de una zona, que traen su propio estado de cubierto.
+ */
+export function byCategory<T>(
+  items: T[],
+  nameOf: (item: T) => string,
+): CategoryBucket<T>[] {
+  const buckets = new Map<string, T[]>();
+  for (const item of items) {
+    const id = BY_RESOURCE.get(nameOf(item))?.id ?? OTHER_BUCKET.id;
+    const bucket = buckets.get(id) ?? [];
+    bucket.push(item);
+    buckets.set(id, bucket);
+  }
+
+  const ordered = [...CATEGORIES, OTHER_BUCKET];
+  return ordered
+    .filter((category) => buckets.has(category.id))
+    .map((category) => ({
+      id: category.id,
+      label: category.label,
+      items: buckets.get(category.id) as T[],
+    }));
 }
 
 export function chipOnClass(categoryId: string | undefined): string {

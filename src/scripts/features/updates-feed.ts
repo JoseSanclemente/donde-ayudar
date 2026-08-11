@@ -3,7 +3,7 @@ import { getReports, onChange } from "../data/reports";
 import { isMine } from "../data/session";
 import { addUpdate, getUpdates, onUpdates, removeUpdate } from "../data/updates";
 import { flyTo } from "../map";
-import { collapseSheet } from "../sheet";
+import { closeSheet } from "../sheet";
 import { $, clearError, scheduleRender, showError } from "../ui/dom";
 import { paintTime } from "../ui/time";
 
@@ -98,7 +98,7 @@ export function initUpdatesFeed(): void {
           link.addEventListener("click", () => {
             const report = getReports().find((r) => r.id === update.reportId);
             if (!report) return;
-            collapseSheet();
+            closeSheet();
             void flyTo(report.lat, report.lng);
           });
           item.append(link);

@@ -54,38 +54,67 @@ const pausados = centros.filter(
         <AlertBanner />
       </header>
 
+      <!-- Cerrado, el sheet sale entero de la pantalla: mientras está abierto el
+           scrim atenúa el mapa y lo cierra al tocarlo. -->
+      <div
+        id="sheet-scrim"
+        hidden
+        class="fixed inset-0 z-[990] bg-slate-900/40 opacity-0 lg:hidden"
+      >
+      </div>
+
       <div
         id="sheet"
-        data-state="collapsed"
+        data-state="closed"
         data-tab="puntos"
         class="fixed inset-x-0 bottom-0 z-[1000] flex max-h-[86svh] flex-col rounded-t-2xl border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] lg:contents"
       >
         <div id="sheet-grab" class="shrink-0 select-none px-4 pb-2 pt-2.5 lg:hidden">
           <span class="mx-auto block h-1.5 w-10 rounded-full bg-slate-300"></span>
-          <div class="mt-2.5 flex gap-1.5" role="tablist">
+          <div class="mt-2.5 flex items-center gap-1.5">
+            <div class="flex min-w-0 flex-1 gap-1.5" role="tablist">
+              <button
+                type="button"
+                role="tab"
+                data-tab-btn="puntos"
+                class="flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition"
+              >
+                Puntos
+              </button>
+              <button
+                type="button"
+                role="tab"
+                data-tab-btn="novedades"
+                class="flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition"
+              >
+                Novedades
+              </button>
+              <button
+                type="button"
+                role="tab"
+                data-tab-btn="ayuda"
+                class="flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition"
+              >
+                Ayuda
+              </button>
+            </div>
             <button
               type="button"
-              role="tab"
-              data-tab-btn="puntos"
-              class="flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition"
+              id="sheet-close"
+              aria-label="Cerrar el panel"
+              class="shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
             >
-              Puntos
-            </button>
-            <button
-              type="button"
-              role="tab"
-              data-tab-btn="novedades"
-              class="flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition"
-            >
-              Novedades
-            </button>
-            <button
-              type="button"
-              role="tab"
-              data-tab-btn="ayuda"
-              class="flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition"
-            >
-              Ayuda
+              <svg
+                viewBox="0 0 20 20"
+                aria-hidden="true"
+                class="h-4 w-4"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+                stroke-linecap="round"
+              >
+                <path d="M5 5l10 10M15 5L5 15"></path>
+              </svg>
             </button>
           </div>
         </div>
@@ -143,6 +172,30 @@ const pausados = centros.filter(
     >
       <span aria-hidden="true" class="text-base leading-none">+</span>
       Realizar reporte
+    </button>
+
+    <!-- Con el sheet cerrado del todo, este es el único modo de volver a abrirlo
+         en móvil. En escritorio no existe: allá el panel es la barra lateral. -->
+    <button
+      type="button"
+      id="sheet-toggle"
+      hidden
+      aria-label="Abrir el panel de puntos y novedades"
+      aria-controls="sheet"
+      class="sheet-toggle fixed right-4 z-[1050] inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-lg transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 lg:hidden"
+    >
+      <svg
+        viewBox="0 0 20 20"
+        aria-hidden="true"
+        class="h-4 w-4"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+      >
+        <path d="M3 5h14M3 10h14M3 15h14"></path>
+      </svg>
+      Ver panel
     </button>
   </div>
 </Base>

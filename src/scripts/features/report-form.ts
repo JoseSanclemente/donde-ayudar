@@ -12,7 +12,7 @@ import {
   stopPicking,
 } from "../map";
 import { CATEGORIES, CHIP_OFF, chipClass, chipOnClass } from "../resources";
-import { closeReportPanel, collapseSheet, expandSheet } from "../sheet";
+import { closeReportPanel, closeSheet, openSheet } from "../sheet";
 import { isValidPhone } from "../ui/contact";
 import { $, clearError, showError } from "../ui/dom";
 
@@ -305,10 +305,10 @@ export function initReportForm(): void {
       setCoords({ lat: latlng.lat, lng: latlng.lng });
       resetPickButton();
       showNote("Punto fijado. Arrástralo si necesitas moverlo.");
-      expandSheet();
+      openSheet();
     });
-    // En móvil el sheet tapa el mapa: hay que bajarlo para poder señalar.
-    collapseSheet();
+    // En móvil el sheet tapa el mapa: hay que cerrarlo para poder señalar.
+    closeSheet();
   }
 
   function resetPickButton() {
@@ -401,10 +401,10 @@ export function initReportForm(): void {
     noteCount.textContent = "0";
     clearError(contactError);
 
-    // Bajar el sheet y cerrar el panel: lo que queda a la vista es el marcador
+    // Cerrar el sheet y el panel: lo que queda a la vista es el marcador
     // nuevo aterrizando, con el FAB de vuelta para el siguiente reporte.
     closeReportPanel();
-    collapseSheet();
+    closeSheet();
     await flyTo(report.lat, report.lng);
 
     if (!reduceMotion) {

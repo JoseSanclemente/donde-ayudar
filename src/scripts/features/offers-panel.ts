@@ -4,7 +4,7 @@ import { getReports, onChange } from "../data/reports";
 import { isMine } from "../data/session";
 import { flyTo } from "../map";
 import { categoryChip, categoryLabel } from "../resources";
-import { collapseSheet } from "../sheet";
+import { closeSheet } from "../sheet";
 import { CHIP_SHAPE } from "../ui/chips";
 import { isValidPhone, telUrl, whatsappUrl } from "../ui/contact";
 import { $, clearError, scheduleRender, showError } from "../ui/dom";
@@ -153,7 +153,7 @@ export function initOffersPanel(): void {
           link.addEventListener("click", () => {
             const report = getReports().find((r) => r.id === offer.reportId);
             if (!report) return;
-            collapseSheet();
+            closeSheet();
             void flyTo(report.lat, report.lng);
           });
           row.append(link);
