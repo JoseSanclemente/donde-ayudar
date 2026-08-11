@@ -1,0 +1,57 @@
+export function relativeTime(iso: string): string {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const minutes = Math.round(diffMs / 60000);
+  const formatter = new Intl.RelativeTimeFormat("es-CO", { numeric: "auto" });
+  if (Math.abs(minutes) < 60) return formatter.format(-minutes, "minute");
+  const hours = Math.round(minutes / 60);
+  if (Math.abs(hours) < 24) return formatter.format(-hours, "hour");
+  return formatter.format(-Math.round(hours / 24), "day");
+}
+
+/**
+ * A partir de acá el dato deja de ser confiable. Seis horas es una guardia
+ * completa: en una emergencia el sitio ya cambió de manos, de necesidades y a
+ * veces de estado sin que nadie lo haya tocado en la página.
+ */
+export const STALE_HOURS = 6;
+
+export function hoursSince(iso: string): number {
+  return (Date.now() - new Date(iso).getTime()) / 3_600_000;
+}
+
+export function isStale(iso: string): boolean {
+  return hoursSince(iso) >= STALE_HOURS;
+}
+
+/** La más reciente de varias fechas ISO. Ignora las vacías. */
+export function newestIso(...dates: Array<string | null | undefined>): string {
+  let best = "";
+  for (const date of dates) {
+    if (!date) continue;
+    if (!best || Date.parse(date) > Date.parse(best)) best = date;
+  }
+  return best;
+}
+
+/**
+ * Repinta los `[data-time]` cada minuto sin rearmar la lista. Un «hace 2
+ * minutos» que se queda congelado media hora es peor que no mostrar nada: dice
+ * que el dato está fresco cuando ya no lo está.
+ */
+export function startTimeTicker(): void {
+  setInterval(() => {
+    for (const el of document.querySelectorAll<HTMLElement>("[data-time]")) {
+      const iso = el.dataset.time;
+      if (!iso) continue;
+      const prefix = el.dataset.timePrefix ?? "";
+      el.textContent = `${prefix}${relativeTime(iso)}`;
+    }
+  }, 60_000);
+}
+
+/** Escribe la fecha en el elemento y lo deja marcado para el ticker. */
+export function paintTime(el: HTMLElement, iso: string, prefix = ""): void {
+  el.dataset.time = iso;
+  if (prefix) el.dataset.timePrefix = prefix;
+  el.textContent = `${prefix}${relativeTime(iso)}`;
+}

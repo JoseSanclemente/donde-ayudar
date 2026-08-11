@@ -2,6 +2,12 @@
   "name": "donde_ayudar_cali",
   "type": "module",
   "version": "0.0.1",
+  "description": "Mapa colaborativo de edificios afectados por el sismo en Cali, los recursos que necesitan y los puntos donde donar.",
+  "homepage": "https://donde-ayudar.netlify.app",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/JoseSanclemente/donde-ayudar.git"
+  },
   "engines": {
     "node": ">=22.12.0"
   },
@@ -11,7 +17,8 @@
     "preview": "astro preview",
     "astro": "astro",
     "geo:build": "node scripts/build-geo-index.mjs",
-    "geo:eval": "node scripts/eval-geo.mjs"
+    "geo:eval": "node scripts/eval-geo.mjs",
+    "og": "node scripts/build-og.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.112.3",
@@ -23,6 +30,7 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.10",
+    "@resvg/resvg-js": "^2.6.2",
     "@types/leaflet": "^1.9.22",
     "typescript": "^6.0.3"
   }

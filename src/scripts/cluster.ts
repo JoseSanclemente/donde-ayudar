@@ -1,4 +1,6 @@
-import type { Report } from "./store";
+import type { Report } from "./data/reports";
+import type { ReportStatus } from "./status";
+import { newestIso } from "./ui/time";
 
 export type GroupResource = {
   name: string;
@@ -17,7 +19,16 @@ export type ReportGroup = {
   pending: number;
   lat: number;
   lng: number;
+  /** Lo más reciente que se sabe de la zona: un reporte nuevo o un estado tocado. */
   latestAt: string;
+  /**
+   * Estado de la zona: el del reporte cuyo estado se tocó de último. No es el
+   * «peor» de los estados a propósito — «saturado» y «urgente» se contradicen,
+   * y en una emergencia gana lo último que alguien vio en la calle.
+   */
+  status: ReportStatus;
+  /** Ids que comparten ese estado — el alcance de un cambio desde la lista. */
+  reportIds: string[];
 };
 
 export const CLUSTER_RADIUS_M = 50;
@@ -58,6 +69,8 @@ export function groupReports(reports: Report[], radiusM = CLUSTER_RADIUS_M): Rep
         lat: report.lat,
         lng: report.lng,
         latestAt: report.createdAt,
+        status: report.status,
+        reportIds: [],
       });
   }
 
@@ -80,6 +93,18 @@ export function groupReports(reports: Report[], radiusM = CLUSTER_RADIUS_M): Rep
 
     const oldest = group.reports.reduce((a, b) => (a.createdAt <= b.createdAt ? a : b));
     group.key = oldest.id;
+
+    group.reportIds = group.reports.map((r) => r.id);
+
+    // `latestAt` se calcula acá y no al crear el grupo: el lead es el más nuevo
+    // por creación, pero el estado que se tocó hace un minuto puede ser el de
+    // un reporte viejo del mismo edificio.
+    group.latestAt = newestIso(
+      ...group.reports.map((r) => newestIso(r.createdAt, r.statusAt)),
+    );
+
+    const freshest = group.reports.reduce((a, b) => (a.statusAt >= b.statusAt ? a : b));
+    group.status = freshest.status;
   }
 
   return groups;

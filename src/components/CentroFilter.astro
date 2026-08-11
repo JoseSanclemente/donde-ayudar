@@ -1,18 +1,35 @@
 ---
-import { CATEGORIES, CHIP_OFF, chipOnClass, SANGRE_FILTER } from "../scripts/resources";
+import {
+  ALBERGUE_FILTER,
+  CATEGORIES,
+  CHIP_OFF,
+  chipOnClass,
+  SANGRE_FILTER,
+} from "../scripts/resources";
 
 interface Props {
-  /** Con ambos en 0 la tarjeta no se muestra. */
+  /** Con los tres en 0 la tarjeta no se muestra. */
   acopio: number;
   sangre: number;
+  albergues: number;
+  /** Puntos abiertos que no reciben por ahora. Van incluidos en su tipo. */
+  pausados?: number;
 }
 
-const { acopio, sangre } = Astro.props;
+const { acopio, sangre, albergues, pausados = 0 } = Astro.props;
 
 const partes = [
   acopio > 0 && `${acopio} centro${acopio === 1 ? "" : "s"} de acopio`,
   sangre > 0 && `${sangre} banco${sangre === 1 ? "" : "s"} de sangre`,
-].filter(Boolean);
+  albergues > 0 && `${albergues} albergue${albergues === 1 ? "" : "s"}`,
+].filter(Boolean) as string[];
+
+// Con tres partes un `join(" y ")` da «A y B y C»: la última va con «y», el
+// resto con comas.
+const listado =
+  partes.length > 1
+    ? `${partes.slice(0, -1).join(", ")} y ${partes[partes.length - 1]}`
+    : partes[0];
 ---
 
 {
@@ -25,8 +42,15 @@ const partes = [
         <div>
           <h2 class="text-base font-semibold text-slate-900">Dónde donar</h2>
           <p class="mt-1 text-sm text-slate-500">
-            {partes.join(" y ")}, verificados por el equipo.
+            {listado}, verificados por el equipo.
           </p>
+          {pausados > 0 && (
+            <p class="mt-1 text-xs font-medium text-amber-700">
+              {pausados === 1
+                ? "1 punto no recibe por ahora — sale en gris en el mapa."
+                : `${pausados} puntos no reciben por ahora — salen en gris en el mapa.`}
+            </p>
+          )}
         </div>
         <label class="flex shrink-0 cursor-pointer items-center gap-2 text-xs text-slate-600">
           <input
@@ -56,6 +80,16 @@ const partes = [
             class={CHIP_OFF}
           >
             Sangre
+          </button>
+        )}
+        {albergues > 0 && (
+          <button
+            type="button"
+            data-centro-filter={ALBERGUE_FILTER}
+            aria-pressed="false"
+            class={CHIP_OFF}
+          >
+            Albergues
           </button>
         )}
         {CATEGORIES.map((category) => (

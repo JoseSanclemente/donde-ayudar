@@ -1,12 +1,23 @@
 ---
 import "../styles/global.css";
+import {
+  OG_IMAGE,
+  OG_IMAGE_ALT,
+  SITE_DESCRIPTION,
+  SITE_NAME,
+} from "../consts";
 
 interface Props {
   title: string;
   description?: string;
 }
 
-const { title, description = "Mapa colaborativo de edificios afectados por el sismo en Cali y los recursos que necesitan." } = Astro.props;
+const { title, description = SITE_DESCRIPTION } = Astro.props;
+
+// Open Graph exige URLs absolutas: una ruta relativa la ignoran WhatsApp, X y
+// Facebook por igual. `Astro.site` sale de `site` en `astro.config.mjs`.
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const ogImage = new URL(OG_IMAGE, Astro.site);
 ---
 
 <!doctype html>
@@ -15,9 +26,34 @@ const { title, description = "Mapa colaborativo de edificios afectados por el si
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="generator" content={Astro.generator} />
-    <meta name="description" content={description} />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={canonical} />
+
+    <!-- El sitio circula sobre todo por WhatsApp: la tarjeta del enlace es,
+         en la práctica, la portada. -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content={SITE_NAME} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImage} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={OG_IMAGE_ALT} />
+    <meta property="og:locale" content="es_CO" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={ogImage} />
+    <meta name="twitter:image:alt" content={OG_IMAGE_ALT} />
+
+    <!-- El rojo del marcador de reporte (`.pulse-dot` en global.css). -->
+    <meta name="theme-color" content="#ef4444" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/site.webmanifest" />
   </head>
   <body class="min-h-screen overflow-hidden overscroll-none lg:overflow-auto lg:overscroll-auto">
     <slot />

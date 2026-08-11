@@ -1,13 +1,18 @@
 import L from "leaflet";
-import type { Report } from "./store";
-import type { Centro } from "./centros";
+import type { Report } from "./data/reports";
+import { recibeInsumos, type Centro } from "./centros";
 import {
+  ALBERGUE_FILTER,
   categoryChip,
   categoryLabel,
   chipClass,
   COVERED_CHIP,
   SANGRE_FILTER,
 } from "./resources";
+import { markerEstado, statusInfo } from "./status";
+import { telUrl, whatsappUrl } from "./ui/contact";
+import { directionsUrl, escapeHtml, NAV_ICON } from "./ui/html";
+import { relativeTime } from "./ui/time";
 
 export const CALI_CENTER: [number, number] = [3.4516, -76.532];
 
@@ -19,38 +24,28 @@ const pulseIcon = L.divIcon({
   className: "pulse-marker",
   // The outer marker element carries Leaflet's positioning transform, so the
   // inner wrapper is what GSAP animates — otherwise the two fight over it.
-  html: '<span class="pulse-inner"><span class="pulse-ring"></span><span class="pulse-dot"></span></span>',
+  //
+  // Los dos anillos van siempre en el HTML y el CSS decide cuáles se ven: el
+  // icono se crea una sola vez y se comparte entre todos los marcadores, así
+  // que la forma no puede depender del estado de un reporte concreto.
+  html: '<span class="pulse-inner"><span class="pulse-ring"></span><span class="pulse-ring pulse-ring-2"></span><span class="pulse-dot"></span></span>',
   iconSize: [18, 18],
   iconAnchor: [9, 9],
   popupAnchor: [0, -12],
 });
 
-function escapeHtml(value: string): string {
-  return value.replace(
-    /[&<>"']/g,
-    (c) =>
-      ({
-        "&": "&amp;",
-        "<": "&lt;",
-        ">": "&gt;",
-        '"': "&quot;",
-        "'": "&#39;",
-      })[c] as string,
-  );
-}
-
-// Flecha de navegación, inline porque el popup se arma como string y no puede
-// depender de un componente. `currentColor` hereda el texto del botón.
-const NAV_ICON = `<svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M21.4 2.6a1 1 0 0 0-1.1-.2l-17 7.4a1 1 0 0 0 .1 1.9l7.1 2.1 2.1 7.1a1 1 0 0 0 1.9.1l7.4-17a1 1 0 0 0-.5-1.4Z"/></svg>`;
-
 /**
- * Ruta en Google Maps hasta el punto exacto. Va por coordenadas y no por nombre
- * porque varias direcciones curadas son aproximadas ("Torre 2 piso 4") y una
- * búsqueda por texto aterrizaría en otra parte.
+ * Lo que el mapa necesita saber de un reporte y no vive en la fila: hace cuánto
+ * se sabe algo del punto y si eso ya quedó viejo. Llega por parámetro para que
+ * `map.ts` no tenga que importar los stores.
  */
-function directionsUrl(lat: number, lng: number): string {
-  return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
-}
+export type MarkerExtra = {
+  /** Lo más reciente que se sabe: creación, cambio de estado o novedad. */
+  freshAt: string;
+  /** Última novedad publicada sobre el punto, si hay. */
+  lastUpdate?: string;
+  stale: boolean;
+};
 
 function isCovered(report: Report, resource: string): boolean {
   return report.covered.includes(resource);
@@ -60,7 +55,21 @@ function allCovered(report: Report): boolean {
   return report.resources.length > 0 && report.resources.every((r) => isCovered(report, r));
 }
 
-function popupHtml(report: Report): string {
+/** Bloque de contacto del popup: nombre en texto y, si hay número, CTA a WhatsApp. */
+function contactHtml(name: string, phone: string | null): string {
+  const who = `<p class="text-xs text-slate-600">Contacto: ${escapeHtml(name)}</p>`;
+  if (!phone) return who;
+  const wa = whatsappUrl(phone);
+  return `
+    ${who}
+    <a
+      class="centro-cta flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold no-underline shadow-sm transition hover:bg-emerald-700"
+      href="${escapeHtml(wa ?? telUrl(phone))}"
+      ${wa ? 'target="_blank" rel="noopener noreferrer"' : ""}
+    >${escapeHtml(phone)} — confirma antes de ir</a>`;
+}
+
+function popupHtml(report: Report, extra: MarkerExtra): string {
   const pending = report.resources.filter((r) => !isCovered(report, r));
   const covered = report.resources.filter((r) => isCovered(report, r));
   const chips = [...pending, ...covered]
@@ -78,12 +87,38 @@ function popupHtml(report: Report): string {
   const resolved = allCovered(report)
     ? '<p class="text-xs font-medium text-emerald-700">Necesidades cubiertas</p>'
     : "";
+
+  const info = statusInfo(report.status);
+  // El estado encabeza el popup: antes de saber qué falta hay que saber si se
+  // puede llegar.
+  const kicker = `<span class="inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${info.chip}">${escapeHtml(info.aviso)}</span>`;
+
+  // Una hora fresca respalda el dato; una vieja advierte que ya no lo hace.
+  const fresh = `<p class="text-xs ${extra.stale ? "font-medium text-amber-700" : "text-slate-500"}">Actualizado ${escapeHtml(relativeTime(extra.freshAt))}${extra.stale ? " — confirma antes de ir" : ""}</p>`;
+
+  const lastUpdate = extra.lastUpdate
+    ? `<p class="text-xs text-slate-600">«${escapeHtml(extra.lastUpdate)}»</p>`
+    : "";
+
+  const note = report.note
+    ? `<p class="text-xs leading-snug text-slate-600">“${escapeHtml(report.note)}”</p>`
+    : "";
+
+  // Confirmar antes de desplazarse es el consejo que repite toda la página: sin
+  // un botón para hacerlo, es un consejo sin salida.
+  const contacto = report.contactName ? contactHtml(report.contactName, report.contactPhone) : "";
+
   return `
     <div class="space-y-2">
+      ${kicker}
       <p class="text-sm font-semibold text-slate-900">${escapeHtml(report.name)}</p>
       <div class="flex flex-wrap gap-1">${chips}</div>
       ${resolved}
-      <p class="text-xs text-slate-500">Reportado el ${escapeHtml(date)}</p>
+      ${note}
+      ${lastUpdate}
+      ${fresh}
+      ${contacto}
+      <p class="text-xs text-slate-400">Reportado el ${escapeHtml(date)}</p>
     </div>`;
 }
 
@@ -159,20 +194,32 @@ export function hideDraft(): void {
   draftHandler = null;
 }
 
-export function addMarker(report: Report): L.Marker {
+/**
+ * Un solo atributo con la forma que toca, y no cinco clases que se pisan. La
+ * precedencia entre estado, cubierto y urgencia vive en `status.ts`.
+ */
+function paintEstado(marker: L.Marker, report: Report, extra: MarkerExtra): void {
+  const el = marker.getElement();
+  if (!el) return;
+  el.dataset.estado = markerEstado(report.status, allCovered(report));
+  el.classList.toggle("is-stale", extra.stale);
+}
+
+export function addMarker(report: Report, extra: MarkerExtra): L.Marker {
   const marker = L.marker([report.lat, report.lng], { icon: pulseIcon })
     .addTo(map)
-    .bindPopup(popupHtml(report));
+    .bindPopup(popupHtml(report, extra));
   markers.set(report.id, marker);
+  paintEstado(marker, report, extra);
   return marker;
 }
 
-/** Refresca el popup y apaga el marcador cuando la zona ya está cubierta. */
-export function updateMarker(report: Report): void {
+/** Refresca el popup y la forma del marcador cuando cambia algo del reporte. */
+export function updateMarker(report: Report, extra: MarkerExtra): void {
   const marker = markers.get(report.id);
   if (!marker) return;
-  marker.setPopupContent(popupHtml(report));
-  marker.getElement()?.classList.toggle("is-covered", allCovered(report));
+  marker.setPopupContent(popupHtml(report, extra));
+  paintEstado(marker, report, extra);
 }
 
 /** Inner wrapper of a marker — safe to animate, unlike the positioned root. */
@@ -229,6 +276,17 @@ const centroIcon = L.divIcon({
   popupAnchor: [0, -10],
 });
 
+// Mismo cuadrado que un acopio, en gris y con barras de pausa: sigue siendo el
+// mismo sitio, solo que ahora mismo no recibe. Se queda en el mapa a propósito
+// — borrarlo dejaría sin explicación a quien ya lo vio ayer.
+const pausaIcon = L.divIcon({
+  className: "centro-marker",
+  html: '<span class="centro-pin" data-pausa></span>',
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
+  popupAnchor: [0, -10],
+});
+
 const sangreIcon = L.divIcon({
   className: "sangre-marker",
   html: '<span class="sangre-pin"></span>',
@@ -237,38 +295,94 @@ const sangreIcon = L.divIcon({
   popupAnchor: [0, -11],
 });
 
+// Casita ámbar: tercer tipo, tercera forma. Ni el cuadrado del acopio ni el
+// círculo del banco de sangre, para que se distinga también sin color.
+const albergueIcon = L.divIcon({
+  className: "albergue-marker",
+  html: '<span class="albergue-pin"></span>',
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
+  popupAnchor: [0, -12],
+});
+
+const alberguePausaIcon = L.divIcon({
+  className: "albergue-marker",
+  html: '<span class="albergue-pin" data-pausa></span>',
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
+  popupAnchor: [0, -12],
+});
+
+/** Icono por tipo con su variante en pausa. `sangre` no se pausa: no lleva par. */
+const ICON: Record<Centro["tipo"], { normal: L.DivIcon; pausa?: L.DivIcon }> = {
+  acopio: { normal: centroIcon, pausa: pausaIcon },
+  sangre: { normal: sangreIcon },
+  albergue: { normal: albergueIcon, pausa: alberguePausaIcon },
+};
+
+/** Un punto que recibe insumos y hoy no lo hace. Un banco de sangre nunca lo está. */
+function enPausa(centro: Centro): boolean {
+  return recibeInsumos(centro) && !centro.recibiendo;
+}
+
+/** Etiqueta y color del kicker por tipo. Un cuarto tipo es una entrada más. */
+const KICKER: Record<Centro["tipo"], { label: string; color: string }> = {
+  acopio: { label: "Centro de acopio", color: "text-indigo-700" },
+  sangre: { label: "Banco de sangre", color: "text-rose-700" },
+  albergue: { label: "Albergue", color: "text-amber-700" },
+};
+
 function centroPopupHtml(centro: Centro): string {
-  const sangre = centro.tipo === "sangre";
-  const chips = sangre
-    ? ""
-    : centro.recibe
+  const pausa = enPausa(centro);
+  // En pausa los chips van tachados, con el mismo `COVERED_CHIP` de un recurso
+  // ya cubierto: sigue siendo lo que ese centro recibe, pero no ahora.
+  const chips = recibeInsumos(centro)
+    ? centro.recibe
         .map(
           (id) =>
-            `<span class="inline-block rounded-full px-2 py-0.5 text-xs font-medium ${categoryChip(
-              id,
-            )}">${escapeHtml(categoryLabel(id))}</span>`,
+            `<span class="inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+              pausa ? COVERED_CHIP : categoryChip(id)
+            }">${escapeHtml(categoryLabel(id))}</span>`,
         )
-        .join(" ");
+        .join(" ")
+    : "";
   const telefono = centro.telefono
     ? `<p class="text-xs text-slate-600">Tel. ${escapeHtml(centro.telefono)}</p>`
     : "";
   const notas = centro.notas
     ? `<p class="text-xs text-slate-500">${escapeHtml(centro.notas)}</p>`
     : "";
-  const kicker = sangre
-    ? '<p class="text-xs font-semibold uppercase tracking-wide text-rose-700">Banco de sangre</p>'
-    : '<p class="text-xs font-semibold uppercase tracking-wide text-indigo-700">Centro de acopio</p>';
+  // El estado va en el kicker y no solo en el color del pin: quien abre el popup
+  // tiene que leerlo antes que la dirección.
+  const { label, color } = KICKER[centro.tipo];
+  const kicker = pausa
+    ? `<p class="text-xs font-semibold uppercase tracking-wide text-slate-500">${label} · No recibe por ahora</p>`
+    : `<p class="text-xs font-semibold uppercase tracking-wide ${color}">${label}</p>`;
+  const notaEstado =
+    recibeInsumos(centro) && centro.nota_estado
+      ? `<p class="text-xs text-slate-600">${escapeHtml(centro.nota_estado)}</p>`
+      : "";
+  // Mismo ámbar que el aviso de un reporte viejo: "existe, pero no te desplaces".
+  const aviso = pausa
+    ? `<p class="text-xs font-medium text-amber-700">No recibe donaciones por ahora</p>${notaEstado}`
+    : "";
+  // En pausa el CTA deja de ser el azul sólido: sigue disponible para quien
+  // quiera ubicarlo, pero no invita al viaje.
+  const ctaClass = pausa
+    ? "centro-cta centro-cta-quiet mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold no-underline transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300"
+    : "centro-cta mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold no-underline shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300";
   return `
     <div class="space-y-2">
       ${kicker}
       <p class="text-sm font-semibold text-slate-900">${escapeHtml(centro.name)}</p>
+      ${aviso}
       <p class="text-xs text-slate-600">${escapeHtml(centro.direccion)}</p>
       <p class="text-xs text-slate-600">${escapeHtml(centro.horario)}</p>
       ${chips ? `<div class="flex flex-wrap gap-1">${chips}</div>` : ""}
       ${telefono}
       ${notas}
       <a
-        class="centro-cta mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold no-underline shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300"
+        class="${ctaClass}"
         href="${directionsUrl(centro.lat, centro.lng)}"
         target="_blank"
         rel="noopener noreferrer"
@@ -276,12 +390,14 @@ function centroPopupHtml(centro: Centro): string {
     </div>`;
 }
 
-// `SANGRE_FILTER` es un valor reservado del filtro, no un id de `CATEGORIES`:
-// filtra por tipo de punto, mientras que los demás filtran por qué se recibe.
+// `SANGRE_FILTER` y `ALBERGUE_FILTER` son valores reservados del filtro, no ids de
+// `CATEGORIES`: filtran por tipo de punto, mientras que los demás filtran por qué
+// se recibe — y por eso alcanzan a acopios y albergues por igual.
 function matchesFilter(centro: Centro): boolean {
   if (centroFilter === null) return true;
   if (centroFilter === SANGRE_FILTER) return centro.tipo === "sangre";
-  return centro.tipo === "acopio" && centro.recibe.includes(centroFilter);
+  if (centroFilter === ALBERGUE_FILTER) return centro.tipo === "albergue";
+  return recibeInsumos(centro) && centro.recibe.includes(centroFilter);
 }
 
 /** Repuebla la capa. Devuelve cuántos centros quedaron visibles. */
@@ -300,8 +416,13 @@ function applyCentros(): number {
 export function setCentros(list: Centro[]): number {
   centros.length = 0;
   for (const data of list) {
+    // El estado es dato de build y no cambia en runtime, así que el icono se
+    // elige una sola vez acá — no hace falta repintar el DOM en `applyCentros`
+    // como con `paintEstado` de los reportes.
+    const { normal, pausa } = ICON[data.tipo];
+    const icon = enPausa(data) && pausa ? pausa : normal;
     const marker = L.marker([data.lat, data.lng], {
-      icon: data.tipo === "sangre" ? sangreIcon : centroIcon,
+      icon,
       zIndexOffset: -500,
     }).bindPopup(centroPopupHtml(data));
     centros.push({ data, marker });

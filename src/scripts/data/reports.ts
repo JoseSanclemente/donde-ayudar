@@ -1,4 +1,9 @@
-import { MISSING_ENV_MESSAGE, supabase } from "./supabase";
+import { MISSING_ENV_MESSAGE, supabase } from "../supabase";
+import { createEmitter } from "./emitter";
+import { errorMessage, reportError } from "./errors";
+import { bindTable, type RealtimePayload } from "./live";
+import { getUserId } from "./session";
+import { isStatus, type ReportStatus } from "../status";
 
 export type Report = {
   id: string;
@@ -8,6 +13,15 @@ export type Report = {
   resources: string[];
   /** Subconjunto de `resources` que la zona ya no necesita. */
   covered: string[];
+  /** Condición del sitio. Comunitaria: la cambia cualquiera, vía RPC. */
+  status: ReportStatus;
+  /** Cuándo se tocó el estado — la mitad de «actualizado hace X». */
+  statusAt: string;
+  /** Lo que no cabe en el catálogo: «NO más agua, sí bebidas hidratantes». */
+  note: string | null;
+  /** Contacto público y opcional, para confirmar antes de desplazarse. */
+  contactName: string | null;
+  contactPhone: string | null;
   createdAt: string;
   /** Dueño del reporte. Solo él puede borrarlo (policy de RLS). */
   userId: string;
@@ -22,8 +36,18 @@ type Row = {
   lng: number;
   resources: string[];
   covered: string[] | null;
+  status: string | null;
+  status_at: string | null;
+  note: string | null;
+  contact_name: string | null;
+  contact_phone: string | null;
   created_at: string;
 };
+
+/** Cadena no vacía, o `null`. Las columnas opcionales llegan de las dos formas. */
+function text(value: unknown): string | null {
+  return typeof value === "string" && value.trim() !== "" ? value : null;
+}
 
 export type StoreState = "loading" | "ready" | "error";
 
@@ -36,31 +60,21 @@ const TABLE = "reports";
 // Caché en memoria: es la única fuente que lee la UI, así que `getReports()`
 // sigue siendo síncrono y el render no tiene que esperar a la red.
 let cache: Report[] = [];
-let userId: string | null = null;
 let state: StoreState = "loading";
 let stateMessage: string | null = null;
 
-type Listener = (reports: Report[]) => void;
-type StateListener = (state: StoreState, message: string | null) => void;
-type ErrorListener = (message: string) => void;
-
-const listeners = new Set<Listener>();
-const stateListeners = new Set<StateListener>();
-const errorListeners = new Set<ErrorListener>();
+const changes = createEmitter<Report[]>();
+const states = createEmitter<{ state: StoreState; message: string | null }>();
 
 function emit(): void {
-  for (const listener of listeners) listener(cache);
+  changes.emit(cache);
 }
 
-function setState(next: StoreState, message: string | null = null): void {
+/** La expone el arranque (`data/boot.ts`) para marcar carga, listo o error. */
+export function setReportsState(next: StoreState, message: string | null = null): void {
   state = next;
   stateMessage = message;
-  for (const listener of stateListeners) listener(state, stateMessage);
-}
-
-/** Fallo de una escritura puntual, con la caché ya revertida. */
-function reportError(message: string): void {
-  for (const listener of errorListeners) listener(message);
+  states.emit({ state, message: stateMessage });
 }
 
 /* ------------------------------------------------------------------ */
@@ -83,6 +97,9 @@ function isRow(value: unknown): value is Row {
   );
 }
 
+// Los campos nuevos caen a un valor por defecto en vez de invalidar la fila:
+// un reporte insertado por una versión anterior del cliente no puede
+// desaparecer del mapa de los demás. Por eso `isRow` tampoco los exige.
 function fromRow(row: Row): Report {
   return {
     id: row.id,
@@ -93,14 +110,19 @@ function fromRow(row: Row): Report {
     covered: Array.isArray(row.covered)
       ? row.covered.filter((r): r is string => typeof r === "string")
       : [],
+    status: isStatus(row.status) ? row.status : "activo",
+    statusAt: typeof row.status_at === "string" ? row.status_at : row.created_at,
+    note: text(row.note),
+    contactName: text(row.contact_name),
+    contactPhone: text(row.contact_phone),
     createdAt: row.created_at,
     userId: row.user_id,
   };
 }
 
-// `created_at` no se manda: lo pone el servidor. Un reloj mal puesto en el
-// navegador desordenaría la lista para todo el mundo.
-function toInsert(report: Report): Omit<Row, "created_at"> {
+// `created_at` y `status_at` no se mandan: los pone el servidor. Un reloj mal
+// puesto en el navegador desordenaría la lista para todo el mundo.
+function toInsert(report: Report): Omit<Row, "created_at" | "status_at"> {
   return {
     id: report.id,
     user_id: report.userId,
@@ -109,14 +131,18 @@ function toInsert(report: Report): Omit<Row, "created_at"> {
     lng: report.lng,
     resources: report.resources,
     covered: report.covered,
+    status: report.status,
+    note: report.note,
+    contact_name: report.contactName,
+    // El CHECK de la base rechaza un teléfono sin nombre: sin saber por quién
+    // preguntar, el número no le sirve a nadie.
+    contact_phone: report.contactName ? report.contactPhone : null,
   };
 }
 
 /** Más reciente primero — el orden que asume `groupReports`. */
 function sorted(reports: Report[]): Report[] {
-  return [...reports].sort(
-    (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
-  );
+  return [...reports].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
 }
 
 /* ------------------------------------------------------------------ */
@@ -125,15 +151,6 @@ function sorted(reports: Report[]): Report[] {
 
 export function getReports(): Report[] {
   return cache;
-}
-
-/** `null` mientras no haya sesión anónima. */
-export function getUserId(): string | null {
-  return userId;
-}
-
-export function isMine(report: Report): boolean {
-  return userId !== null && report.userId === userId;
 }
 
 export function getState(): { state: StoreState; message: string | null } {
@@ -145,14 +162,16 @@ export function getState(): { state: StoreState; message: string | null } {
 /* ------------------------------------------------------------------ */
 
 export function addReport(
-  input: Omit<Report, "id" | "createdAt" | "covered" | "userId">,
+  input: Omit<Report, "id" | "createdAt" | "statusAt" | "covered" | "userId">,
 ): Report {
+  const now = new Date().toISOString();
   const report: Report = {
     ...input,
     covered: [],
     id: crypto.randomUUID(),
-    createdAt: new Date().toISOString(),
-    userId: userId ?? "",
+    createdAt: now,
+    statusAt: now,
+    userId: getUserId() ?? "",
   };
   cache = [report, ...cache];
   emit();
@@ -166,7 +185,7 @@ async function pushReport(report: Report): Promise<void> {
     reportError(MISSING_ENV_MESSAGE);
     return;
   }
-  if (!userId) {
+  if (!getUserId()) {
     dropLocally(report.id);
     reportError("Aún no hay sesión. Recarga la página e inténtalo de nuevo.");
     return;
@@ -182,7 +201,12 @@ async function pushReport(report: Report): Promise<void> {
 
   if (error || !isRow(data)) {
     dropLocally(report.id);
-    reportError("No se pudo guardar el reporte. Revisa la conexión e inténtalo de nuevo.");
+    reportError(
+      errorMessage(
+        error,
+        "No se pudo guardar el reporte. Revisa la conexión e inténtalo de nuevo.",
+      ),
+    );
     return;
   }
 
@@ -233,40 +257,67 @@ export function setResourceCovered(ids: string[], resource: string, covered: boo
       p_covered: covered,
     });
     if (!error) return;
-    reportError("No se pudo actualizar el estado del recurso.");
-    // Volver a la verdad del servidor: el toggle local ya no vale.
-    try {
-      await refresh();
-    } catch {
-      setState("error", "No se pudieron cargar los reportes. Revisa la conexión.");
-    }
+    reportError(errorMessage(error, "No se pudo actualizar el estado del recurso."));
+    await resync();
   })();
+}
+
+/**
+ * Cambia el estado de todos los reportes de una zona a la vez.
+ *
+ * Comunitario, igual que «cubierto»: quien pasa por el punto sabe si está lleno
+ * o si ya no reciben, y quien lo reportó hace tres horas ya no está ahí. El
+ * riesgo de que alguien cierre un punto ajeno se acota en otro lado — el punto
+ * no desaparece del mapa, solo cambia de forma y entra al banner, así que un
+ * cierre falso es más visible, no menos.
+ */
+export function setReportStatus(ids: string[], status: ReportStatus): void {
+  const target = new Set(ids);
+  const now = new Date().toISOString();
+  cache = cache.map((report) =>
+    target.has(report.id) && report.status !== status
+      ? { ...report, status, statusAt: now }
+      : report,
+  );
+  emit();
+
+  void (async () => {
+    if (!supabase) return;
+    const { error } = await supabase.rpc("set_report_status", {
+      p_ids: ids,
+      p_status: status,
+    });
+    if (!error) return;
+    reportError(errorMessage(error, "No se pudo actualizar el estado del punto."));
+    await resync();
+  })();
+}
+
+/** Volver a la verdad del servidor: el cambio local optimista ya no vale. */
+async function resync(): Promise<void> {
+  try {
+    await loadReports();
+  } catch {
+    setReportsState("error", "No se pudieron cargar los reportes. Revisa la conexión.");
+  }
 }
 
 /* ------------------------------------------------------------------ */
 /* Suscripción                                                         */
 /* ------------------------------------------------------------------ */
 
-export function onChange(cb: Listener): () => void {
-  listeners.add(cb);
-  return () => listeners.delete(cb);
-}
+export const onChange = changes.on;
 
-export function onState(cb: StateListener): () => void {
-  stateListeners.add(cb);
-  return () => stateListeners.delete(cb);
-}
-
-export function onError(cb: ErrorListener): () => void {
-  errorListeners.add(cb);
-  return () => errorListeners.delete(cb);
+export function onState(cb: (state: StoreState, message: string | null) => void): () => void {
+  return states.on(({ state: next, message }) => cb(next, message));
 }
 
 /* ------------------------------------------------------------------ */
 /* Arranque                                                            */
 /* ------------------------------------------------------------------ */
 
-async function refresh(): Promise<void> {
+/** Carga inicial desde el servidor. Lanza: el arranque decide qué mostrar. */
+export async function loadReports(): Promise<void> {
   if (!supabase) return;
   const { data, error } = await supabase
     .from(TABLE)
@@ -277,11 +328,7 @@ async function refresh(): Promise<void> {
   emit();
 }
 
-function applyRealtime(payload: {
-  eventType: string;
-  new: unknown;
-  old: unknown;
-}): void {
+function applyRealtime(payload: RealtimePayload): void {
   if (payload.eventType === "DELETE") {
     // RLS no aplica a los DELETE de realtime: llega solo la primary key, que es
     // justo lo que hace falta para quitar el marcador.
@@ -299,35 +346,4 @@ function applyRealtime(payload: {
   emit();
 }
 
-function subscribe(): void {
-  supabase
-    ?.channel("reports")
-    .on("postgres_changes", { event: "*", schema: "public", table: TABLE }, applyRealtime)
-    .subscribe();
-}
-
-/** Sesión anónima + carga inicial + realtime. Se llama una vez, en el boot. */
-export async function initStore(): Promise<void> {
-  if (!supabase) {
-    setState("error", MISSING_ENV_MESSAGE);
-    return;
-  }
-  setState("loading");
-  try {
-    // Una sesión anónima por navegador: da el `uid` que las policies usan para
-    // decidir quién puede borrar qué. No pide correo ni contraseña.
-    const { data: sessionData } = await supabase.auth.getSession();
-    userId = sessionData.session?.user.id ?? null;
-    if (!userId) {
-      const { data, error } = await supabase.auth.signInAnonymously();
-      if (error) throw error;
-      userId = data.user?.id ?? null;
-    }
-
-    await refresh();
-    subscribe();
-    setState("ready");
-  } catch {
-    setState("error", "No se pudieron cargar los reportes. Revisa la conexión.");
-  }
-}
+bindTable(TABLE, applyRealtime);

@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Escrito a mano, sin @astrojs/sitemap: el sitio tiene una sola ruta
+  (src/pages/index.astro). Si algún día aparece una segunda página, cambiar
+  este archivo por la integración.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://donde-ayudar.netlify.app/</loc>
+    <changefreq>hourly</changefreq>
+    <priority>1.0</priority>
+  </url>
+</urlset>

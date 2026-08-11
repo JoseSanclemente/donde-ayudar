@@ -4,6 +4,6 @@ name: Escuela Nacional del Deporte
 direccion: "Cll 9 # 34 - 01, Eucarístico, Cali, Valle"
 lat: 3.426460467304358
 lng: -76.53700594023968
-horario: Por confirmar
-recibe: [alimentos, salud, bebes, herramientas, voluntarios]
+horario: ""
+recibe: [logistica, salud, bebes, herramientas, voluntarios]
 activo: true

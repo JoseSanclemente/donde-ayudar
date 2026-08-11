@@ -10,7 +10,7 @@ donación** curados en este repositorio.
 ## Dos tipos de datos
 
 **Reportes.** Cualquiera los crea desde el formulario. Viven en Supabase
-(`supabase/schema.sql`, cliente en `src/scripts/store.ts`) y son públicos: todo el mundo
+(`supabase/schema.sql`, cliente en `src/scripts/data/`) y son públicos: todo el mundo
 ve todos los reportes, en tiempo real. Cada visitante recibe una sesión anónima de
 Supabase, y las policies de RLS dejan que cada quien borre solo los suyos. Marcar un
 recurso como cubierto es comunal y pasa por el RPC `set_resource_covered`, que no toca
@@ -18,9 +18,10 @@ ninguna otra columna. El sitio sigue siendo estático: el navegador habla direct
 Supabase usando la anon key.
 
 **Puntos de donación.** Curados. Son archivos YAML en `src/content/centros/`, validados
-en tiempo de build por `src/content.config.ts`. Hay dos clases, separadas por el
-discriminador `tipo`: `acopio` (centros de acopio, llevan `recibe`) y `sangre` (bancos
-de sangre, sin `recibe`).
+en tiempo de build por `src/content.config.ts`. Hay tres clases, separadas por el
+discriminador `tipo`: `acopio` (centros de acopio) y `albergue` (albergues) llevan
+`recibe` y se pueden pausar con `recibiendo: false`; `sangre` (bancos de sangre) no lleva
+ninguno de los dos.
 
 Como el sitio es estático, un visitante no tiene forma de escribir uno: tener acceso de
 escritura al repositorio es el único "permiso de administrador" del proyecto. Para
@@ -86,12 +87,23 @@ primeros funcionan sin red.
 | :--------------- | :----------------------------------------------------------------- |
 | `pnpm geo:build` | Regenera `public/geo/` desde OpenStreetMap (~2 min, necesita red)   |
 | `pnpm geo:eval`  | Mide la precisión del geocodificador y falla si baja del listón     |
+| `pnpm og`        | Regenera `public/og.png` y los iconos del manifest                  |
 
 `geo:build` consulta la API de Overpass y **no** corre como parte de `pnpm build`: los
 índices de `public/geo/` están versionados en el repositorio, así que el sitio funciona
 recién clonado.
 
+`og` tampoco corre en el build, por otra razón: rasteriza texto con las fuentes del
+sistema, y las del contenedor de Netlify no son las de un escritorio. Se ejecuta a mano,
+se revisa el PNG con los ojos y el resultado se commitea.
+
 ## Despliegue
+
+En producción: **https://donde-ayudar.netlify.app**
+
+El dominio está escrito en tres lugares y los tres tienen que coincidir:
+`src/consts.ts` (`SITE_URL`), `astro.config.mjs` (`site`, que es lo que hace absolutas
+las URLs de Open Graph) y `public/robots.txt` + `public/sitemap.xml`.
 
 `netlify.toml` deja listo el despliegue en Netlify: `pnpm build` → `dist`, Node 22.12 y
 las cabeceras de seguridad (CSP que solo permite Supabase, las teselas de CARTO y

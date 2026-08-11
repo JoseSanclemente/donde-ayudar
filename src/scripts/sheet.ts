@@ -19,6 +19,8 @@ const TAP_SLOP = 6;
 
 let sheet: HTMLDivElement;
 let grab: HTMLDivElement;
+let fab: HTMLButtonElement | null = null;
+let tabs: HTMLButtonElement[] = [];
 let collapsedY = 0;
 
 export function isMobile(): boolean {
@@ -30,12 +32,23 @@ function getState(): State {
 }
 
 function measure() {
+  const peek = grab.offsetHeight + PEEK_CONTENT;
   // El sheet nunca se desplaza más allá de dejar solo el peek a la vista.
-  collapsedY = Math.max(0, sheet.offsetHeight - (grab.offsetHeight + PEEK_CONTENT));
+  collapsedY = Math.max(0, sheet.offsetHeight - peek);
+  // El FAB se apoya sobre el peek, y el peek cambia con el alto del handle: un
+  // valor fijo en CSS lo dejaba tapado en cuanto el sheet crecía.
+  document.documentElement.style.setProperty("--peek", `${peek}px`);
+}
+
+/** El FAB estorba con el sheet arriba y ni se vería: solo vive con él abajo. */
+function paintFab() {
+  if (!fab) return;
+  fab.hidden = sheet.dataset.tab === "reportar" || (isMobile() && getState() === "expanded");
 }
 
 function moveTo(state: State, animate = true) {
   sheet.dataset.state = state;
+  paintFab();
   const y = state === "expanded" ? 0 : collapsedY;
   if (!animate || reduceMotion) {
     gsap.set(sheet, { y });
@@ -54,6 +67,46 @@ export function collapseSheet(): void {
   moveTo("collapsed");
 }
 
+// El pill activo se marca acá y no en CSS: una regla por pestaña obliga a tocar
+// el stylesheet cada vez que se agrega una, y `aria-selected` además es lo que
+// anuncia el lector de pantalla.
+function paintTabs() {
+  for (const button of tabs) {
+    button.setAttribute("aria-selected", String(button.dataset.tabBtn === sheet.dataset.tab));
+  }
+  paintFab();
+}
+
+/**
+ * Cambia de panel. En móvil el panel es exclusivo, así que abrir uno sube el
+ * sheet; `expand: false` cambia de panel sin tocar la posición — es lo que hace
+ * falta al cerrar el formulario después de enviarlo, con el sheet ya abajo.
+ */
+function showTab(tab: string, expand = true) {
+  sheet.dataset.tab = tab;
+  paintTabs();
+  if (!isMobile()) return;
+  measure();
+  if (expand) moveTo("expanded");
+  else if (getState() === "collapsed") gsap.set(sheet, { y: collapsedY });
+}
+
+export function openReportPanel(): void {
+  showTab("reportar");
+  if (isMobile()) return;
+  // En escritorio el formulario aparece como una tarjeta más de la barra
+  // lateral: si el scroll está abajo, abrirlo sin llevarlo a la vista no se ve.
+  document.getElementById("form-card")?.scrollIntoView({ block: "start", behavior: "smooth" });
+  document.getElementById("name")?.focus();
+}
+
+export function closeReportPanel(): void {
+  if (sheet.dataset.tab !== "reportar") return;
+  // Sin expandir: cerrar no es abrir otro panel, y al enviar el reporte el sheet
+  // ya va camino abajo para dejar ver el marcador.
+  showTab("puntos", false);
+}
+
 function toggle() {
   if (getState() === "expanded") moveTo("collapsed");
   else moveTo("expanded");
@@ -67,6 +120,7 @@ function applyBreakpoint() {
     measure();
     moveTo(getState(), false);
   }
+  paintFab();
   refreshSize();
 }
 
@@ -135,13 +189,20 @@ export function initSheet(): void {
   grab = document.getElementById("sheet-grab") as HTMLDivElement;
   if (!sheet || !grab) return;
 
-  for (const button of grab.querySelectorAll<HTMLButtonElement>("[data-tab-btn]")) {
-    button.addEventListener("click", () => {
-      sheet.dataset.tab = button.dataset.tabBtn;
-      measure();
-      moveTo("expanded");
-    });
+  fab = document.getElementById("fab-report") as HTMLButtonElement | null;
+  tabs = [...grab.querySelectorAll<HTMLButtonElement>("[data-tab-btn]")];
+
+  for (const button of tabs) {
+    button.addEventListener("click", () => showTab(button.dataset.tabBtn as string));
   }
+
+  fab?.addEventListener("click", openReportPanel);
+  document.getElementById("close-report")?.addEventListener("click", closeReportPanel);
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") closeReportPanel();
+  });
+
+  paintTabs();
 
   initDrag();
 

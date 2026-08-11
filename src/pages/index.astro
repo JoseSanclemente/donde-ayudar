@@ -1,20 +1,32 @@
 ---
 import { getCollection } from "astro:content";
 import Base from "../layouts/Base.astro";
+import AlertBanner from "../components/AlertBanner.astro";
 import CentroFilter from "../components/CentroFilter.astro";
 import ReportForm from "../components/ReportForm.astro";
 import ReportList from "../components/ReportList.astro";
+import OffersPanel from "../components/OffersPanel.astro";
+import UpdatesFeed from "../components/UpdatesFeed.astro";
+import { SITE_NAME, SITE_TITLE } from "../consts";
 
 // Los centros de acopio son datos de build (ver src/content/centros/README.md):
 // se resuelven acá y viajan al cliente embebidos en el HTML, no por fetch.
 const centros = (await getCollection("centros", ({ data }) => data.activo)).map(
   ({ id, data }) => ({ id, ...data }),
 );
+// Un conteo por tipo, cada uno con su filtro: restar del total metía los
+// albergues en la cuenta de bancos de sangre.
 const acopio = centros.filter((centro) => centro.tipo === "acopio").length;
-const sangre = centros.length - acopio;
+const sangre = centros.filter((centro) => centro.tipo === "sangre").length;
+const albergues = centros.filter((centro) => centro.tipo === "albergue").length;
+// Un punto en pausa sigue contando en su tipo: está abierto, solo que hoy no
+// recibe. El conteo aparte evita que el estado solo se descubra al abrir un pin.
+const pausados = centros.filter(
+  (centro) => centro.tipo !== "sangre" && !centro.recibiendo,
+).length;
 ---
 
-<Base title="Dónde Ayudar Cali — Edificios afectados por el sismo">
+<Base title={SITE_TITLE}>
   <div class="mx-auto max-w-[1600px] lg:flex lg:h-screen lg:overflow-hidden">
     <!-- Panel lateral (en móvil: header flotante + bottom sheet) -->
     <div
@@ -33,35 +45,47 @@ const sangre = centros.length - acopio;
           Emergencia sismo — Cali
         </p>
         <h1 class="mt-2 text-lg font-bold tracking-tight text-slate-900 lg:mt-3 lg:text-2xl">
-          Dónde Ayudar Cali
+          {SITE_NAME}
         </h1>
         <p class="mt-1 hidden text-sm text-slate-600 lg:block">
           Mapa colaborativo de edificios afectados y los recursos que necesitan.
         </p>
+
+        <AlertBanner />
       </header>
 
       <div
         id="sheet"
         data-state="collapsed"
-        data-tab="form"
+        data-tab="puntos"
         class="fixed inset-x-0 bottom-0 z-[1000] flex max-h-[86svh] flex-col rounded-t-2xl border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] lg:contents"
       >
         <div id="sheet-grab" class="shrink-0 select-none px-4 pb-2 pt-2.5 lg:hidden">
           <span class="mx-auto block h-1.5 w-10 rounded-full bg-slate-300"></span>
-          <div class="mt-2.5 flex gap-2">
+          <div class="mt-2.5 flex gap-1.5" role="tablist">
             <button
               type="button"
-              data-tab-btn="form"
-              class="flex-1 rounded-lg px-3 py-1.5 text-sm font-semibold transition"
+              role="tab"
+              data-tab-btn="puntos"
+              class="flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition"
             >
-              Reportar
+              Puntos
             </button>
             <button
               type="button"
-              data-tab-btn="list"
-              class="flex-1 rounded-lg px-3 py-1.5 text-sm font-semibold transition"
+              role="tab"
+              data-tab-btn="novedades"
+              class="flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition"
             >
-              Reportes
+              Novedades
+            </button>
+            <button
+              type="button"
+              role="tab"
+              data-tab-btn="ayuda"
+              class="flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition"
+            >
+              Ayuda
             </button>
           </div>
         </div>
@@ -70,15 +94,30 @@ const sangre = centros.length - acopio;
           id="sheet-body"
           class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain px-4 pb-4 lg:contents"
         >
-          <CentroFilter acopio={acopio} sangre={sangre} />
+          <div id="form-card" data-tab-panel="reportar"><ReportForm /></div>
 
-          <div id="form-card"><ReportForm /></div>
-          <div id="list-card"><ReportList /></div>
+          <!-- «Puntos» es un panel con dos tarjetas: la lista de edificios y
+               dónde donar. En escritorio el sheet es `display: contents`, así
+               que el `contents` de acá deja que las dos tarjetas se apilen
+               igual que antes en la barra lateral. -->
+          <div id="list-card" data-tab-panel="puntos" class="space-y-5 lg:contents">
+            <ReportList />
+            <CentroFilter
+              acopio={acopio}
+              sangre={sangre}
+              albergues={albergues}
+              pausados={pausados}
+            />
+          </div>
+
+          <div data-tab-panel="novedades"><UpdatesFeed /></div>
+
+          <div id="offers-card" data-tab-panel="ayuda"><OffersPanel /></div>
 
           <p class="pb-2 text-xs text-slate-400">
             Los reportes son públicos: los ve todo el mundo y solo quien los creó puede
-            borrarlos. Los centros de acopio y los bancos de sangre son una lista
-            verificada por el equipo. Datos de mapa &copy;
+            borrarlos. Los centros de acopio, los bancos de sangre y los albergues son
+            una lista verificada por el equipo. Datos de mapa &copy;
             colaboradores de OpenStreetMap, teselas &copy; CARTO.
           </p>
         </div>
@@ -93,6 +132,18 @@ const sangre = centros.length - acopio;
       >
       </div>
     </main>
+
+    <!-- Único acceso al formulario: el reporte es la excepción, no lo primero
+         que se ve. Va fuera del mapa y del sheet para que el `fixed` valga
+         igual en móvil y en escritorio. -->
+    <button
+      type="button"
+      id="fab-report"
+      class="fab-report fixed right-4 z-[1050] inline-flex items-center gap-2 rounded-full bg-red-600 px-4 py-3 text-sm font-semibold text-white shadow-lg transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300 lg:right-8"
+    >
+      <span aria-hidden="true" class="text-base leading-none">+</span>
+      Realizar reporte
+    </button>
   </div>
 </Base>
 

@@ -51,13 +51,8 @@ body {
   will-change: transform, opacity;
 }
 
-/* Zona cubierta: el marcador sigue ahí, pero deja de pedir atención. */
-.pulse-marker.is-covered .pulse-dot {
-  background: #94a3b8;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
-}
-
-.pulse-marker.is-covered .pulse-ring {
+/* El segundo anillo solo existe para «urgente»; en los demás estados estorba. */
+.pulse-marker .pulse-ring-2 {
   display: none;
 }
 
@@ -72,6 +67,107 @@ body {
   }
 }
 
+/* ---- Estado del punto ----
+   Un solo atributo, `data-estado`, con la precedencia ya resuelta en TS
+   (status.ts). La forma carga el significado: el rojo late, lo que no se debe
+   visitar no se mueve y cambia de silueta. Un punto cerrado NUNCA desaparece
+   del mapa — si desapareciera, nadie notaría que alguien lo cerró de mentiras. */
+
+/* Urgente: late más rápido y con dos anillos desfasados. */
+.pulse-marker[data-estado="urgente"] .pulse-dot {
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+}
+
+.pulse-marker[data-estado="urgente"] .pulse-ring {
+  animation-duration: 1.1s;
+}
+
+.pulse-marker[data-estado="urgente"] .pulse-ring-2 {
+  display: block;
+  animation-delay: 0.55s;
+}
+
+/* Cubierto: el marcador sigue ahí, pero deja de pedir atención. */
+.pulse-marker[data-estado="cubierto"] .pulse-dot {
+  background: #94a3b8;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+.pulse-marker[data-estado="cubierto"] .pulse-ring,
+.pulse-marker[data-estado="saturado"] .pulse-ring,
+.pulse-marker[data-estado="cerrado"] .pulse-ring {
+  display: none;
+}
+
+/* Saturado: cuadrado gris con dos barras — el signo de pausa. Hay gente, pero
+   ya no cabe más. */
+.pulse-marker[data-estado="saturado"] .pulse-dot {
+  width: 16px;
+  height: 16px;
+  margin: -8px 0 0 -8px;
+  border-radius: 3px;
+  background: #475569;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.45);
+}
+
+.pulse-marker[data-estado="saturado"] .pulse-dot::before,
+.pulse-marker[data-estado="saturado"] .pulse-dot::after {
+  content: "";
+  position: absolute;
+  top: 4px;
+  width: 2px;
+  height: 8px;
+  background: #ffffff;
+  border-radius: 1px;
+}
+
+.pulse-marker[data-estado="saturado"] .pulse-dot::before {
+  left: 5px;
+}
+
+.pulse-marker[data-estado="saturado"] .pulse-dot::after {
+  right: 5px;
+}
+
+/* Cerrado: círculo apagado con una × — no vayas. */
+.pulse-marker[data-estado="cerrado"] .pulse-dot {
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  background: #94a3b8;
+  opacity: 0.65;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+.pulse-marker[data-estado="cerrado"] .pulse-dot::before,
+.pulse-marker[data-estado="cerrado"] .pulse-dot::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 8px;
+  height: 2px;
+  margin: -1px 0 0 -4px;
+  background: #ffffff;
+  border-radius: 1px;
+}
+
+.pulse-marker[data-estado="cerrado"] .pulse-dot::before {
+  transform: rotate(45deg);
+}
+
+.pulse-marker[data-estado="cerrado"] .pulse-dot::after {
+  transform: rotate(-45deg);
+}
+
+/* Sin noticias hace horas: el dato sigue en pie pero ya no se respalda solo. */
+.pulse-marker.is-stale .pulse-dot {
+  outline: 2px dashed #94a3b8;
+  outline-offset: 4px;
+}
+
 /* ---- Centro de acopio: punto fijo, sin pulso ----
    Los reportes son el rojo que late; un centro es un sitio estable a donde
    llegar. Cuadrado índigo para que se distinga también sin color. */
@@ -84,6 +180,33 @@ body {
   border: 2px solid #ffffff;
   background: #4f46e5;
   box-shadow: 0 1px 4px rgba(15, 23, 42, 0.45);
+}
+
+/* Acopio en pausa: el mismo cuadrado, gris y con las dos barras de pausa — se
+   lee como "detenido" también sin color, igual que un reporte saturado. El
+   punto no se borra del mapa: quien ya lo vio necesita saber por qué no ir. */
+.centro-marker .centro-pin[data-pausa] {
+  position: relative;
+  background: #64748b;
+}
+
+.centro-marker .centro-pin[data-pausa]::before,
+.centro-marker .centro-pin[data-pausa]::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  width: 2px;
+  height: 6px;
+  background: #ffffff;
+  border-radius: 1px;
+}
+
+.centro-marker .centro-pin[data-pausa]::before {
+  left: 3px;
+}
+
+.centro-marker .centro-pin[data-pausa]::after {
+  right: 3px;
 }
 
 /* ---- Banco de sangre: círculo con cruz ----
@@ -121,6 +244,48 @@ body {
   width: 2px;
   height: 8px;
   margin: -4px 0 0 -1px;
+}
+
+/* ---- Albergue: casita ámbar ----
+   Tercer tipo, tercera forma: ni el cuadrado del acopio ni el círculo del banco
+   de sangre. El `span` es el borde blanco y el `::before` el relleno ámbar —
+   `clip-path` recorta el `border`, así que el contorno se hace por capas. */
+
+.albergue-marker .albergue-pin {
+  position: relative;
+  display: block;
+  width: 20px;
+  height: 20px;
+  background: #ffffff;
+  clip-path: polygon(50% 0, 100% 38%, 100% 100%, 0 100%, 0 38%);
+  filter: drop-shadow(0 1px 3px rgba(15, 23, 42, 0.45));
+}
+
+.albergue-marker .albergue-pin::before {
+  content: "";
+  position: absolute;
+  inset: 2px;
+  background: #d97706;
+  clip-path: polygon(50% 0, 100% 38%, 100% 100%, 0 100%, 0 38%);
+}
+
+/* Albergue en pausa: misma casita en gris con las dos barras, igual que el
+   acopio detenido. Las barras salen de un solo pseudo-elemento — el `::before`
+   ya está tomado por el relleno — duplicado con `box-shadow`. */
+.albergue-marker .albergue-pin[data-pausa]::before {
+  background: #64748b;
+}
+
+.albergue-marker .albergue-pin[data-pausa]::after {
+  content: "";
+  position: absolute;
+  left: 7px;
+  bottom: 4px;
+  width: 2px;
+  height: 7px;
+  background: #ffffff;
+  border-radius: 1px;
+  box-shadow: 4px 0 0 #ffffff;
 }
 
 /* ---- Marcador provisional (arrastrable) ---- */
@@ -165,7 +330,45 @@ body {
   color: #fff;
 }
 
+/* Variante del CTA para un centro en pausa: fondo blanco, así que el texto no
+   puede ser blanco. Va después para ganarle a la regla de arriba. */
+.leaflet-container a.centro-cta-quiet {
+  color: #475569;
+}
+
+/* ---- FAB «Realizar reporte» ----
+   El desplazamiento vertical vive acá y no en clases de Tailwind porque necesita
+   `env(safe-area-inset-bottom)`. En móvil se apoya sobre el peek del sheet, que
+   `sheet.ts` mide y publica en `--peek`: un valor fijo lo dejaba tapado en cuanto
+   el sheet crecía. El respaldo del `var()` cubre el instante antes del primer
+   measure. En escritorio va sobre la atribución de CARTO, esquina inferior
+   derecha del mapa. */
+
+.fab-report {
+  bottom: calc(var(--peek, 11rem) + 0.75rem + env(safe-area-inset-bottom));
+}
+
+@media (min-width: 1024px) {
+  .fab-report {
+    bottom: 2.5rem;
+  }
+}
+
 /* ---- Bottom sheet (solo móvil; en lg el sheet es `display: contents`) ---- */
+
+/* El formulario ya no es una tarjeta fija de la barra lateral: se abre desde el
+   FAB. La pestaña `reportar` sigue siendo el estado que lo gobierna, así que en
+   escritorio se replica acá lo que en móvil hacen las reglas de `data-tab-panel`
+   (allá el sheet es un panel exclusivo; acá el formulario es una tarjeta más). */
+@media (min-width: 1024px) {
+  #form-card {
+    display: none;
+  }
+
+  #sheet[data-tab="reportar"] #form-card {
+    display: block;
+  }
+}
 
 @media (max-width: 1023px) {
   /* El handle arrastra: el navegador no debe interpretar el gesto como scroll. */
@@ -173,17 +376,24 @@ body {
     touch-action: none;
   }
 
-  #sheet[data-tab="form"] #list-card,
-  #sheet[data-tab="list"] #form-card {
+  /* Un panel por pestaña. La regla es genérica a propósito: agregar una
+     pestaña es agregar un `data-tab-panel` en el HTML, no cuatro selectores. */
+  #sheet [data-tab-panel] {
     display: none;
+  }
+
+  #sheet[data-tab="reportar"] [data-tab-panel="reportar"],
+  #sheet[data-tab="puntos"] [data-tab-panel="puntos"],
+  #sheet[data-tab="ayuda"] [data-tab-panel="ayuda"],
+  #sheet[data-tab="novedades"] [data-tab-panel="novedades"] {
+    display: block;
   }
 
   #sheet-grab [data-tab-btn] {
     color: #475569;
   }
 
-  #sheet[data-tab="form"] [data-tab-btn="form"],
-  #sheet[data-tab="list"] [data-tab-btn="list"] {
+  #sheet-grab [data-tab-btn][aria-selected="true"] {
     background: #fef2f2;
     color: #b91c1c;
   }

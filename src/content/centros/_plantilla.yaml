@@ -12,8 +12,14 @@ direccion: "Calle 0 # 00-00, Barrio"
 lat: 3.4516
 lng: -76.532
 horario: Lunes a viernes, 8:00 a. m. – 5:00 p. m.
-# Solo en `tipo: acopio`. Ids válidos: herramientas, bebes, alimentos, salud, voluntarios
+# En `acopio` y `albergue`, no en `sangre`. Ids válidos: herramientas, rescate,
+# logistica, bebes, alimentos, salud, voluntarios
 recibe: [alimentos]
+# En `acopio` y `albergue`. Por defecto true. Con `false` el punto sigue en el mapa
+# pero en gris: abierto y sin recibir (bodega llena). Cerrar de verdad es `activo: false`.
+recibiendo: true
+# Por qué no recibe. Solo se ve con `recibiendo: false`.
+# nota_estado: "Bodega llena, reabren el lunes"
 telefono: "+57 602 000 0000"
 notas: Detalle útil para quien llega (entrada, parqueadero, a quién preguntar).
 activo: false
@@ -24,4 +30,15 @@ activo: false
 # lat: 3.4516
 # lng: -76.532
 # horario: 8:00 a. m. – 6:00 p. m.
+# activo: false
+
+# --- Albergue: mismos campos que un acopio, incluido `recibe` ---
+# tipo: albergue
+# name: Albergue X
+# direccion: "Calle 0 # 00-00, Barrio"
+# lat: 3.4516
+# lng: -76.532
+# horario: Abierto 24 horas
+# recibe: [alimentos, salud, voluntarios]
+# recibiendo: true
 # activo: false
