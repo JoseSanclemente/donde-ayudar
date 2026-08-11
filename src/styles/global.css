@@ -11,8 +11,13 @@ body {
 
 /* ---- Marcador rojo con pulso ---- */
 
+/* `position` NO se toca: Leaflet ancla cada marcador con `position: absolute` +
+   un `transform`, y un `relative` acá le gana por orden al CSS de Leaflet — el
+   marcador vuelve al flujo del pane y queda con un desfase fijo en píxeles, que
+   es un desfase distinto en metros por cada nivel de zoom. Eso es lo que hacía
+   que los puntos «caminaran» al acercar o alejar. El `.pulse-inner` ya tiene su
+   ancestro posicionado: el propio root que posiciona Leaflet. */
 .pulse-marker {
-  position: relative;
   width: 18px;
   height: 18px;
 }
