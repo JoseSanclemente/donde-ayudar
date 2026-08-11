@@ -1,0 +1,9 @@
+# TODO(verificar): horario y `recibe` sin confirmar.
+tipo: acopio
+name: Plazoleta Jairo Varela
+direccion: "Av. 2 Nte # 10 Nte - 1, Granada, Cali, Valle"
+lat: 3.455082069123727
+lng: -76.53482963586626
+horario: Por confirmar
+recibe: [alimentos, salud, herramientas, voluntarios]
+activo: true

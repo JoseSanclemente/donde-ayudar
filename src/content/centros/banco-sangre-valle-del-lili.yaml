@@ -1,0 +1,9 @@
+# TODO(verificar): la pieza no da dirección de calle, solo "sede principal,
+# Torre 2 piso 4". Días de atención sin confirmar.
+tipo: sangre
+name: Banco de sangre Fundación Valle del Lili
+direccion: "Sede principal, Torre 2 piso 4"
+lat: 3.3729828323930713
+lng: -76.52560814612303
+horario: 8:00 a. m. – 6:00 p. m.
+activo: true

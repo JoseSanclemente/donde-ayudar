@@ -1,0 +1,108 @@
+---
+import { getCollection } from "astro:content";
+import Base from "../layouts/Base.astro";
+import CentroFilter from "../components/CentroFilter.astro";
+import ReportForm from "../components/ReportForm.astro";
+import ReportList from "../components/ReportList.astro";
+
+// Los centros de acopio son datos de build (ver src/content/centros/README.md):
+// se resuelven acá y viajan al cliente embebidos en el HTML, no por fetch.
+const centros = (await getCollection("centros", ({ data }) => data.activo)).map(
+  ({ id, data }) => ({ id, ...data }),
+);
+const acopio = centros.filter((centro) => centro.tipo === "acopio").length;
+const sangre = centros.length - acopio;
+---
+
+<Base title="Dónde Ayudar Cali — Edificios afectados por el sismo">
+  <div class="mx-auto max-w-[1600px] lg:flex lg:h-screen lg:overflow-hidden">
+    <!-- Panel lateral (en móvil: header flotante + bottom sheet) -->
+    <div
+      class="lg:flex lg:h-screen lg:w-[26rem] lg:shrink-0 lg:flex-col lg:gap-5 lg:overflow-y-auto lg:p-5"
+    >
+      <header
+        id="site-header"
+        class="fixed inset-x-0 top-0 z-[900] border-b border-slate-200/60 bg-white/80 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur lg:static lg:z-auto lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none"
+      >
+        <p
+          class="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700"
+        >
+          <span class="pulse-marker inline-block"
+            ><span class="pulse-ring"></span><span class="pulse-dot"></span></span
+          >
+          Emergencia sismo — Cali
+        </p>
+        <h1 class="mt-2 text-lg font-bold tracking-tight text-slate-900 lg:mt-3 lg:text-2xl">
+          Dónde Ayudar Cali
+        </h1>
+        <p class="mt-1 hidden text-sm text-slate-600 lg:block">
+          Mapa colaborativo de edificios afectados y los recursos que necesitan.
+        </p>
+      </header>
+
+      <div
+        id="sheet"
+        data-state="collapsed"
+        data-tab="form"
+        class="fixed inset-x-0 bottom-0 z-[1000] flex max-h-[86svh] flex-col rounded-t-2xl border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] lg:contents"
+      >
+        <div id="sheet-grab" class="shrink-0 select-none px-4 pb-2 pt-2.5 lg:hidden">
+          <span class="mx-auto block h-1.5 w-10 rounded-full bg-slate-300"></span>
+          <div class="mt-2.5 flex gap-2">
+            <button
+              type="button"
+              data-tab-btn="form"
+              class="flex-1 rounded-lg px-3 py-1.5 text-sm font-semibold transition"
+            >
+              Reportar
+            </button>
+            <button
+              type="button"
+              data-tab-btn="list"
+              class="flex-1 rounded-lg px-3 py-1.5 text-sm font-semibold transition"
+            >
+              Reportes
+            </button>
+          </div>
+        </div>
+
+        <div
+          id="sheet-body"
+          class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain px-4 pb-4 lg:contents"
+        >
+          <CentroFilter acopio={acopio} sangre={sangre} />
+
+          <div id="form-card"><ReportForm /></div>
+          <div id="list-card"><ReportList /></div>
+
+          <p class="pb-2 text-xs text-slate-400">
+            Los reportes son públicos: los ve todo el mundo y solo quien los creó puede
+            borrarlos. Los centros de acopio y los bancos de sangre son una lista
+            verificada por el equipo. Datos de mapa &copy;
+            colaboradores de OpenStreetMap, teselas &copy; CARTO.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Mapa -->
+    <main class="fixed inset-0 z-0 lg:static lg:h-screen lg:flex-1 lg:p-5">
+      <div
+        id="map"
+        class="h-full w-full lg:overflow-hidden lg:rounded-2xl lg:border lg:border-slate-200 lg:shadow-sm"
+      >
+      </div>
+    </main>
+  </div>
+</Base>
+
+<script
+  is:inline
+  type="application/json"
+  id="centros-data"
+  set:html={JSON.stringify(centros).replace(/</g, "\\u003c")}
+/>
+
+<script>
+  import "../scripts/app";
+</script>

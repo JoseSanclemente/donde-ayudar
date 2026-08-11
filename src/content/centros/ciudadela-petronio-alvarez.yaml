@@ -1,0 +1,9 @@
+# TODO(verificar): horario y `recibe` sin confirmar.
+tipo: acopio
+name: Ciudadela Petronio Álvarez
+direccion: "Complejo deportivo Alberto Galindo, Cali, Valle"
+lat: 3.4127351272525983
+lng: -76.55095332379257
+horario: Por confirmar
+recibe: [alimentos, salud, bebes, herramientas, voluntarios]
+activo: true

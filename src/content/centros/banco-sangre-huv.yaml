@@ -1,0 +1,9 @@
+# TODO(verificar): días de atención sin confirmar
+# (la pieza dice "puntos permanentes" pero no especifica cuáles días).
+tipo: sangre
+name: Banco de sangre HUV
+direccion: "Cll 5ta #36 - 08, Urgencias del Hospital Universitario del Valle"
+lat: 3.431210586126767
+lng: -76.54445585134974
+horario: 8:00 a. m. – 6:00 p. m.
+activo: true

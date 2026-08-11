@@ -1,0 +1,9 @@
+# TODO(verificar): horario y `recibe` sin confirmar.
+tipo: acopio
+name: Parque de la Caña
+direccion: "Cra. 8 # 39 - 01, Cali, Valle"
+lat: 3.454602754860729
+lng: -76.50732444002169
+horario: Por confirmar
+recibe: [alimentos, salud, herramientas, voluntarios]
+activo: true

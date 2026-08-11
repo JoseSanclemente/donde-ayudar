@@ -1,0 +1,9 @@
+# TODO(verificar): días de atención sin confirmar
+# (la pieza dice "puntos permanentes" pero no especifica cuáles días).
+tipo: sangre
+name: Banco de sangre Imbanaco
+direccion: "Sede principal, Cra. 38 Bis #5B2 - 04, Santa Isabel"
+lat: 3.4267575475725165
+lng: -76.54542339030029
+horario: 8:00 a. m. – 6:00 p. m.
+activo: true

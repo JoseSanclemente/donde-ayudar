@@ -1,0 +1,212 @@
+@import "leaflet/dist/leaflet.css";
+@import "tailwindcss";
+
+:root {
+  color-scheme: light;
+}
+
+body {
+  @apply bg-slate-50 text-slate-900 antialiased;
+}
+
+/* ---- Marcador rojo con pulso ---- */
+
+.pulse-marker {
+  position: relative;
+  width: 18px;
+  height: 18px;
+}
+
+.pulse-marker .pulse-inner {
+  position: absolute;
+  inset: 0;
+  display: block;
+  transform-origin: 50% 50%;
+}
+
+.pulse-marker .pulse-dot,
+.pulse-marker .pulse-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  border-radius: 9999px;
+}
+
+.pulse-marker .pulse-dot {
+  width: 12px;
+  height: 12px;
+  margin: -6px 0 0 -6px;
+  background: #ef4444;
+  box-shadow:
+    0 0 0 3px rgba(239, 68, 68, 0.28),
+    0 1px 4px rgba(0, 0, 0, 0.35);
+}
+
+.pulse-marker .pulse-ring {
+  width: 18px;
+  height: 18px;
+  margin: -9px 0 0 -9px;
+  border: 2px solid #ef4444;
+  animation: marker-pulse 2s ease-out infinite;
+  will-change: transform, opacity;
+}
+
+/* Zona cubierta: el marcador sigue ahí, pero deja de pedir atención. */
+.pulse-marker.is-covered .pulse-dot {
+  background: #94a3b8;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+.pulse-marker.is-covered .pulse-ring {
+  display: none;
+}
+
+@keyframes marker-pulse {
+  0% {
+    transform: scale(0.6);
+    opacity: 0.9;
+  }
+  100% {
+    transform: scale(2.8);
+    opacity: 0;
+  }
+}
+
+/* ---- Centro de acopio: punto fijo, sin pulso ----
+   Los reportes son el rojo que late; un centro es un sitio estable a donde
+   llegar. Cuadrado índigo para que se distinga también sin color. */
+
+.centro-marker .centro-pin {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 4px;
+  border: 2px solid #ffffff;
+  background: #4f46e5;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.45);
+}
+
+/* ---- Banco de sangre: círculo con cruz ----
+   Se separa del reporte por forma, no solo por color: el reporte late y es un
+   punto liso; este no se mueve y lleva cruz. */
+
+.sangre-marker .sangre-pin {
+  position: relative;
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 9999px;
+  border: 2px solid #ffffff;
+  background: #e11d48;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.45);
+}
+
+.sangre-marker .sangre-pin::before,
+.sangre-marker .sangre-pin::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  background: #ffffff;
+  border-radius: 1px;
+}
+
+.sangre-marker .sangre-pin::before {
+  width: 8px;
+  height: 2px;
+  margin: -1px 0 0 -4px;
+}
+
+.sangre-marker .sangre-pin::after {
+  width: 2px;
+  height: 8px;
+  margin: -4px 0 0 -1px;
+}
+
+/* ---- Marcador provisional (arrastrable) ---- */
+
+.draft-marker {
+  cursor: grab;
+}
+
+.draft-marker:active {
+  cursor: grabbing;
+}
+
+.draft-marker .draft-pin {
+  display: block;
+  width: 22px;
+  height: 22px;
+  border-radius: 9999px;
+  border: 3px dashed #b91c1c;
+  background: rgba(239, 68, 68, 0.25);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+
+/* ---- Mapa ---- */
+
+.leaflet-container.picking {
+  cursor: crosshair;
+}
+
+.leaflet-container.picking .leaflet-marker-icon {
+  cursor: crosshair;
+}
+
+.leaflet-popup-content {
+  margin: 0.75rem 1rem;
+  min-width: 12rem;
+}
+
+/* Leaflet pinta todo enlace del mapa con `.leaflet-container a { color: #0078A8 }`,
+   y ese selector le gana en especificidad al `text-white` de Tailwind — el texto
+   del botón quedaba azul sobre azul. Se recupera aquí, no con `!important`. */
+.leaflet-container a.centro-cta {
+  color: #fff;
+}
+
+/* ---- Bottom sheet (solo móvil; en lg el sheet es `display: contents`) ---- */
+
+@media (max-width: 1023px) {
+  /* El handle arrastra: el navegador no debe interpretar el gesto como scroll. */
+  #sheet-grab {
+    touch-action: none;
+  }
+
+  #sheet[data-tab="form"] #list-card,
+  #sheet[data-tab="list"] #form-card {
+    display: none;
+  }
+
+  #sheet-grab [data-tab-btn] {
+    color: #475569;
+  }
+
+  #sheet[data-tab="form"] [data-tab-btn="form"],
+  #sheet[data-tab="list"] [data-tab-btn="list"] {
+    background: #fef2f2;
+    color: #b91c1c;
+  }
+
+  /* Colapsado el contenido no scrollea: el gesto vertical arrastra el sheet. */
+  #sheet[data-state="collapsed"] #sheet-body {
+    overflow-y: hidden;
+    touch-action: none;
+  }
+
+  /* Los controles de Leaflet quedarían bajo el header flotante y el sheet. */
+  .leaflet-top {
+    top: 6rem;
+  }
+
+  .leaflet-bottom {
+    bottom: calc(11.5rem + env(safe-area-inset-bottom));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse-marker .pulse-ring {
+    animation: none;
+    opacity: 0.5;
+  }
+}
