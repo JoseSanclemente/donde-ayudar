@@ -22,6 +22,12 @@ body {
   height: 18px;
 }
 
+/* Fuera del mapa el mismo punto se usa como adorno —el badge del header— y ahí
+   no hay Leaflet que lo posicione, así que el ancestro lo pone esta clase. */
+.pulse-badge {
+  position: relative;
+}
+
 .pulse-marker .pulse-inner {
   position: absolute;
   inset: 0;
