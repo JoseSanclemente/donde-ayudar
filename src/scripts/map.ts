@@ -6,7 +6,7 @@ import {
   ALBERGUE_FILTER,
   byCategory,
   categoryChip,
-  categoryItems,
+  categoryItemsEnPunto,
   categoryLabel,
   COVERED_CHIP,
   SANGRE_FILTER,
@@ -455,7 +455,7 @@ function recibeHtml(centro: Centro, pausa: boolean): string {
     const chip = `<span class="inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
       pausa ? COVERED_CHIP : categoryChip(id)
     }">${escapeHtml(categoryLabel(id))}</span>`;
-    const items = categoryItems(id);
+    const items = categoryItemsEnPunto(id);
     // Una categoría sin ítems en el catálogo —«Voluntarios» los tiene, pero una
     // futura podría no— se queda con el chip solo, no con dos puntos vacíos.
     const detalle = items.length

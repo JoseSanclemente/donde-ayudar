@@ -6,6 +6,12 @@ export type ResourceCategory = {
   chip: string;
   /** Chip seleccionado dentro del formulario. */
   chipOn: string;
+  /**
+   * Subconjunto de `items` que tiene sentido en un punto curado. Solo se declara
+   * cuando la categoría pide menos allá que en una zona afectada — sin esto, el
+   * punto muestra la categoría completa.
+   */
+  itemsEnPunto?: string[];
 };
 
 // Las clases de Tailwind van escritas completas y literales a propósito: el
@@ -108,6 +114,10 @@ export const CATEGORIES: ResourceCategory[] = [
       "Donantes de sangre",
       "Ayuda para organizar donaciones",
     ],
+    // En un acopio o un albergue no hay escombros que remover ni retro que
+    // operar, y la sangre se dona en el banco: lo que sí se necesita ahí es
+    // mover insumos y ordenar lo que llega.
+    itemsEnPunto: ["Transporte de insumos", "Ayuda para organizar donaciones"],
     chip: "bg-violet-50 text-violet-800",
     chipOn: "border-violet-600 bg-violet-600 text-white",
   },
@@ -188,13 +198,18 @@ export function categoryLabel(categoryId: string): string {
 }
 
 /**
- * Qué entra en una categoría. «Logística y energía» no le dice a nadie que puede
- * llevar pilas, así que los puntos curados muestran el detalle debajo del chip.
- * Los nombres se recortan: el catálogo es texto escrito a mano y alguno trae un
- * espacio de sobra al final.
+ * Qué entra en una categoría, visto desde un punto curado. «Logística y energía»
+ * no le dice a nadie que puede llevar pilas, así que los puntos muestran el
+ * detalle debajo del chip; si la categoría declaró un `itemsEnPunto`, ese manda
+ * — un acopio sigue recibiendo «Voluntarios», solo que el detalle no promete lo
+ * que ahí no pasa. Los nombres se recortan: el catálogo es texto escrito a mano
+ * y alguno trae un espacio de sobra al final.
  */
-export function categoryItems(categoryId: string): string[] {
-  return (BY_ID.get(categoryId)?.items ?? []).map((item) => item.trim());
+export function categoryItemsEnPunto(categoryId: string): string[] {
+  const category = BY_ID.get(categoryId);
+  return (category?.itemsEnPunto ?? category?.items ?? []).map((item) =>
+    item.trim(),
+  );
 }
 
 export type CategoryBucket<T> = { id: string; label: string; items: T[] };
