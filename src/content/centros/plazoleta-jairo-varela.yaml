@@ -5,5 +5,5 @@ direccion: "Av. 2 Nte # 10 Nte - 1, Granada, Cali, Valle"
 lat: 3.455082069123727
 lng: -76.53482963586626
 horario: ""
-recibe: [logistica, salud, herramientas, voluntarios]
+recibe: [logistica, herramientas, voluntarios]
 activo: true

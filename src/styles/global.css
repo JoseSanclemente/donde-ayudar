@@ -326,13 +326,15 @@ body {
 /* Leaflet pinta todo enlace del mapa con `.leaflet-container a { color: #0078A8 }`,
    y ese selector le gana en especificidad al `text-white` de Tailwind — el texto
    del botón quedaba azul sobre azul. Se recupera aquí, no con `!important`. */
-.leaflet-container a.centro-cta {
+.leaflet-container a.centro-cta,
+#detail-body a.centro-cta {
   color: #fff;
 }
 
 /* Variante del CTA para un centro en pausa: fondo blanco, así que el texto no
    puede ser blanco. Va después para ganarle a la regla de arriba. */
-.leaflet-container a.centro-cta-quiet {
+.leaflet-container a.centro-cta-quiet,
+#detail-body a.centro-cta-quiet {
   color: #475569;
 }
 
@@ -377,6 +379,12 @@ body {
   #sheet[data-tab="reportar"] #form-card {
     display: block;
   }
+
+  /* El detalle es solo de móvil: en escritorio el marcador sigue abriendo su
+     popup y la barra lateral no tiene por qué cambiar de contenido. */
+  #detail-card {
+    display: none;
+  }
 }
 
 @media (max-width: 1023px) {
@@ -392,6 +400,7 @@ body {
   }
 
   #sheet[data-tab="reportar"] [data-tab-panel="reportar"],
+  #sheet[data-tab="detalle"] [data-tab-panel="detalle"],
   #sheet[data-tab="puntos"] [data-tab-panel="puntos"],
   #sheet[data-tab="ayuda"] [data-tab-panel="ayuda"],
   #sheet[data-tab="novedades"] [data-tab-panel="novedades"] {

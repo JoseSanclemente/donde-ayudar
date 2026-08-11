@@ -6,11 +6,13 @@ import {
   ALBERGUE_FILTER,
   byCategory,
   categoryChip,
+  categoryItems,
   categoryLabel,
   COVERED_CHIP,
   SANGRE_FILTER,
 } from "./resources";
 import { markerEstado, statusInfo } from "./status";
+import { isMobile, onBreakpointChange } from "./ui/breakpoint";
 import { chipLabel, chipStyle } from "./ui/chips";
 import { telUrl, whatsappUrl } from "./ui/contact";
 import { directionsUrl, escapeHtml, NAV_ICON } from "./ui/html";
@@ -87,7 +89,7 @@ function resourcesHtml(group: ReportGroup): string {
   return blocks.join("");
 }
 
-function popupHtml(group: ReportGroup, extra: MarkerExtra): string {
+function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
   const lead = group.lead;
   const date = new Date(lead.createdAt).toLocaleString("es-CO", {
     dateStyle: "medium",
@@ -149,6 +151,72 @@ function popupHtml(group: ReportGroup, extra: MarkerExtra): string {
     </div>`;
 }
 
+/* ---- Detalle del marcador: popup en escritorio, bottom sheet en móvil ---- */
+
+/**
+ * Lo que ve quien toca un marcador. Es el mismo HTML del popup: el sheet es otro
+ * envase para el mismo contenido, no una segunda versión que mantener.
+ */
+export type MarkerSelection = { html: string; lat: number; lng: number };
+
+let selectHandler: ((selection: MarkerSelection | null) => void) | null = null;
+let selected: L.Marker | null = null;
+// El HTML del popup se guarda aparte porque en móvil el marcador no lo lleva
+// bindeado: sin popup, `getPopup()` no tiene nada que devolver.
+const popupHtml = new WeakMap<L.Marker, string>();
+
+/** `null` = lo que estaba abierto dejó de existir; el panel debe cerrarse. */
+export function onMarkerSelect(handler: (selection: MarkerSelection | null) => void): void {
+  selectHandler = handler;
+}
+
+function emit(marker: L.Marker | null): void {
+  selected = marker;
+  if (!marker) {
+    selectHandler?.(null);
+    return;
+  }
+  const { lat, lng } = marker.getLatLng();
+  selectHandler?.({ html: popupHtml.get(marker) ?? "", lat, lng });
+}
+
+/** Lo llama el panel al cerrarse: sin esto el marcador seguiría «abierto». */
+export function clearSelection(): void {
+  selected = null;
+}
+
+/**
+ * En móvil el marcador ni siquiera lleva popup: la burbuja de Leaflet queda
+ * bajo el header y los botones flotantes, así que el detalle va al sheet. Atar
+ * el popup y cerrarlo a mano dejaría un parpadeo en cada toque.
+ */
+function attachPopup(marker: L.Marker, html: string): void {
+  popupHtml.set(marker, html);
+  if (isMobile()) marker.unbindPopup();
+  else if (marker.getPopup()) marker.setPopupContent(html);
+  else marker.bindPopup(html);
+}
+
+function selectOnMobile(event: L.LeafletMouseEvent): void {
+  if (!isMobile()) return;
+  emit(event.target as L.Marker);
+}
+
+/** Al cruzar el breakpoint hay que devolverle (o quitarle) el popup a cada marcador. */
+function syncPopupMode(): void {
+  const all = [...markers.values(), ...centros.map((centro) => centro.marker)];
+  for (const marker of all) {
+    const html = popupHtml.get(marker);
+    if (html === undefined) continue;
+    if (isMobile()) marker.unbindPopup();
+    else if (!marker.getPopup()) marker.bindPopup(html);
+  }
+  if (isMobile()) map?.closePopup();
+  // En escritorio el panel de detalle no existe: la selección se descarta para
+  // no reaparecer al volver a angostar la ventana.
+  else if (selected) emit(null);
+}
+
 export function initMap(containerId: string): L.Map {
   map = L.map(containerId, { zoomControl: true }).setView(CALI_CENTER, 13);
 
@@ -169,6 +237,8 @@ export function initMap(containerId: string): L.Map {
     stopPicking();
     handler(event.latlng);
   });
+
+  onBreakpointChange(syncPopupMode);
 
   return map;
 }
@@ -239,9 +309,9 @@ function paintEstado(marker: L.Marker, group: ReportGroup, extra: MarkerExtra): 
  * de la necesidad no sirve de nada.
  */
 export function addMarker(report: Report, group: ReportGroup, extra: MarkerExtra): L.Marker {
-  const marker = L.marker([report.lat, report.lng], { icon: pulseIcon })
-    .addTo(map)
-    .bindPopup(popupHtml(group, extra));
+  const marker = L.marker([report.lat, report.lng], { icon: pulseIcon }).addTo(map);
+  attachPopup(marker, reportPopupHtml(group, extra));
+  marker.on("click", selectOnMobile);
   markers.set(report.id, marker);
   paintEstado(marker, group, extra);
   return marker;
@@ -251,8 +321,11 @@ export function addMarker(report: Report, group: ReportGroup, extra: MarkerExtra
 export function updateMarker(report: Report, group: ReportGroup, extra: MarkerExtra): void {
   const marker = markers.get(report.id);
   if (!marker) return;
-  marker.setPopupContent(popupHtml(group, extra));
+  attachPopup(marker, reportPopupHtml(group, extra));
   paintEstado(marker, group, extra);
+  // Con el detalle abierto, un cambio de estado o un recurso cubierto tiene que
+  // verse ahí mismo: el sheet no se entera solo.
+  if (marker === selected) emit(marker);
 }
 
 /** Inner wrapper of a marker — safe to animate, unlike the positioned root. */
@@ -265,6 +338,9 @@ export function removeMarker(id: string): L.Marker | undefined {
   const marker = markers.get(id);
   if (!marker) return undefined;
   markers.delete(id);
+  // El punto ya no existe: dejar su detalle abierto sería mostrar algo que el
+  // mapa ya no tiene.
+  if (marker === selected) emit(null);
   return marker;
 }
 
@@ -365,20 +441,40 @@ const KICKER: Record<Centro["tipo"], { label: string; color: string }> = {
   albergue: { label: "Albergue", color: "text-amber-700" },
 };
 
+/**
+ * Lo que recibe un punto curado, categoría por categoría y con el detalle
+ * debajo: «Logística y energía» no le dice a nadie que ahí sirven unas pilas.
+ * El detalle sale del catálogo de `resources.ts`, que es el mismo que ofrece el
+ * formulario — no hay un segundo listado que se pueda desactualizar.
+ */
+function recibeHtml(centro: Centro, pausa: boolean): string {
+  if (!recibeInsumos(centro)) return "";
+  const blocks = centro.recibe.map((id) => {
+    // En pausa el chip va tachado, con el mismo `COVERED_CHIP` de un recurso ya
+    // cubierto: sigue siendo lo que ese centro recibe, pero no ahora.
+    const chip = `<span class="inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+      pausa ? COVERED_CHIP : categoryChip(id)
+    }">${escapeHtml(categoryLabel(id))}</span>`;
+    const items = categoryItems(id);
+    // Una categoría sin ítems en el catálogo —«Voluntarios» los tiene, pero una
+    // futura podría no— se queda con el chip solo, no con dos puntos vacíos.
+    const detalle = items.length
+      ? `<p class="mt-1 text-xs leading-snug ${pausa ? "text-slate-400" : "text-slate-500"}">${escapeHtml(items.join(", "))}</p>`
+      : "";
+    return `<div>${chip}${detalle}</div>`;
+  });
+  // Con el detalle debajo, los chips dejaron de leerse solos: sin este título
+  // parecen lo que el punto necesita, no lo que entrega quien va.
+  return `
+    <div class="space-y-1.5">
+      <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Recibe</p>
+      ${blocks.join("")}
+    </div>`;
+}
+
 function centroPopupHtml(centro: Centro): string {
   const pausa = enPausa(centro);
-  // En pausa los chips van tachados, con el mismo `COVERED_CHIP` de un recurso
-  // ya cubierto: sigue siendo lo que ese centro recibe, pero no ahora.
-  const chips = recibeInsumos(centro)
-    ? centro.recibe
-        .map(
-          (id) =>
-            `<span class="inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
-              pausa ? COVERED_CHIP : categoryChip(id)
-            }">${escapeHtml(categoryLabel(id))}</span>`,
-        )
-        .join(" ")
-    : "";
+  const recibe = recibeHtml(centro, pausa);
   const telefono = centro.telefono
     ? `<p class="text-xs text-slate-600">Tel. ${escapeHtml(centro.telefono)}</p>`
     : "";
@@ -411,7 +507,7 @@ function centroPopupHtml(centro: Centro): string {
       ${aviso}
       <p class="text-xs text-slate-600">${escapeHtml(centro.direccion)}</p>
       <p class="text-xs text-slate-600">${escapeHtml(centro.horario)}</p>
-      ${chips ? `<div class="flex flex-wrap gap-1">${chips}</div>` : ""}
+      ${recibe}
       ${telefono}
       ${notas}
       <a
@@ -436,17 +532,25 @@ function matchesFilter(centro: Centro): boolean {
 /** Repuebla la capa. Devuelve cuántos centros quedaron visibles. */
 function applyCentros(): number {
   centrosLayer.clearLayers();
-  if (!centrosVisible) return 0;
   let shown = 0;
-  for (const { data, marker } of centros) {
-    if (!matchesFilter(data)) continue;
-    centrosLayer.addLayer(marker);
-    shown += 1;
+  if (centrosVisible) {
+    for (const { data, marker } of centros) {
+      if (!matchesFilter(data)) continue;
+      centrosLayer.addLayer(marker);
+      shown += 1;
+    }
   }
+  // Un filtro que esconde el punto abierto deja el detalle hablando de algo que
+  // ya no está en el mapa.
+  const openCentro = selected !== null && centros.some(({ marker }) => marker === selected);
+  if (openCentro && !centrosLayer.hasLayer(selected as L.Marker)) emit(null);
   return shown;
 }
 
 export function setCentros(list: Centro[]): number {
+  // La lista se reconstruye entera: los marcadores viejos —y con ellos el que
+  // estuviera abierto— dejan de existir.
+  if (selected && centros.some(({ marker }) => marker === selected)) emit(null);
   centros.length = 0;
   for (const data of list) {
     // El estado es dato de build y no cambia en runtime, así que el icono se
@@ -457,7 +561,9 @@ export function setCentros(list: Centro[]): number {
     const marker = L.marker([data.lat, data.lng], {
       icon,
       zIndexOffset: -500,
-    }).bindPopup(centroPopupHtml(data));
+    });
+    attachPopup(marker, centroPopupHtml(data));
+    marker.on("click", selectOnMobile);
     centros.push({ data, marker });
   }
   return applyCentros();

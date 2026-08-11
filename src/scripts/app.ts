@@ -3,6 +3,7 @@ import { initData } from "./data/boot";
 import { onError } from "./data/errors";
 import { initAlertBanner } from "./features/alert-banner";
 import { initCentrosPanel } from "./features/centros-panel";
+import { initMarkerSheet } from "./features/marker-sheet";
 import { initOffersPanel } from "./features/offers-panel";
 import { initReportForm } from "./features/report-form";
 import { initReportList } from "./features/report-list";
@@ -18,6 +19,7 @@ const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").match
 
 initMap("map");
 initSheet();
+initMarkerSheet();
 initCentrosPanel();
 initAlertBanner();
 initReportForm();

@@ -125,6 +125,22 @@ const pausados = centros.filter(
         >
           <div id="form-card" data-tab-panel="reportar"><ReportForm /></div>
 
+          <!-- Detalle de un punto del mapa. Como el formulario, es una pestaña
+               sin botón en el encabezado: solo se llega tocando un marcador, y
+               el «Volver» es la única salida hacia la lista. En escritorio no
+               existe — allá el detalle sigue siendo el popup de Leaflet. -->
+          <div id="detail-card" data-tab-panel="detalle">
+            <button
+              type="button"
+              id="detail-back"
+              class="mb-3 inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
+            >
+              <span aria-hidden="true">‹</span>
+              Volver a puntos
+            </button>
+            <div id="detail-body" class="space-y-2"></div>
+          </div>
+
           <!-- «Puntos» es un panel con dos tarjetas: la lista de edificios y
                dónde donar. En escritorio el sheet es `display: contents`, así
                que el `contents` de acá deja que las dos tarjetas se apilen

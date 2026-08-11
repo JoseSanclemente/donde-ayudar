@@ -187,6 +187,16 @@ export function categoryLabel(categoryId: string): string {
   return BY_ID.get(categoryId)?.label ?? categoryId;
 }
 
+/**
+ * Qué entra en una categoría. «Logística y energía» no le dice a nadie que puede
+ * llevar pilas, así que los puntos curados muestran el detalle debajo del chip.
+ * Los nombres se recortan: el catálogo es texto escrito a mano y alguno trae un
+ * espacio de sobra al final.
+ */
+export function categoryItems(categoryId: string): string[] {
+  return (BY_ID.get(categoryId)?.items ?? []).map((item) => item.trim());
+}
+
 export type CategoryBucket<T> = { id: string; label: string; items: T[] };
 
 /** Categoría de lo que alguien escribió a mano o quedó fuera del catálogo. */

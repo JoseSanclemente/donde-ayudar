@@ -1,5 +1,6 @@
 import gsap from "gsap";
-import { refreshSize } from "./map";
+import { clearSelection, refreshSize } from "./map";
+import { isMobile, onBreakpointChange } from "./ui/breakpoint";
 
 /**
  * Bottom sheet móvil: el panel (formulario + lista) se abre sobre el mapa a
@@ -12,7 +13,6 @@ import { refreshSize } from "./map";
 
 type State = "closed" | "open";
 
-const mobile = window.matchMedia("(max-width: 1023px)");
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 /** Un arrastre más corto que esto cuenta como tap. */
@@ -26,10 +26,6 @@ let menu: HTMLButtonElement | null = null;
 let tabs: HTMLButtonElement[] = [];
 /** Desplazamiento que deja el sheet completamente fuera de la pantalla. */
 let closedY = 0;
-
-export function isMobile(): boolean {
-  return mobile.matches;
-}
 
 function getState(): State {
   return (sheet.dataset.state as State) ?? "closed";
@@ -87,12 +83,27 @@ function moveTo(state: State, animate = true) {
   sheet.dataset.state = state;
   paintControls();
   paintScrim(state, animate);
+  // Al cerrar, la altura manda: si el panel cambió de contenido, el `closedY`
+  // de la última medición se queda corto y el sheet no sale del todo.
+  if (state === "closed") measure();
   const y = state === "open" ? 0 : closedY;
   if (!animate || reduceMotion) {
     gsap.set(sheet, { y });
     return;
   }
-  gsap.to(sheet, { y, duration: 0.35, ease: "power3.out" });
+  gsap.to(sheet, {
+    y,
+    duration: 0.35,
+    ease: "power3.out",
+    // El alto puede cambiar durante el cierre —cambio de pestaña, una lista que
+    // crece—: la animación se hizo con el número viejo, así que al final se
+    // vuelve a medir. Sin esto queda una franja del sheet asomando abajo.
+    onComplete: () => {
+      if (getState() !== "closed") return;
+      measure();
+      gsap.set(sheet, { y: closedY });
+    },
+  });
 }
 
 export function openSheet(): void {
@@ -103,6 +114,9 @@ export function openSheet(): void {
 
 export function closeSheet(): void {
   if (!isMobile() || getState() === "closed") return;
+  // El detalle se suelta antes de animar: cerrado el sheet no sobrevive, y
+  // cambiar de panel a mitad del cierre le movería el piso a la medición.
+  closeDetailPanel();
   moveTo("closed");
 }
 
@@ -122,6 +136,9 @@ function paintTabs() {
  * falta al cerrar el formulario después de enviarlo, con el sheet ya cerrado.
  */
 function showTab(tab: string, open = true) {
+  // Salir del detalle es soltar el marcador: si no, el mapa seguiría creyendo
+  // que hay un punto abierto y le mandaría sus actualizaciones a un panel oculto.
+  if (sheet.dataset.tab === "detalle" && tab !== "detalle") clearSelection();
   sheet.dataset.tab = tab;
   paintTabs();
   if (!isMobile()) return;
@@ -143,6 +160,20 @@ export function closeReportPanel(): void {
   if (sheet.dataset.tab !== "reportar") return;
   // Sin abrir: cerrar el formulario no es abrir otro panel, y al enviar el
   // reporte el sheet ya va camino abajo para dejar ver el marcador.
+  showTab("puntos", false);
+}
+
+/**
+ * El detalle de un marcador. Es una pestaña sin botón en el tablist, como
+ * `reportar`: no se llega desde el encabezado sino tocando un punto del mapa.
+ */
+export function openDetailPanel(): void {
+  showTab("detalle");
+}
+
+export function closeDetailPanel(): void {
+  if (sheet.dataset.tab !== "detalle") return;
+  // Sin abrir: cerrar el detalle no es pedir la lista, solo dejar de ver el punto.
   showTab("puntos", false);
 }
 
@@ -249,6 +280,9 @@ export function initSheet(): void {
     // El formulario primero: con él abierto, Escape cierra el formulario, no
     // todo el sheet de un golpe.
     if (sheet.dataset.tab === "reportar") closeReportPanel();
+    // Con el detalle abierto, Escape suelta el marcador y devuelve la lista —
+    // cerrar todo el sheet sería más de lo que se pidió.
+    else if (sheet.dataset.tab === "detalle") closeDetailPanel();
     else closeSheet();
   });
 
@@ -259,6 +293,9 @@ export function initSheet(): void {
   // El alto del sheet cambia al abrir acordeones o al crecer la lista.
   new ResizeObserver(() => {
     if (!isMobile()) return;
+    // A mitad de una animación no: el tween sigue corriendo hacia su propio
+    // destino y pisaría este `set`. De cerrar bien se encarga su `onComplete`.
+    if (gsap.isTweening(sheet)) return;
     measure();
     if (getState() === "closed") gsap.set(sheet, { y: closedY });
   }).observe(sheet);
@@ -268,7 +305,7 @@ export function initSheet(): void {
     window.clearTimeout(resizeTimer);
     resizeTimer = window.setTimeout(applyBreakpoint, 150);
   });
-  mobile.addEventListener("change", applyBreakpoint);
+  onBreakpointChange(applyBreakpoint);
 
   applyBreakpoint();
 }

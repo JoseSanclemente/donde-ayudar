@@ -5,5 +5,5 @@ direccion: "Complejo deportivo Alberto Galindo, Cali, Valle"
 lat: 3.4127351272525983
 lng: -76.55095332379257
 horario: ""
-recibe: [logistica, salud, bebes, herramientas, voluntarios]
+recibe: [logistica, bebes, herramientas, voluntarios]
 activo: true
