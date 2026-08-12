@@ -13,15 +13,15 @@
 /** Origen de producción, sin barra final: las URLs absolutas se arman con `new URL(path, Astro.site)`. */
 export const SITE_URL = "https://donde-ayudar.netlify.app";
 
-export const SITE_NAME = "Dónde Ayudar Cali";
+export const SITE_NAME = "¿Dónde puedo ayudar?";
 
-export const SITE_TITLE = "Dónde Ayudar Cali — Edificios afectados por el sismo";
+export const SITE_TITLE = "¿Dónde puedo ayudar? — Zonas afectadas por el sismo";
 
 export const SITE_DESCRIPTION =
-  "Mapa colaborativo de edificios afectados por el sismo en Cali, los recursos que necesitan y los puntos donde donar.";
+  "Mapa colaborativo de edificios afectados por el sismo en Colombia, los recursos que necesitan y los puntos donde donar.";
 
 /** Ruta pública de la imagen social. La genera `npm run og` (ver `scripts/build-og.mjs`). */
 export const OG_IMAGE = "/og.png";
 
 export const OG_IMAGE_ALT =
-  "Dónde Ayudar Cali — mapa colaborativo de edificios afectados por el sismo y puntos de donación.";
+  "¿Dónde puedo ayudar? — mapa colaborativo de edificios afectados por el sismo y puntos de donación.";

@@ -12,7 +12,7 @@ import {
   stopPicking,
 } from "../map";
 import { CATEGORIES, CHIP_OFF, chipClass, chipOnClass } from "../resources";
-import { closeReportPanel, closeSheet, openSheet } from "../sheet";
+import { closeReportPanel, closeSheet, isTabVisible, onTabChange, openSheet } from "../sheet";
 import { isValidPhone } from "../ui/contact";
 import { $, clearError, showError } from "../ui/dom";
 
@@ -42,14 +42,9 @@ export function initReportForm(): void {
   const resourcesError = $<HTMLParagraphElement>("resources-error");
   const urgente = $<HTMLInputElement>("urgente");
   const note = $<HTMLTextAreaElement>("note");
-  const noteCount = $<HTMLSpanElement>("note-count");
   const contactName = $<HTMLInputElement>("contact-name");
   const contactPhone = $<HTMLInputElement>("contact-phone");
   const contactError = $<HTMLParagraphElement>("contact-error");
-
-  note.addEventListener("input", () => {
-    noteCount.textContent = String(note.value.length);
-  });
 
   let coords: { lat: number; lng: number } | null = null;
   const resources = new Set<string>();
@@ -89,6 +84,16 @@ export function initReportForm(): void {
   /* Chips de recursos                                                 */
   /* ---------------------------------------------------------------- */
 
+  // El formulario no se destruye al cerrarlo, así que las categorías conservan
+  // lo que se dejó abierto la vez pasada y abrirlo de nuevo empieza a media
+  // altura. Plegarlas no pierde nada: lo elegido sigue en `resources`, se ve en
+  // los chips de abajo y la cuenta del encabezado lo dice sin desplegar.
+  function collapseCategories() {
+    presetChips.querySelectorAll("details").forEach((panel) => {
+      panel.open = false;
+    });
+  }
+
   function syncPresetChips() {
     presetChips.querySelectorAll<HTMLButtonElement>("[data-preset]").forEach((chip) => {
       const active = resources.has(chip.dataset.preset as string);
@@ -111,8 +116,9 @@ export function initReportForm(): void {
           : selected === 1
             ? "1 elegido"
             : `${selected} elegidos`;
-      badge.className =
-        selected > 0 ? "text-xs font-semibold text-red-600" : "text-xs text-slate-400";
+      // Sin color propio: el encabezado ya va tintado con el de la categoría y
+      // un rojo encima competiría con él. Lo elegido se marca con el peso.
+      badge.className = selected > 0 ? "text-xs font-bold" : "text-xs opacity-70";
     }
   }
 
@@ -398,7 +404,6 @@ export function initReportForm(): void {
     resources.clear();
     renderSelectedResources();
     setCoords(null);
-    noteCount.textContent = "0";
     clearError(contactError);
 
     // Cerrar el sheet y el panel: lo que queda a la vista es el marcador
@@ -421,6 +426,17 @@ export function initReportForm(): void {
     }
   });
 
+  // Cada vez que el formulario vuelve a la vista arranca plegado, venga del FAB
+  // o de reabrir el sheet: quien lo abre busca la dirección primero, y las
+  // categorías desplegadas empujan todo lo demás fuera de la pantalla.
+  let wasVisible = isTabVisible("reportar");
+  onTabChange(() => {
+    const visible = isTabVisible("reportar");
+    if (visible && !wasVisible) collapseCategories();
+    wasVisible = visible;
+  });
+
+  collapseCategories();
   renderSelectedResources();
   setCoords(null);
 }

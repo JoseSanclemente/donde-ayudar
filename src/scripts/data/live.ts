@@ -9,7 +9,9 @@ export type RealtimePayload = {
 type Binding = { table: string; handler: (payload: RealtimePayload) => void };
 
 const bindings: Binding[] = [];
+const reconnects: Array<() => void> = [];
 let started = false;
+let wasSubscribed = false;
 
 /**
  * Registra una tabla en el canal compartido. No abre nada: solo apunta. Cada
@@ -17,6 +19,15 @@ let started = false;
  */
 export function bindTable(table: string, handler: (payload: RealtimePayload) => void): void {
   bindings.push({ table, handler });
+}
+
+/**
+ * Avisa cuando el canal vuelve después de haberse caído. No importa nada de
+ * `data/` acá: los stores importan este módulo, así que llamarlos desde acá
+ * sería un ciclo. El arranque es el que conecta esta señal con la relectura.
+ */
+export function onReconnect(cb: () => void): void {
+  reconnects.push(cb);
 }
 
 /**
@@ -35,5 +46,12 @@ export function startLive(): void {
       handler as never,
     );
   }
-  channel.subscribe();
+  channel.subscribe((status) => {
+    if (status !== "SUBSCRIBED") return;
+    // La primera suscripción va justo detrás de la carga inicial: releer ahí
+    // sería un viaje perdido. De la segunda en adelante hubo caída, y lo que
+    // pasó mientras tanto no se reenvía nunca.
+    if (wasSubscribed) for (const cb of reconnects) cb();
+    wasSubscribed = true;
+  });
 }

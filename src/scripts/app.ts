@@ -7,6 +7,7 @@ import { initMarkerSheet } from "./features/marker-sheet";
 import { initOffersPanel } from "./features/offers-panel";
 import { initReportForm } from "./features/report-form";
 import { initReportList } from "./features/report-list";
+import { initSyncBadge } from "./features/sync-badge";
 import { initUpdatesFeed } from "./features/updates-feed";
 import { loadAddresses, loadStreets } from "./geo-index";
 import { initMap } from "./map";
@@ -25,6 +26,7 @@ initReportForm();
 initReportList();
 initUpdatesFeed();
 initOffersPanel();
+initSyncBadge();
 
 // «Hace 2 minutos» congelado media hora miente sobre la frescura del dato.
 startTimeTicker();

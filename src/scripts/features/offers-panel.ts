@@ -1,4 +1,4 @@
-import { groupReports } from "../cluster";
+﻿import { groupReports } from "../cluster";
 import { addOffer, assignOffer, getOffers, onOffers, removeOffer } from "../data/offers";
 import { getReports, onChange } from "../data/reports";
 import { isMine } from "../data/session";
@@ -48,7 +48,7 @@ export function initOffersPanel(): void {
   function assignSelect(offerId: string, current: string | null): HTMLSelectElement {
     const select = document.createElement("select");
     select.className =
-      "min-w-0 flex-1 rounded-lg border border-slate-300 px-2 py-1 text-xs text-slate-700 shadow-sm outline-none focus:border-red-500";
+      "min-w-0 flex-1 rounded-lg border border-slate-300 px-2 py-1 text-xs text-slate-700 shadow-sm outline-none focus:border-slate-400";
     select.setAttribute("aria-label", "Punto al que se despacha esta ayuda");
 
     const options = [new Option("Sin asignar", "")];

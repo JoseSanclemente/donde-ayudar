@@ -1,8 +1,9 @@
 import { MISSING_ENV_MESSAGE, supabase } from "../supabase";
-import { startLive } from "./live";
+import { onReconnect, startLive } from "./live";
 import { loadOffers } from "./offers";
 import { loadReports, setReportsState } from "./reports";
 import { initSession } from "./session";
+import { initSync, markSynced, resyncAll } from "./sync";
 import { loadUpdates } from "./updates";
 
 /**
@@ -20,7 +21,11 @@ export async function initData(): Promise<void> {
     // En paralelo: son consultas independientes y la página no puede quedarse
     // esperando la bitácora para dibujar el mapa.
     await Promise.all([loadReports(), loadUpdates(), loadOffers()]);
+    markSynced();
+    // Antes de `startLive()`: el canal se suscribe de inmediato.
+    onReconnect(() => void resyncAll({ force: true }));
     startLive();
+    initSync();
     setReportsState("ready");
   } catch {
     setReportsState("error", "No se pudieron cargar los reportes. Revisa la conexión.");

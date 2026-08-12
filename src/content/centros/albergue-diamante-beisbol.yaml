@@ -1,9 +1,0 @@
-# TODO(verificar): horario y `recibe` sin confirmar.
-tipo: albergue
-name: Diamante de béisbol
-direccion: "Cra 39 con calle 9, Cali, Valle"
-lat: 3.4218383616130694
-lng: -76.53662834797122
-horario: ""
-recibe: [salud, voluntarios]
-activo: true

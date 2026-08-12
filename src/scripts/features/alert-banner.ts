@@ -36,7 +36,9 @@ export function initAlertBanner(): void {
   });
 
   function render() {
-    const blocked = groupReports(getReports()).filter((group) => isBlocked(group.status));
+    const blocked = groupReports(getReports()).filter((group) =>
+      isBlocked(group.status),
+    );
 
     banner.classList.toggle("hidden", blocked.length === 0);
     if (blocked.length === 0) {
@@ -49,8 +51,8 @@ export function initAlertBanner(): void {
 
     summary.textContent =
       blocked.length === 1
-        ? "1 punto lleno o cerrado — no te desplaces sin confirmar"
-        : `${blocked.length} puntos llenos o cerrados — no te desplaces sin confirmar`;
+        ? "1 punto saturado o cerrado. No te desplaces sin confirmar"
+        : `${blocked.length} puntos saturados o cerrados. No te desplaces sin confirmar`;
 
     list.replaceChildren(
       ...blocked.map((group) => {
@@ -58,7 +60,8 @@ export function initAlertBanner(): void {
 
         const button = document.createElement("button");
         button.type = "button";
-        button.className = "w-full text-left text-xs leading-snug hover:underline";
+        button.className =
+          "w-full text-left text-xs leading-snug hover:underline";
         button.addEventListener("click", () => {
           closeSheet();
           void flyTo(group.lat, group.lng);

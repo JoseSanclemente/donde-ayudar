@@ -50,7 +50,7 @@ export const STATUSES: StatusInfo[] = [
   {
     id: "saturado",
     label: "Saturado",
-    aviso: "Lleno — confirma antes de ir",
+    aviso: "Saturado",
     chip: "bg-amber-50 text-amber-800",
     chipOn: "border-amber-600 bg-amber-600 text-white",
     card: "border-amber-200 bg-amber-50",
@@ -92,7 +92,10 @@ export function isBlocked(id: string): boolean {
  */
 export type MarkerEstado = ReportStatus | "cubierto";
 
-export function markerEstado(status: string, allCovered: boolean): MarkerEstado {
+export function markerEstado(
+  status: string,
+  allCovered: boolean,
+): MarkerEstado {
   if (status === "cerrado") return "cerrado";
   if (status === "saturado") return "saturado";
   if (allCovered) return "cubierto";

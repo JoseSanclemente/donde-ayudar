@@ -3,12 +3,15 @@ import { getReports, onChange } from "../data/reports";
 import { isMine } from "../data/session";
 import { addUpdate, getUpdates, onUpdates, removeUpdate } from "../data/updates";
 import { flyTo } from "../map";
-import { closeSheet } from "../sheet";
+import { closeSheet, isTabVisible, onTabChange } from "../sheet";
 import { $, clearError, maybe$, scheduleRender, showError } from "../ui/dom";
 import { paintTime } from "../ui/time";
 
 /** Cuántas novedades se ven antes de «Ver más». */
 const PAGE = 20;
+
+/** Panel al que apunta el punto de «hay algo nuevo». */
+const TAB = "novedades";
 
 export function initUpdatesFeed(): void {
   const form = $<HTMLFormElement>("update-form");
@@ -22,8 +25,18 @@ export function initUpdatesFeed(): void {
   const empty = $<HTMLParagraphElement>("updates-empty");
   const total = $<HTMLSpanElement>("updates-count");
   const more = $<HTMLButtonElement>("updates-more");
+  // The unread dot rides on the mobile tab button, which desktop never renders:
+  // like the character counter, it must not take the boot down when absent.
+  const dot = maybe$<HTMLSpanElement>("novedades-dot");
 
   let limit = PAGE;
+  /** Novedades que el lector ya tuvo a la vista: lo que no está acá enciende
+   * el punto. La carga inicial la siembra, así que abrir la página nunca lo
+   * enciende — solo lo que llega después. */
+  const seen = new Set<string>();
+  /** La carga inicial llega después del `init` — hasta entonces `seen` está
+   * vacío y todo parecería nuevo. */
+  let primed = false;
 
   body.addEventListener("input", () => {
     if (count) count.textContent = String(body.value.length);
@@ -52,6 +65,23 @@ export function initUpdatesFeed(): void {
 
     // Si el punto elegido desapareció (lo borraron), vuelve a «general».
     select.value = options.some((o) => o.value === chosen) ? chosen : "";
+  }
+
+  /**
+   * El punto amarillo del botón «Novedades». Con el panel a la vista no hay
+   * nada que avisar: todo lo que hay ya se está leyendo. Con el panel oculto,
+   * enciende con la primera novedad ajena que no se haya visto — la propia no
+   * es noticia para quien la escribió.
+   */
+  function paintDot() {
+    const updates = getUpdates();
+    if (isTabVisible(TAB)) {
+      for (const update of updates) seen.add(update.id);
+      if (dot) dot.hidden = true;
+      return;
+    }
+    const fresh = updates.some((update) => !seen.has(update.id) && !isMine(update));
+    if (dot && fresh) dot.hidden = false;
   }
 
   function renderList() {
@@ -126,7 +156,16 @@ export function initUpdatesFeed(): void {
     if (count) count.textContent = "0";
   });
 
-  const scheduledList = scheduleRender(renderList);
+  const scheduledList = scheduleRender(() => {
+    renderList();
+    // La carga inicial no es novedad: lo que ya estaba en la base cuando se
+    // abrió la página entra directo a `seen`.
+    if (!primed) {
+      primed = true;
+      for (const update of getUpdates()) seen.add(update.id);
+    }
+    paintDot();
+  });
   const scheduledOptions = scheduleRender(() => {
     renderOptions();
     renderList();
@@ -136,6 +175,9 @@ export function initUpdatesFeed(): void {
   // Un reporte nuevo agrega una opción al selector y le pone nombre a las
   // novedades que ya lo apuntaban.
   onChange(scheduledOptions);
+  // Abrir el panel es haber leído: el punto se apaga ahí, no en el próximo
+  // repintado de la lista, que puede no llegar nunca.
+  onTabChange(paintDot);
 
   renderOptions();
   renderList();

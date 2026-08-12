@@ -104,14 +104,18 @@ body {
    visitar no se mueve y cambia de silueta. Un punto cerrado NUNCA desaparece
    del mapa — si desapareciera, nadie notaría que alguien lo cerró de mentiras. */
 
-/* Urgente: late más rápido y con dos anillos desfasados. */
+/* Urgente: rojo más oscuro, late más rápido y con dos anillos desfasados. El
+   tono más profundo lo separa del rojo base sin cambiar la forma: un urgente
+   sigue siendo un reporte. */
 .pulse-marker[data-estado="urgente"] .pulse-dot {
   width: 14px;
   height: 14px;
   margin: -7px 0 0 -7px;
+  background: #b91c1c;
 }
 
 .pulse-marker[data-estado="urgente"] .pulse-ring {
+  border-color: #b91c1c;
   animation-duration: 1.1s;
 }
 
@@ -451,6 +455,23 @@ body {
     display: none;
   }
 
+  /* Con el formulario abierto las tres pestañas sobran: `reportar` no está en
+     el tablist, así que ninguna se ve seleccionada y tocarlas sería salirse del
+     formulario a medio llenar. */
+  #sheet[data-tab="reportar"] #sheet-tabs {
+    display: none;
+  }
+
+  /* Una sola ✕ en pantalla. En móvil manda la del encabezado del sheet, que
+     está siempre en el mismo sitio; la del formulario quedaría justo debajo,
+     igual de grande y con otro destino. Lo escrito no se pierde: el sheet se va
+     con la pestaña puesta y el FAB lo trae de vuelta tal cual. En escritorio no
+     hay encabezado de sheet, así que allá la ✕ del formulario sigue siendo la
+     única salida. */
+  #close-report {
+    display: none;
+  }
+
   #sheet[data-tab="reportar"] [data-tab-panel="reportar"],
   #sheet[data-tab="detalle"] [data-tab-panel="detalle"],
   #sheet[data-tab="puntos"] [data-tab-panel="puntos"],
@@ -490,9 +511,11 @@ body {
     touch-action: none;
   }
 
-  /* Los controles de Leaflet quedarían bajo el header flotante. */
+  /* Los controles de Leaflet quedarían bajo el header flotante. La insignia de
+     frescura va en su propia línea bajo el título, así que el header mide una
+     fila más que antes. */
   .leaflet-top {
-    top: 6rem;
+    top: 7.5rem;
   }
 
   /* La atribución va pegada al borde inferior y a la izquierda: subirla para

@@ -20,6 +20,7 @@ const TAP_SLOP = 6;
 
 let sheet: HTMLDivElement;
 let grab: HTMLDivElement;
+let body: HTMLDivElement | null = null;
 let scrim: HTMLDivElement | null = null;
 let fab: HTMLButtonElement | null = null;
 let menu: HTMLButtonElement | null = null;
@@ -27,8 +28,38 @@ let tabs: HTMLButtonElement[] = [];
 /** Desplazamiento que deja el sheet completamente fuera de la pantalla. */
 let closedY = 0;
 
+/** Quien quiera saber qué panel está a la vista. Un `Set` y no el emisor de
+ * `data/`: los módulos de dominio no dependen de esa capa. */
+const tabWatchers = new Set<() => void>();
+
 function getState(): State {
   return (sheet.dataset.state as State) ?? "closed";
+}
+
+/** `true` si ese panel se está viendo: en escritorio siempre, en móvil solo
+ * con el sheet abierto. */
+export function isTabVisible(tab: string): boolean {
+  if (!sheet || sheet.dataset.tab !== tab) return false;
+  return !isMobile() || getState() === "open";
+}
+
+export function onTabChange(fn: () => void): void {
+  tabWatchers.add(fn);
+}
+
+function notifyTabWatchers() {
+  for (const fn of tabWatchers) fn();
+}
+
+/**
+ * El contenido siempre empieza arriba. El scroll vive en `#sheet-body`, que es
+ * el mismo para todas las pestañas: sin esto, abrir el sheet o cambiar de panel
+ * hereda el scroll del anterior y el nuevo arranca por la mitad. En escritorio
+ * el elemento es `display: contents` y no tiene scroll propio, así que no pasa
+ * nada.
+ */
+function scrollToTop() {
+  if (body) body.scrollTop = 0;
 }
 
 function measure() {
@@ -40,11 +71,13 @@ function measure() {
 /**
  * Los botones flotantes viven con el sheet cerrado: abierto los taparía y el
  * sheet ya trae su propia ✕. El FAB además se esconde con el formulario ya
- * abierto — sería un botón que no lleva a ningún lado.
+ * a la vista — sería un botón que no lleva a ningún lado. Pero solo a la
+ * vista: cerrar el sheet con el formulario abierto lo deja en `reportar` sin
+ * que se vea nada, y ahí el FAB es justo lo que hace falta para volver.
  */
 function paintControls() {
   const covered = isMobile() && getState() === "open";
-  if (fab) fab.hidden = sheet.dataset.tab === "reportar" || covered;
+  if (fab) fab.hidden = isTabVisible("reportar") || covered;
   if (menu) menu.hidden = !isMobile() || covered;
 }
 
@@ -82,6 +115,7 @@ function paintScrim(state: State, animate: boolean) {
 function moveTo(state: State, animate = true) {
   sheet.dataset.state = state;
   paintControls();
+  notifyTabWatchers();
   paintScrim(state, animate);
   // Al cerrar, la altura manda: si el panel cambió de contenido, el `closedY`
   // de la última medición se queda corto y el sheet no sale del todo.
@@ -108,6 +142,7 @@ function moveTo(state: State, animate = true) {
 
 export function openSheet(): void {
   if (!isMobile() || getState() === "open") return;
+  scrollToTop();
   measure();
   moveTo("open");
 }
@@ -128,6 +163,7 @@ function paintTabs() {
     button.setAttribute("aria-selected", String(button.dataset.tabBtn === sheet.dataset.tab));
   }
   paintControls();
+  notifyTabWatchers();
 }
 
 /**
@@ -141,6 +177,7 @@ function showTab(tab: string, open = true) {
   if (sheet.dataset.tab === "detalle" && tab !== "detalle") clearSelection();
   sheet.dataset.tab = tab;
   paintTabs();
+  scrollToTop();
   if (!isMobile()) return;
   measure();
   if (open) moveTo("open");
@@ -187,6 +224,7 @@ function applyBreakpoint() {
     moveTo(getState(), false);
   }
   paintControls();
+  notifyTabWatchers();
   refreshSize();
 }
 
@@ -260,6 +298,7 @@ export function initSheet(): void {
   grab = document.getElementById("sheet-grab") as HTMLDivElement;
   if (!sheet || !grab) return;
 
+  body = document.getElementById("sheet-body") as HTMLDivElement | null;
   scrim = document.getElementById("sheet-scrim") as HTMLDivElement | null;
   fab = document.getElementById("fab-report") as HTMLButtonElement | null;
   menu = document.getElementById("sheet-toggle") as HTMLButtonElement | null;
