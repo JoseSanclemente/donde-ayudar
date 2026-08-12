@@ -9,7 +9,12 @@ import {
 } from "./resources";
 import { readCachedCoords } from "./geolocation";
 import type { ShareCard } from "./share-card";
-import { isBlocked, markerEstado, statusInfo, type ReportStatus } from "./status";
+import {
+  isBlocked,
+  markerEstado,
+  statusInfo,
+  type ReportStatus,
+} from "./status";
 import { isMobile, onBreakpointChange } from "./ui/breakpoint";
 import { chipLabel, chipStyle } from "./ui/chips";
 import { telUrl, whatsappUrl } from "./ui/contact";
@@ -187,7 +192,7 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
   // Encima de la dirección y más pequeño: es el nombre que se dice por teléfono,
   // pero el que lleva hasta el punto sigue siendo el de abajo.
   const lugar = lead.placeName
-    ? `<p class="text-xs text-slate-600">${escapeHtml(lead.placeName)}</p>`
+    ? `<p class="text-base text-slate-600">${escapeHtml(lead.placeName)}</p>`
     : "";
 
   const lastUpdate = extra.lastUpdate
@@ -201,7 +206,10 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
     .slice(0, 2)
     .map((r) => r.note as string);
   const notes = noteList
-    .map((note) => `<p class="text-sm leading-snug text-slate-600">“${escapeHtml(note)}”</p>`)
+    .map(
+      (note) =>
+        `<p class="text-sm leading-snug text-slate-600">“${escapeHtml(note)}”</p>`,
+    )
     .join("");
 
   // Confirmar antes de desplazarse es el consejo que repite toda la página: sin
@@ -247,8 +255,10 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
   return `
     <div class="space-y-2">
       ${kicker}
-      ${lugar}
-      <p class="text-lg font-semibold text-slate-900">${escapeHtml(lead.name)}</p>
+      <div class="flex flex-col justify-between gap-2>
+        ${lugar}
+        <p class="text-lg font-semibold text-slate-900">${escapeHtml(lead.name)}</p>
+      </div>
       ${cuantos}
       <div class="space-y-2">${resourcesHtml(group)}</div>
       ${resolved}
@@ -593,7 +603,12 @@ export function getMarkerElement(id: string): HTMLElement | undefined {
  * what a caller needs when something covers the lower half of the map and the
  * point has to land on the strip that is left.
  */
-export function flyTo(lat: number, lng: number, zoom = 17, offsetY = 0): Promise<void> {
+export function flyTo(
+  lat: number,
+  lng: number,
+  zoom = 17,
+  offsetY = 0,
+): Promise<void> {
   claimView();
   return new Promise((resolve) => {
     let done = false;
@@ -610,7 +625,8 @@ export function flyTo(lat: number, lng: number, zoom = 17, offsetY = 0): Promise
       finish();
     });
     let target = L.latLng(lat, lng);
-    if (offsetY) target = map.unproject(map.project(target, zoom).add([0, offsetY]), zoom);
+    if (offsetY)
+      target = map.unproject(map.project(target, zoom).add([0, offsetY]), zoom);
     map.flyTo(target, zoom, { duration: 1.2 });
   });
 }
@@ -722,8 +738,16 @@ const KICKER: Record<
   Centro["tipo"],
   { label: string; color: string; accent: string }
 > = {
-  acopio: { label: "Centro de acopio", color: "text-indigo-700", accent: "#4338ca" },
-  sangre: { label: "Banco de sangre", color: "text-rose-700", accent: "#be123c" },
+  acopio: {
+    label: "Centro de acopio",
+    color: "text-indigo-700",
+    accent: "#4338ca",
+  },
+  sangre: {
+    label: "Banco de sangre",
+    color: "text-rose-700",
+    accent: "#be123c",
+  },
   albergue: { label: "Albergue", color: "text-amber-700", accent: "#b45309" },
 };
 
@@ -832,7 +856,9 @@ function centroPopupHtml(centro: Centro, mine: boolean): string {
       centro.telefono ? `Tel. ${centro.telefono}` : "",
       ORIGEN[centro.origen],
     ].filter(Boolean),
-    notes: [pausa ? centro.nota_estado : null, centro.notas].filter(Boolean) as string[],
+    notes: [pausa ? centro.nota_estado : null, centro.notas].filter(
+      Boolean,
+    ) as string[],
     chipsTitle: "Recibe",
     chips: recibeInsumos(centro)
       ? centro.recibe.map((item) => ({

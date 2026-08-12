@@ -2,7 +2,7 @@
 // El reverso del reporte: el reporte dice qué falta en un punto, esto dice qué
 // hay disponible en la ciudad y todavía no tiene adónde ir. Quien coordina en
 // la calle lo despacha a un punto desde acá.
-import { CATEGORIES } from "../scripts/resources";
+import { CATEGORIES, categoryTitle } from "../scripts/resources";
 ---
 
 <section class="border-b border-slate-200 pb-5 pt-3">
@@ -38,7 +38,9 @@ import { CATEGORIES } from "../scripts/resources";
       class="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 shadow-sm outline-none focus:border-slate-400"
     >
       <option value="">Sin categoría</option>
-      {CATEGORIES.map((category) => <option value={category.id}>{category.label}</option>)}
+      {CATEGORIES.map((category) => (
+        <option value={category.id}>{categoryTitle(category.id)}</option>
+      ))}
     </select>
 
     <input

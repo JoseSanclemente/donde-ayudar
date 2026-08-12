@@ -6,10 +6,10 @@ import {
   onOffers,
   removeOffer,
 } from "../data/offers";
-import { getReports, onChange } from "../data/reports";
+import { getReports, onChange, reportLabel } from "../data/reports";
 import { isMine } from "../data/session";
 import { flyTo } from "../map";
-import { categoryChip, categoryLabel } from "../resources";
+import { categoryChip, categoryTitle } from "../resources";
 import { closeSheet } from "../sheet";
 import { CHIP_SHAPE } from "../ui/chips";
 import { isValidPhone, telUrl, whatsappUrl } from "../ui/contact";
@@ -47,7 +47,7 @@ export function initOffersPanel(): void {
   function points(): { id: string; name: string }[] {
     return groupReports(getReports()).map((group) => ({
       id: group.lead.id,
-      name: group.lead.name,
+      name: reportLabel(group.lead),
     }));
   }
 
@@ -135,7 +135,7 @@ export function initOffersPanel(): void {
         if (offer.category) {
           const chip = document.createElement("span");
           chip.className = `${CHIP_SHAPE} ${categoryChip(offer.category)}`;
-          chip.textContent = categoryLabel(offer.category);
+          chip.textContent = categoryTitle(offer.category);
           meta.append(chip);
         }
 

@@ -30,6 +30,15 @@ export type Report = {
   userId: string;
 };
 
+/**
+ * A report on a single line, for the selects that point at it. The venue name
+ * leads when there is one, and the address always follows — it is what actually
+ * gets you there, and two points on the same block read alike without it.
+ */
+export function reportLabel(report: Report): string {
+  return report.placeName ? `${report.placeName} - ${report.name}` : report.name;
+}
+
 /** Fila tal como viaja por la red — snake_case, como la tabla. */
 type Row = {
   id: string;

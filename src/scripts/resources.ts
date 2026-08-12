@@ -1,6 +1,12 @@
 export type ResourceCategory = {
   id: string;
   label: string;
+  /**
+   * Va delante de la etiqueta, y en todas partes: `categoryTitle` los pega. Va
+   * aparte y no dentro de `label` porque el acordeón lo pinta más grande que el
+   * texto, y para eso necesita su propio elemento.
+   */
+  emoji: string;
   items: string[];
   /** Chip en la lista de reportes y los popups del mapa. */
   chip: string;
@@ -25,6 +31,7 @@ export const CATEGORIES: ResourceCategory[] = [
     // publicaron antes de que la columna nombrara insumos.
     id: "herramientas",
     label: "Protección personal",
+    emoji: "🧤",
     items: ["Guantes de construcción", "Gafas", "Tapabocas N95", "Cascos"],
     chip: "bg-amber-50 text-amber-800",
     chipOn: "border-amber-500 bg-amber-500 text-white",
@@ -34,6 +41,7 @@ export const CATEGORIES: ResourceCategory[] = [
     // pedidos distintos y casi nunca los trae la misma persona.
     id: "rescate",
     label: "Rescate y escombros",
+    emoji: "⛏️",
     items: [
       "Porras",
       "Percutores",
@@ -52,6 +60,7 @@ export const CATEGORIES: ResourceCategory[] = [
   {
     id: "logistica",
     label: "Logística y energía",
+    emoji: "🔦",
     items: [
       "Plantas eléctricas",
       "Extensiones",
@@ -70,6 +79,7 @@ export const CATEGORIES: ResourceCategory[] = [
   {
     id: "bebes",
     label: "Insumos para bebés",
+    emoji: "🍼",
     items: [
       "Pañales",
       "Leche en polvo",
@@ -83,6 +93,7 @@ export const CATEGORIES: ResourceCategory[] = [
   {
     id: "alimentos",
     label: "Alimentos",
+    emoji: "🥫",
     items: ["Enlatados", "Granos", "Arroz", "Aceite", "Agua", "Jugos"],
     chip: "bg-emerald-50 text-emerald-800",
     chipOn: "border-emerald-600 bg-emerald-600 text-white",
@@ -96,6 +107,7 @@ export const CATEGORIES: ResourceCategory[] = [
     // (ver `LEGACY_CATEGORY_IDS`).
     id: "primeros-auxilios",
     label: "Primeros auxilios",
+    emoji: "🩹",
     items: [
       "Gasas",
       "Alcohol",
@@ -115,6 +127,7 @@ export const CATEGORIES: ResourceCategory[] = [
     // un botiquín de casa.
     id: "medicamentos",
     label: "Insumos médicos y medicamentos",
+    emoji: "💊",
     items: [
       "Acetaminofén",
       "Diclofenaco",
@@ -136,6 +149,7 @@ export const CATEGORIES: ResourceCategory[] = [
   {
     id: "aseo-personal",
     label: "Aseo personal",
+    emoji: "🧼",
     items: [
       "Jabón de cuerpo",
       "Papel higiénico",
@@ -152,6 +166,7 @@ export const CATEGORIES: ResourceCategory[] = [
     // texto del ítem no cambió, así que un reporte ya guardado sigue calzando.
     id: "mascotas",
     label: "Mascotas",
+    emoji: "🐾",
     items: [
       "Alimento seco para mascotas",
       "Alimento húmedo para mascotas",
@@ -174,6 +189,7 @@ export const CATEGORIES: ResourceCategory[] = [
   {
     id: "voluntarios",
     label: "Voluntarios",
+    emoji: "🙋",
     items: [
       "Médicos y auxiliares de enfermería",
       "Remover escombros",
@@ -289,8 +305,15 @@ export function categoryChip(categoryId: string): string {
   return BY_ID.get(categoryId)?.chip ?? OTHER_CHIP;
 }
 
-export function categoryLabel(categoryId: string): string {
-  return BY_ID.get(categoryId)?.label ?? categoryId;
+/**
+ * El nombre de la categoría con su emoji delante, para donde el encabezado es
+ * una sola línea de texto y no puede darle al emoji su propio tamaño: el
+ * `<option>` de las ofertas, el chip de una oferta, el bloque de un popup. El
+ * acordeón no llama acá — pinta las dos partes por separado.
+ */
+export function categoryTitle(categoryId: string): string {
+  const category = BY_ID.get(categoryId);
+  return category ? `${category.emoji} ${category.label}` : categoryId;
 }
 
 /**
@@ -357,7 +380,8 @@ export function byCategory<T>(
     .filter((category) => buckets.has(category.id))
     .map((category) => ({
       id: category.id,
-      label: category.label,
+      // «Otros» no está en el catálogo y no tiene emoji: se queda con su texto.
+      label: BY_ID.has(category.id) ? categoryTitle(category.id) : category.label,
       items: buckets.get(category.id) as T[],
     }));
 }

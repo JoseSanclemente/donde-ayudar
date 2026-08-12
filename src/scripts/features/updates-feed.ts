@@ -1,5 +1,5 @@
 import { groupReports } from "../cluster";
-import { getReports, onChange } from "../data/reports";
+import { getReports, onChange, reportLabel } from "../data/reports";
 import { isMine } from "../data/session";
 import { addUpdate, getUpdates, onUpdates, removeUpdate } from "../data/updates";
 import { flyTo } from "../map";
@@ -59,7 +59,7 @@ export function initUpdatesFeed(): void {
 
     const options = [new Option("Novedad general", "")];
     for (const group of groups) {
-      options.push(new Option(group.lead.name, group.lead.id));
+      options.push(new Option(reportLabel(group.lead), group.lead.id));
     }
     select.replaceChildren(...options);
 
