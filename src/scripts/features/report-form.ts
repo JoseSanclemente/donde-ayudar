@@ -51,13 +51,12 @@ export function initReportForm(): void {
       location.clearNameError();
     }
 
+    // Sin insumos también se reporta: la dirección es lo único obligatorio. Un
+    // punto en el mapa que solo dice «acá pasa algo» vale más que el reporte que
+    // nunca se envió porque había que abrir categorías primero — lo que falta lo
+    // agrega cualquiera después.
     const resources = picker.values();
-    if (resources.length === 0) {
-      picker.showError("Selecciona al menos un recurso.");
-      valid = false;
-    } else {
-      picker.clearError();
-    }
+    picker.clearError();
 
     // Espejo de los CHECK de la base: mismo patrón y mismos largos. Sin esto,
     // un teléfono mal escrito vuelve como «no se pudo guardar el reporte» y no

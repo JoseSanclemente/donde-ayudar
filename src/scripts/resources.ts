@@ -72,6 +72,7 @@ export const CATEGORIES: ResourceCategory[] = [
       "Baños portátiles",
       "Colchonetas",
       "Cobijas ",
+      "Carpas",
     ],
     chip: "bg-cyan-50 text-cyan-800",
     chipOn: "border-cyan-600 bg-cyan-600 text-white",
@@ -381,7 +382,9 @@ export function byCategory<T>(
     .map((category) => ({
       id: category.id,
       // «Otros» no está en el catálogo y no tiene emoji: se queda con su texto.
-      label: BY_ID.has(category.id) ? categoryTitle(category.id) : category.label,
+      label: BY_ID.has(category.id)
+        ? categoryTitle(category.id)
+        : category.label,
       items: buckets.get(category.id) as T[],
     }));
 }

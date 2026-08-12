@@ -25,7 +25,11 @@ import ResourcePicker from "./ResourcePicker.astro";
     <LocationField prefix="report" label="Dirección" placeholder="Ej. Cra 56 #3-88" />
   </div>
 
-  <ResourcePicker prefix="report" label="Insumos necesarios" />
+  <ResourcePicker
+    prefix="report"
+    label="Insumos necesarios"
+    hint="Si no sabes qué falta, déjalo vacío — cualquiera lo puede agregar después."
+  />
 
   <div>
     <label for="note" class="block text-sm font-medium text-slate-700">

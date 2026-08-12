@@ -14,13 +14,19 @@ import { CATEGORIES, CHIP_OFF } from "../scripts/resources";
 interface Props {
   prefix: string;
   label: string;
+  /** Marca el campo como opcional y pinta la ayuda debajo del título. */
+  hint?: string;
 }
 
-const { prefix, label } = Astro.props;
+const { prefix, label, hint } = Astro.props;
 ---
 
 <div>
-  <span class="block text-sm font-medium text-slate-700">{label}</span>
+  <span class="block text-sm font-medium text-slate-700">
+    {label}
+    {hint && <span class="font-normal text-slate-400">(opcional)</span>}
+  </span>
+  {hint && <p class="mt-0.5 text-xs text-slate-500">{hint}</p>}
   <div id={`${prefix}-preset-chips`} class="mt-2 space-y-2">
     {
       CATEGORIES.map((category) => (

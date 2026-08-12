@@ -81,6 +81,18 @@ export function initReportList(): void {
   function buildGroupChips(group: ReportGroup): HTMLDivElement {
     const chips = document.createElement("div");
     chips.className = "mt-2 flex flex-wrap gap-1";
+
+    // Reportar no exige insumos —la dirección es lo único obligatorio—, así que
+    // la fila puede quedar vacía. La línea ocupa su lugar: el hueco solo se leía
+    // como una tarjeta rota.
+    if (group.resources.length === 0) {
+      const empty = document.createElement("p");
+      empty.className = "text-sm text-slate-500";
+      empty.textContent = "Todavía no dice qué necesita.";
+      chips.append(empty);
+      return chips;
+    }
+
     for (const resource of group.resources) {
       const chip = document.createElement("button");
       chip.type = "button";
@@ -221,7 +233,10 @@ export function initReportList(): void {
     const item = document.createElement("li");
     item.dataset.groupKey = group.key;
     item.dataset.leadId = group.lead.id;
-    const resolved = group.pending === 0;
+    // Mismo guardia que el mapa: un reporte sin insumos tiene cero pendientes
+    // sin haber cubierto nada, y pintarlo verde diría que la zona ya está
+    // resuelta cuando lo único que pasa es que nadie ha dicho qué falta.
+    const resolved = group.resources.length > 0 && group.pending === 0;
     // Un punto cerrado se apaga: sigue en la lista —quien lo vio ayer merece
     // saber que ya no recibe— pero deja de competir por la atención con los que
     // sí necesitan gente. Solo «cerrado»: un saturado vuelve a recibir en un

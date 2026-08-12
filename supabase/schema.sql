@@ -42,8 +42,12 @@ create table public.reports (
   lng         double precision not null check (lng between -82.0 and -66.8),
   -- Sin el tope de largo, un solo insert podía guardar megabytes de texto que
   -- todos los visitantes se descargan al abrir el mapa.
+  --
+  -- Vacío se permite a propósito: quien reporta desde la calle sabe la dirección
+  -- antes que la lista de lo que falta, y los insumos los agrega cualquiera
+  -- después. La dirección es lo único obligatorio de un reporte.
   resources   text[] not null
-              check (cardinality(resources) between 1 and 20)
+              check (cardinality(resources) <= 20)
               check (public.max_text_len(resources) <= 60),
   covered     text[] not null default '{}'
               check (cardinality(covered) <= 20 and public.max_text_len(covered) <= 60),

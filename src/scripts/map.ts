@@ -137,6 +137,12 @@ function contactHtml(name: string, phone: string | null): string {
  * orden que ya trae el grupo — pendientes primero, cubiertos al final.
  */
 function resourcesHtml(group: ReportGroup): string {
+  // Un reporte puede llegar sin insumos: la dirección es lo único obligatorio.
+  // La línea ocupa el lugar de los chips para que el hueco se lea como una
+  // invitación y no como un popup a medio dibujar.
+  if (group.resources.length === 0)
+    return `<p class="text-sm text-slate-500">Todavía no dice qué necesita.</p>`;
+
   const blocks = byCategory(group.resources, (resource) => resource.name).map(
     (bucket) => {
       const chips = bucket.items
