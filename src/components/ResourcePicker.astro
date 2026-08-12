@@ -33,6 +33,17 @@ const { prefix, label } = Astro.props;
           >
             <span class="caret opacity-60 transition-transform">▸</span>
             <span class="flex-1">{category.label}</span>
+            {/* Sin color propio, como el contador: el encabezado ya va tintado
+                con el de la categoría. Va dentro del `summary` para que se
+                alcance sin desplegar — que es justo de lo que se trata. */}
+            <button
+              type="button"
+              data-select-all={category.id}
+              aria-pressed="false"
+              class="rounded border border-current/30 px-1.5 py-0.5 text-[11px] font-medium opacity-70 transition hover:opacity-100"
+            >
+              Seleccionar todo
+            </button>
             <span data-count={category.id} class="text-xs opacity-70">
               {category.items.length}
             </span>

@@ -7,7 +7,10 @@ import { isRetired, isStatus, type ReportStatus } from "../status";
 
 export type Report = {
   id: string;
+  /** La dirección: es lo que lleva a alguien hasta el punto. */
   name: string;
+  /** Cómo se llama el sitio: «Conjunto Los Alcázares». Opcional. */
+  placeName: string | null;
   lat: number;
   lng: number;
   resources: string[];
@@ -32,6 +35,7 @@ type Row = {
   id: string;
   user_id: string;
   name: string;
+  place_name: string | null;
   lat: number;
   lng: number;
   resources: string[];
@@ -126,6 +130,7 @@ function fromRow(row: Row): Report {
   return {
     id: row.id,
     name: row.name,
+    placeName: text(row.place_name),
     lat: row.lat,
     lng: row.lng,
     resources: row.resources.filter((r): r is string => typeof r === "string"),
@@ -149,6 +154,7 @@ function toInsert(report: Report): Omit<Row, "created_at" | "status_at"> {
     id: report.id,
     user_id: report.userId,
     name: report.name,
+    place_name: report.placeName,
     lat: report.lat,
     lng: report.lng,
     resources: report.resources,

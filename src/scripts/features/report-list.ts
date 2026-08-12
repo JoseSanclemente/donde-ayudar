@@ -232,10 +232,22 @@ export function initReportList(): void {
     const head = document.createElement("div");
     head.className = "flex items-start justify-between gap-2";
 
+    // El nombre del lugar va encima de la dirección y más pequeño, igual que en
+    // el popup. Los dos van en la misma columna: `head` es una fila con las
+    // insignias a la derecha, y colgarlo de ahí lo mandaría a competir con ellas.
+    const titles = document.createElement("div");
+    if (group.lead.placeName) {
+      const place = document.createElement("p");
+      place.className = "text-xs text-slate-600";
+      place.textContent = group.lead.placeName;
+      titles.append(place);
+    }
+
     const title = document.createElement("p");
     title.className = "text-base font-semibold text-slate-900";
     title.textContent = group.lead.name;
-    head.append(title);
+    titles.append(title);
+    head.append(titles);
 
     const badges = document.createElement("div");
     badges.className = "flex shrink-0 items-center gap-1";

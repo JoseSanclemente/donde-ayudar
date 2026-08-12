@@ -17,15 +17,27 @@ export type ResourcePicker = {
   values(): string[];
   /** Vacía la selección y repinta. Va con el `form.reset()`. */
   clear(): void;
-  /** Cierra las siete categorías, sin perder lo marcado. */
+  /** Cierra las categorías, sin perder lo marcado. */
   collapse(): void;
   showError(message: string): void;
   clearError(): void;
 };
 
+export type ResourcePickerOptions = {
+  /**
+   * Cuántos insumos caben. Es el `check` de la columna donde van a parar:
+   * veinte en `reports.resources`, ochenta en `centros.recibe`. Sin el freno
+   * acá, pasarse vuelve como «no se pudo guardar» y nadie sabe por qué.
+   */
+  max: number;
+};
+
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-export function createResourcePicker(prefix: string): ResourcePicker {
+export function createResourcePicker(
+  prefix: string,
+  { max }: ResourcePickerOptions,
+): ResourcePicker {
   const presetChips = $<HTMLDivElement>(`${prefix}-preset-chips`);
   const selectedResources = $<HTMLDivElement>(`${prefix}-selected-resources`);
   const resourcesError = $<HTMLParagraphElement>(`${prefix}-resources-error`);
@@ -68,6 +80,56 @@ export function createResourcePicker(prefix: string): ResourcePicker {
       // un rojo encima competiría con él. Lo elegido se marca con el peso.
       badge.className = selected > 0 ? "text-xs font-bold" : "text-xs opacity-70";
     }
+    syncSelectAllButtons();
+  }
+
+  /** Marcada entera, el botón se ofrece a desmarcarla. */
+  function isWholeCategorySelected(items: string[]): boolean {
+    return items.every((item) => resources.has(item.trim()));
+  }
+
+  function syncSelectAllButtons() {
+    for (const category of CATEGORIES) {
+      const button = presetChips.querySelector<HTMLButtonElement>(
+        `[data-select-all="${category.id}"]`,
+      );
+      if (!button) continue;
+      const whole = isWholeCategorySelected(category.items);
+      button.textContent = whole ? "Quitar todo" : "Seleccionar todo";
+      button.setAttribute("aria-pressed", String(whole));
+    }
+  }
+
+  /**
+   * Toda la categoría de un toque. Quien reporta un edificio entero necesita
+   * media familia de insumos, no un chip: veinticinco toques con el celular en
+   * una mano no los da nadie en la calle.
+   */
+  function toggleCategory(categoryId: string) {
+    const category = CATEGORIES.find((c) => c.id === categoryId);
+    if (!category) return;
+    const items = category.items.map((item) => item.trim());
+
+    if (isWholeCategorySelected(category.items)) {
+      for (const item of items) resources.delete(item);
+      renderSelectedResources();
+      return;
+    }
+
+    let full = false;
+    for (const item of items) {
+      if (resources.size >= max && !resources.has(item)) {
+        full = true;
+        continue;
+      }
+      resources.add(item);
+    }
+
+    // Lo que cupo queda marcado: devolver la categoría vacía porque sobraban
+    // tres ítems obligaría a marcarlos a mano, que es lo que este botón vino a
+    // evitar. El aviso va después de repintar, que es quien limpia el error.
+    renderSelectedResources();
+    if (full) showError(resourcesError, `Máximo ${max} insumos.`);
   }
 
   function renderSelectedResources() {
@@ -93,13 +155,40 @@ export function createResourcePicker(prefix: string): ResourcePicker {
 
   function toggleResource(resource: string, force?: boolean) {
     const shouldAdd = force ?? !resources.has(resource);
-    if (shouldAdd) resources.add(resource);
-    else resources.delete(resource);
+    if (shouldAdd) {
+      if (resources.size >= max && !resources.has(resource)) {
+        showError(resourcesError, `Máximo ${max} insumos.`);
+        return;
+      }
+      resources.add(resource);
+    } else {
+      resources.delete(resource);
+    }
     renderSelectedResources();
   }
 
   presetChips.addEventListener("click", (event) => {
-    const chip = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-preset]");
+    const target = event.target as HTMLElement;
+
+    // El botón vive dentro del `summary`, y el clic en un `summary` pliega el
+    // acordeón: sin esto, marcar la categoría entera la cierra en la cara.
+    const selectAll = target.closest<HTMLButtonElement>("[data-select-all]");
+    if (selectAll) {
+      event.preventDefault();
+      const categoryId = selectAll.dataset.selectAll as string;
+      toggleCategory(categoryId);
+      if (!reduceMotion) {
+        const chips = presetChips.querySelectorAll(`[data-preset][data-category="${categoryId}"]`);
+        gsap.fromTo(
+          chips,
+          { scale: 0.92 },
+          { scale: 1, duration: 0.25, ease: "back.out(3)", stagger: 0.02 },
+        );
+      }
+      return;
+    }
+
+    const chip = target.closest<HTMLButtonElement>("[data-preset]");
     if (!chip) return;
     toggleResource(chip.dataset.preset as string);
     if (!reduceMotion) {

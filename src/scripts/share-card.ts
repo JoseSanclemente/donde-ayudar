@@ -42,7 +42,11 @@ export type ShareCard = {
   /** Color del kicker y de las barras, en hexadecimal. */
   accent: string;
   name: string;
-  /** Los puntos traen dirección; un reporte no. */
+  /**
+   * La línea secundaria bajo el nombre. En un punto es la dirección; en un
+   * reporte, donde `name` ya es la dirección, es el nombre del lugar — y va
+   * vacía cuando nadie lo escribió.
+   */
   address: string | null;
   /**
    * «Actualizado hace 2 h». Va pegado a la identidad del punto —el dato no vale
@@ -97,7 +101,10 @@ const CHIP_HEX: Record<string, { bg: string; fg: string }> = {
   logistica: { bg: "#ecfeff", fg: "#155e75" },
   bebes: { bg: "#fdf2f8", fg: "#9d174d" },
   alimentos: { bg: "#ecfdf5", fg: "#065f46" },
-  salud: { bg: "#f0f9ff", fg: "#075985" },
+  "primeros-auxilios": { bg: "#f0f9ff", fg: "#075985" },
+  medicamentos: { bg: "#f0fdfa", fg: "#115e59" },
+  "aseo-personal": { bg: "#eff6ff", fg: "#1e40af" },
+  mascotas: { bg: "#fdf4ff", fg: "#86198f" },
   voluntarios: { bg: "#f5f3ff", fg: "#5b21b6" },
 };
 

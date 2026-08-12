@@ -29,7 +29,12 @@ $$;
 create table public.reports (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null default auth.uid() references auth.users on delete cascade,
+  -- La dirección: es lo que lleva a alguien hasta el punto.
   name        text not null check (char_length(name) between 1 and 120),
+  -- Cómo se llama el sitio —«Conjunto Los Alcázares», «Colegio San José»—, que
+  -- es lo que la gente dice por teléfono pero no aparece en ninguna
+  -- nomenclatura. Opcional: sin dirección no se llega, sin nombre sí.
+  place_name  text check (place_name is null or char_length(place_name) between 1 and 120),
   -- Bounding box de Colombia: corta la basura y los clics accidentales lejos,
   -- pero deja reportar fuera de Cali. La emergencia no se queda en una ciudad y
   -- la caja vieja —solo Cali— rechazaba un punto de Buga en la base de datos.

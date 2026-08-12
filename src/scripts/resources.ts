@@ -83,50 +83,93 @@ export const CATEGORIES: ResourceCategory[] = [
   {
     id: "alimentos",
     label: "Alimentos",
-    items: [
-      "Enlatados",
-      "Granos",
-      "Arroz",
-      "Aceite",
-      "Agua",
-      "Jugos",
-      "Alimento para mascotas",
-    ],
+    items: ["Enlatados", "Granos", "Arroz", "Aceite", "Agua", "Jugos"],
     chip: "bg-emerald-50 text-emerald-800",
     chipOn: "border-emerald-600 bg-emerald-600 text-white",
   },
   {
-    id: "salud",
-    label: "Primeros auxilios y aseo",
+    // `salud` eran estas tres juntas: veinticinco ítems en un solo acordeón, con
+    // las gasas, el propofol y la crema dental en la misma lista. Nadie lee eso
+    // de afán, y era la única categoría que no cabía entera en el tope de veinte
+    // de un reporte. El texto de cada ítem no cambió, así que un reporte ya
+    // guardado sigue calzando — lo que sí necesita traducción es el id viejo
+    // (ver `LEGACY_CATEGORY_IDS`).
+    id: "primeros-auxilios",
+    label: "Primeros auxilios",
     items: [
-      "Ambulancia",
       "Gasas",
       "Alcohol",
-      "Jabón de cuerpo",
-      "Papel higiénico",
-      "Crema dental",
-      "Cepillo de dientes",
+      "Agua oxigenada",
       "Esparadrapo",
-      "Solución salina",
-      "Catéter #18 o #24",
-      "Ampollas de dipirona",
-      "Equipo de macrogoteo",
+      "Micropore",
+      "Isodine",
+      "Tijeras",
+      "Caja de guantes de látex",
+    ],
+    chip: "bg-sky-50 text-sky-800",
+    chipOn: "border-sky-600 bg-sky-600 text-white",
+  },
+  {
+    // El material clínico va con los medicamentos y no con los primeros
+    // auxilios: quien lleva una cosa lleva la otra, porque es una brigada y no
+    // un botiquín de casa.
+    id: "medicamentos",
+    label: "Insumos médicos y medicamentos",
+    items: [
       "Acetaminofén",
       "Diclofenaco",
       "Meloxicam",
       "Piroxicam",
-      "Agua oxigenada",
-      "Caja de guantes de látex",
-      "Tijeras",
-      "Isodine",
-      "Micropore",
+      "Ampollas de dipirona",
+      "Solución salina",
+      "Dextrosa al 5% y al 10%",
+      "Catéter #18 o #24",
+      "Catéteres 14G y 20G",
+      "Equipo de macrogoteo",
       "Balas de oxígeno",
       "Cánulas",
-      "Catéteres 14G y 20G",
-      "Dextrosa al 5% y al 10%",
+      "Ambulancia",
     ],
-    chip: "bg-sky-50 text-sky-800",
-    chipOn: "border-sky-600 bg-sky-600 text-white",
+    chip: "bg-teal-50 text-teal-800",
+    chipOn: "border-teal-600 bg-teal-600 text-white",
+  },
+  {
+    id: "aseo-personal",
+    label: "Aseo personal",
+    items: [
+      "Jabón de cuerpo",
+      "Papel higiénico",
+      "Crema dental",
+      "Cepillo de dientes",
+    ],
+    chip: "bg-blue-50 text-blue-800",
+    chipOn: "border-blue-600 bg-blue-600 text-white",
+  },
+  {
+    // Lo que come un animal y lo que lo cura, en una sola familia: un albergue
+    // de mascotas pide las dos cosas a la vez, y quien las lleva casi siempre es
+    // la misma persona. El alimento vivía en `alimentos` y se movió acá — el
+    // texto del ítem no cambió, así que un reporte ya guardado sigue calzando.
+    id: "mascotas",
+    label: "Mascotas",
+    items: [
+      "Alimento seco para mascotas",
+      "Alimento húmedo para mascotas",
+      "Arena para gatos",
+      "Correas para perros",
+      "Suturas absorbibles",
+      "Suturas no absorbibles",
+      "Tapones heparinizados",
+      "Piperacilina",
+      "Tazobactam",
+      "Cánulas de oxígeno",
+      "Sondas endotraqueales 3.0 a 10",
+      "Sondas urinarias o vesicales rígidas",
+      "Fluimucil inyectable",
+      "Propofol",
+    ],
+    chip: "bg-fuchsia-50 text-fuchsia-800",
+    chipOn: "border-fuchsia-600 bg-fuchsia-600 text-white",
   },
   {
     id: "voluntarios",
@@ -152,6 +195,16 @@ export const CATEGORIES: ResourceCategory[] = [
 const BY_ID = new Map(
   CATEGORIES.map((category) => [category.id, category] as const),
 );
+
+/**
+ * Ids de categoría que ya no existen, y en qué se convirtieron. Un `recibe`
+ * viejo guardado por categoría —no por insumo— sigue diciendo `salud`, y sin
+ * esta tabla ese punto de acopio caería a «Otros», en gris, prometiendo menos de
+ * lo que recibe. No hay que migrar la fila: se traduce al leer.
+ */
+const LEGACY_CATEGORY_IDS: Record<string, string[]> = {
+  salud: ["primeros-auxilios", "medicamentos", "aseo-personal"],
+};
 
 /**
  * El catálogo es texto escrito a mano y alguno trae un espacio de sobra al
@@ -250,7 +303,7 @@ export function categoryIdOf(resource: string): string | undefined {
 
 /** Si el texto es un id del catálogo y no el nombre de un insumo. */
 export function isCategoryId(value: string): boolean {
-  return BY_ID.has(value);
+  return BY_ID.has(value) || value in LEGACY_CATEGORY_IDS;
 }
 
 /**
@@ -260,8 +313,14 @@ export function isCategoryId(value: string): boolean {
  * «Voluntarios», solo que la lista no promete lo que ahí no pasa. Los nombres se
  * recortan: el catálogo es texto escrito a mano y alguno trae un espacio de
  * sobra al final.
+ *
+ * Una categoría que se partió responde por sus herederas, unidas: es lo mismo
+ * que ese punto venía mostrando antes de la partición.
  */
 export function categoryItemsEnPunto(categoryId: string): string[] {
+  const heirs = LEGACY_CATEGORY_IDS[categoryId];
+  if (heirs) return heirs.flatMap((id) => categoryItemsEnPunto(id));
+
   const category = BY_ID.get(categoryId);
   return (category?.itemsEnPunto ?? category?.items ?? []).map((item) =>
     item.trim(),

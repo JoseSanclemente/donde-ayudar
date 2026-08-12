@@ -89,6 +89,7 @@ async function fromIndexes(address: CaliAddress): Promise<GeocodeResult[]> {
 /* ---- Nivel 3: Nominatim ------------------------------------------------ */
 
 const ENDPOINT = "https://nominatim.openstreetmap.org/search";
+const REVERSE_ENDPOINT = "https://nominatim.openstreetmap.org/reverse";
 
 // Cali bounding box (left, top, right, bottom). Va sin `bounded`, así que es una
 // preferencia y no un recorte: Nominatim pone primero lo que cae adentro y sigue
@@ -96,7 +97,9 @@ const ENDPOINT = "https://nominatim.openstreetmap.org/search";
 // ayuda ya se está coordinando con otros municipios.
 const VIEWBOX = "-76.62,3.52,-76.44,3.32";
 
-// Nominatim usage policy: at most 1 request per second.
+// Nominatim usage policy: at most 1 request per second. El freno es uno solo
+// para todo el módulo: buscar y resolver al revés son el mismo servidor, así que
+// contarlos por separado sería pedirle el doble.
 const MIN_INTERVAL_MS = 1100;
 let lastRequestAt = 0;
 
@@ -137,11 +140,16 @@ function shortLabel(item: NominatimItem): { label: string; detail: string } {
   };
 }
 
-async function query(q: string, signal?: AbortSignal): Promise<NominatimItem[]> {
+/** Espera el turno que la política de uso de Nominatim exige. */
+async function throttle(): Promise<void> {
   const elapsed = Date.now() - lastRequestAt;
   if (elapsed < MIN_INTERVAL_MS) await wait(MIN_INTERVAL_MS - elapsed);
-  if (signal?.aborted) return [];
   lastRequestAt = Date.now();
+}
+
+async function query(q: string, signal?: AbortSignal): Promise<NominatimItem[]> {
+  await throttle();
+  if (signal?.aborted) return [];
 
   const url = new URL(ENDPOINT);
   url.searchParams.set("q", q);
@@ -180,6 +188,64 @@ function toResults(items: NominatimItem[]): GeocodeResult[] {
       } satisfies GeocodeResult;
     })
     .filter((r) => r.label && Number.isFinite(r.lat) && Number.isFinite(r.lng));
+}
+
+/* ---- El camino de vuelta: de un punto a una dirección ------------------ */
+
+/** El `check` de `reports.name` topa en 120 caracteres. */
+const MAX_NAME = 120;
+
+/**
+ * La dirección de un punto, para rellenar el campo cuando quien reporta usa su
+ * ubicación. Solo Nominatim: los índices locales van en el sentido contrario
+ * —de una placa a un punto— y darles la vuelta pide otra estructura.
+ *
+ * OSM tiene poco edificio residencial en Cali, así que muchas veces vuelve solo
+ * la vía. Sirve igual: el punto ya quedó fijado por GPS, que es lo que lleva a
+ * alguien hasta allá, y el texto queda editable para quien lo escriba mejor.
+ *
+ * Nunca lanza: quien la llama ya tiene las coordenadas y no puede quedarse sin
+ * formulario porque la red falle.
+ */
+export async function reverseGeocode(
+  coords: { lat: number; lng: number },
+  signal?: AbortSignal,
+): Promise<string | null> {
+  try {
+    await throttle();
+    if (signal?.aborted) return null;
+
+    const url = new URL(REVERSE_ENDPOINT);
+    url.searchParams.set("lat", String(coords.lat));
+    url.searchParams.set("lon", String(coords.lng));
+    url.searchParams.set("format", "jsonv2");
+    url.searchParams.set("addressdetails", "1");
+    // 18 = número de casa si lo hay, y si no la vía. Más lejos devuelve el
+    // barrio, que no es una dirección a la que alguien pueda llegar.
+    url.searchParams.set("zoom", "18");
+
+    const response = await fetch(url, {
+      signal,
+      headers: { "Accept-Language": "es" },
+    });
+    if (!response.ok) return null;
+
+    const item = (await response.json()) as NominatimItem;
+    const address = item?.address ?? {};
+
+    const via = address.road || item?.name;
+    const calle = via
+      ? address.house_number
+        ? `${via} # ${address.house_number}`
+        : via
+      : null;
+
+    const barrio = address.neighbourhood || address.suburb;
+    const texto = [calle, barrio].filter(Boolean).join(", ");
+    return texto ? texto.slice(0, MAX_NAME) : null;
+  } catch {
+    return null;
+  }
 }
 
 /* ---- Orquestación ------------------------------------------------------ */

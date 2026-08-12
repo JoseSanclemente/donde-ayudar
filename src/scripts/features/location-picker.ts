@@ -1,9 +1,11 @@
 import type { LatLng } from "leaflet";
-import { debounce, geocode, type GeocodeResult } from "../geocode";
+import { debounce, geocode, reverseGeocode, type GeocodeResult } from "../geocode";
+import { locateUser } from "../geolocation";
 import { flyTo, hideDraft, isPicking, showDraft, startPicking, stopPicking } from "../map";
 import { closeSheet, getSheetCover, openSheet, peekSheet } from "../sheet";
 import { $, clearError, showError } from "../ui/dom";
 import { hidePickHint, showPickHint } from "../ui/pick-hint";
+import { showToast } from "../ui/toast";
 
 /**
  * Dirección escrita, sugerencias, pin arrastrable y clic en el mapa: la mitad
@@ -55,10 +57,13 @@ export function createLocationPicker(prefix: string): LocationPicker {
   const suggestions = $<HTMLUListElement>(`${prefix}-suggestions`);
   const locationStatus = $<HTMLSpanElement>(`${prefix}-location-status`);
   const pickButton = $<HTMLButtonElement>(`${prefix}-pick-on-map`);
+  const gpsButton = $<HTMLButtonElement>(`${prefix}-use-gps`);
   const geoNote = $<HTMLParagraphElement>(`${prefix}-geo-note`);
 
   let coords: Coords | null = null;
   let geocodeAbort: AbortController | null = null;
+  /** El GPS del navegador tarda: un segundo toque no puede pedir otro. */
+  let locating = false;
   /** Solo el formulario a la vista puede tocar el pin y el modo de señalar. */
   let active = true;
 
@@ -241,6 +246,61 @@ export function createLocationPicker(prefix: string): LocationPicker {
     if (!suggestions.contains(event.target as Node) && event.target !== nameInput) {
       hideSuggestions();
     }
+  });
+
+  /* ---------------------------------------------------------------- */
+  /* Usar mi ubicación                                                 */
+  /* ---------------------------------------------------------------- */
+
+  /**
+   * El camino corto: quien está parado frente al edificio no tiene por qué
+   * escribir la placa. El GPS fija el punto —que es lo que lleva a alguien
+   * hasta allá— y la dirección se rellena después, si Nominatim la sabe.
+   */
+  async function useMyLocation() {
+    if (!active || locating) return;
+    if (isPicking()) cancelPicking();
+    hideSuggestions();
+
+    locating = true;
+    gpsButton.disabled = true;
+    gpsButton.textContent = "Buscando…";
+
+    try {
+      const at = await locateUser();
+      // El permiso puede tardar lo suficiente como para que el formulario ya no
+      // esté a la vista: mover el mapa de alguien que se fue a otra pestaña no.
+      if (!active) return;
+      if (!at) {
+        showToast("No pudimos obtener tu ubicación. Revisa los permisos del navegador.");
+        return;
+      }
+
+      setCoords(at, "tu ubicación");
+      await flyTo(at.lat, at.lng, 18, getSheetCover() / 2);
+
+      // El GPS de un celular dentro de un edificio se va media cuadra, así que
+      // el pin queda arrastrable como cualquier otro.
+      showNote("Punto fijado con tu ubicación. Arrástralo si no quedó encima.");
+
+      // Lo escrito manda: rellenar encima sería peor que no ayudar. Y si el
+      // reverso no sabe la dirección, el punto ya está fijado igual — solo
+      // queda escribirla.
+      if (nameInput.value.trim()) return;
+      const address = await reverseGeocode(at);
+      if (!address) return;
+      nameInput.value = address;
+      clearError(nameError);
+      showNote("Revisa la dirección: la tomamos de tu ubicación.");
+    } finally {
+      locating = false;
+      gpsButton.disabled = false;
+      gpsButton.textContent = "📍 Usar mi ubicación";
+    }
+  }
+
+  gpsButton.addEventListener("click", () => {
+    void useMyLocation();
   });
 
   /* ---------------------------------------------------------------- */

@@ -21,7 +21,9 @@ export function initCentroForm(): void {
   // Nombres de insumo del catálogo de `resources.ts`, que es lo que guarda la
   // columna `recibe` — los mismos que pide un reporte, para que lo que falta y
   // lo que hay se puedan comparar sin traducir nada.
-  const picker = createResourcePicker("centro");
+  // Ochenta es el `check` de `centros.recibe`: un acopio recibe muchas más
+  // cosas de las que pide un edificio.
+  const picker = createResourcePicker("centro", { max: 80 });
 
   /* ---------------------------------------------------------------- */
   /* Envío                                                             */

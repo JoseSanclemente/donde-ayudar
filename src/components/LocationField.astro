@@ -40,19 +40,32 @@ const { prefix, label, placeholder } = Astro.props;
 </div>
 
 <div class="mt-5 rounded-lg border border-slate-300 bg-slate-50 p-3">
-  <div class="flex items-center justify-between gap-3">
+  <div class="flex flex-wrap items-center justify-between gap-2">
     <p class="text-xs text-slate-600">
       Ubicación: <span id={`${prefix}-location-status`} class="font-semibold text-slate-800"
         >sin fijar</span
       >
     </p>
-    <button
-      type="button"
-      id={`${prefix}-pick-on-map`}
-      class="shrink-0 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:border-red-400 hover:text-red-600"
-    >
-      Ubicar en el mapa
-    </button>
+    <div class="flex flex-wrap items-center gap-2">
+      <!-- Primero el del GPS: quien reporta parado frente al edificio resuelve
+           dirección y punto de un toque, y ese es el caso que corre contra el
+           reloj. Señalar en el mapa sigue ahí para quien reporta desde otro
+           lado. -->
+      <button
+        type="button"
+        id={`${prefix}-use-gps`}
+        class="shrink-0 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:border-red-400 hover:text-red-600"
+      >
+        📍 Usar mi ubicación
+      </button>
+      <button
+        type="button"
+        id={`${prefix}-pick-on-map`}
+        class="shrink-0 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:border-red-400 hover:text-red-600"
+      >
+        Ubicar en el mapa
+      </button>
+    </div>
   </div>
   <!-- El consejo va antes de buscar, no después de que la búsqueda falle:
        OpenStreetMap no tiene la mayoría de los edificios residenciales de

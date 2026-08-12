@@ -4,6 +4,23 @@ import ResourcePicker from "./ResourcePicker.astro";
 ---
 
 <form id="report-form" novalidate class="space-y-5">
+  <!-- El nombre va primero, como en el formulario de acopios: es lo que quien
+       reporta tiene en la cabeza. La dirección es la que lleva hasta el punto,
+       así que es la obligatoria y la que encabeza el detalle. -->
+  <div>
+    <label for="place-name" class="block text-sm font-medium text-slate-700">
+      Nombre del lugar <span class="font-normal text-slate-400">(opcional)</span>
+    </label>
+    <input
+      id="place-name"
+      type="text"
+      autocomplete="off"
+      maxlength="120"
+      placeholder="Ej. Conjunto Los Alcázares, Colegio San José"
+      class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm outline-none focus:border-slate-400"
+    />
+  </div>
+
   <div>
     <LocationField prefix="report" label="Dirección" placeholder="Ej. Cra 56 #3-88" />
   </div>

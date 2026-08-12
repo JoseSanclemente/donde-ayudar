@@ -13,7 +13,9 @@ const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").match
 export function initReportForm(): void {
   const form = $<HTMLFormElement>("report-form");
   const urgente = $<HTMLInputElement>("urgente");
+  const placeName = $<HTMLInputElement>("place-name");
   const note = $<HTMLTextAreaElement>("note");
+  const noteCount = $<HTMLSpanElement>("note-count");
   const contactName = $<HTMLInputElement>("contact-name");
   const contactPhone = $<HTMLInputElement>("contact-phone");
   const contactError = $<HTMLParagraphElement>("contact-error");
@@ -23,7 +25,15 @@ export function initReportForm(): void {
   // insumos va igual — acá se pregunta qué falta y allá qué reciben, pero se
   // nombra la misma cosa.
   const location = createLocationPicker("report");
-  const picker = createResourcePicker("report");
+  // Veinte es el `check` de `reports.resources`.
+  const picker = createResourcePicker("report", { max: 20 });
+
+  // El `maxlength` corta en 200 sin avisar: el contador es lo único que dice
+  // cuánto queda antes de que el navegador empiece a tragarse las teclas.
+  function syncNoteCount() {
+    noteCount.textContent = String(note.value.length);
+  }
+  note.addEventListener("input", syncNoteCount);
 
   /* ---------------------------------------------------------------- */
   /* Envío                                                             */
@@ -35,7 +45,7 @@ export function initReportForm(): void {
 
     const name = location.getName();
     if (!name) {
-      location.showNameError("Escribe el nombre o la dirección del edificio.");
+      location.showNameError("Escribe la dirección.");
       valid = false;
     } else {
       location.clearNameError();
@@ -75,6 +85,7 @@ export function initReportForm(): void {
     // addReport emite de inmediato, así que la lista ya dibujó el marcador.
     const report = addReport({
       name,
+      placeName: placeName.value.trim() || null,
       lat: coords.lat,
       lng: coords.lng,
       resources,
@@ -88,6 +99,7 @@ export function initReportForm(): void {
     picker.clear();
     location.reset();
     clearError(contactError);
+    syncNoteCount();
 
     // Cerrar el sheet y el panel: lo que queda a la vista es el marcador
     // nuevo aterrizando, con el FAB de vuelta para el siguiente reporte.

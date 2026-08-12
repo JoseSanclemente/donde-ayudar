@@ -184,6 +184,12 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
   // Una hora fresca respalda el dato; una vieja advierte que ya no lo hace.
   const fresh = `<p class="text-xs ${extra.stale ? "font-medium text-amber-700" : "text-slate-500"}">Actualizado ${escapeHtml(relativeTime(extra.freshAt))}${extra.stale ? " — confirma antes de ir" : ""}</p>`;
 
+  // Encima de la dirección y más pequeño: es el nombre que se dice por teléfono,
+  // pero el que lleva hasta el punto sigue siendo el de abajo.
+  const lugar = lead.placeName
+    ? `<p class="text-xs text-slate-600">${escapeHtml(lead.placeName)}</p>`
+    : "";
+
   const lastUpdate = extra.lastUpdate
     ? `<p class="text-xs text-slate-600">«${escapeHtml(extra.lastUpdate)}»</p>`
     : "";
@@ -214,7 +220,11 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
     kicker: statusInfo(group.status).label,
     accent: STATUS_ACCENT[group.status] ?? STATUS_ACCENT.activo,
     name: lead.name,
-    address: null,
+    // Invertido respecto al popup: en la imagen la dirección se queda con la
+    // línea grande y el nombre del lugar cae debajo, en la ranura secundaria que
+    // ya existe. La jerarquía es la misma —manda la dirección—, y la ficha no
+    // gana una tercera medida de texto.
+    address: lead.placeName,
     updated: `Actualizado ${relativeTime(extra.freshAt)}`,
     // El aviso solo entra cuando dice algo que el kicker no dijo: «URGENTE» ya
     // es «necesita ayuda con urgencia», pero «Cerrado» no es «no te desplaces».
@@ -237,6 +247,7 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
   return `
     <div class="space-y-2">
       ${kicker}
+      ${lugar}
       <p class="text-lg font-semibold text-slate-900">${escapeHtml(lead.name)}</p>
       ${cuantos}
       <div class="space-y-2">${resourcesHtml(group)}</div>
