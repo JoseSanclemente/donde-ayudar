@@ -4,14 +4,19 @@ import { isMobile, onBreakpointChange } from "./ui/breakpoint";
 
 /**
  * Bottom sheet móvil: el panel (formulario + lista) se abre sobre el mapa a
- * pantalla completa y se cierra del todo — no queda un peek tapando el mapa.
+ * pantalla completa y se cierra del todo.
  * Se abre desde el botón de menú (`#sheet-toggle`, encima del FAB) y se cierra
  * con la ✕ del encabezado, con el scrim o arrastrando hacia abajo.
  * En >=1024px el sheet es `display: contents` y este módulo no toca nada — el
  * layout de escritorio queda igual que siempre.
+ *
+ * A third state sits between the two: `peek`, where the sheet keeps a bit more
+ * than half its height on screen. Nothing reaches it on its own — it is what
+ * `peekSheet()` asks for when the form has just dropped a pin and the map above
+ * has to be seen without losing the form.
  */
 
-type State = "closed" | "open";
+type State = "closed" | "open" | "peek";
 
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -28,6 +33,8 @@ let locate: HTMLButtonElement | null = null;
 let tabs: HTMLButtonElement[] = [];
 /** Desplazamiento que deja el sheet completamente fuera de la pantalla. */
 let closedY = 0;
+/** Offset that leaves the sheet showing a bit more than half of its height. */
+let peekY = 0;
 
 /** Quien quiera saber qué panel está a la vista. Un `Set` y no el emisor de
  * `data/`: los módulos de dominio no dependen de esa capa. */
@@ -38,10 +45,11 @@ function getState(): State {
 }
 
 /** `true` si ese panel se está viendo: en escritorio siempre, en móvil solo
- * con el sheet abierto. */
+ * con el sheet fuera de su posición cerrada. */
 export function isTabVisible(tab: string): boolean {
   if (!sheet || sheet.dataset.tab !== tab) return false;
-  return !isMobile() || getState() === "open";
+  // Peek still shows the panel — half of it, but on screen and scrollable.
+  return !isMobile() || getState() !== "closed";
 }
 
 export function onTabChange(fn: () => void): void {
@@ -67,6 +75,20 @@ function measure() {
   // Cerrado el sheet sale entero: el mapa queda libre y el único acceso son los
   // botones flotantes. El extra cubre la sombra, que si no asoma por abajo.
   closedY = sheet.offsetHeight + 24;
+  peekY = Math.min(Math.round(sheet.offsetHeight * 0.45), closedY);
+}
+
+/**
+ * How much of the viewport the sheet covers right now, in pixels. Zero on
+ * desktop and when closed. Whoever moves the map while the sheet is up needs
+ * it: the container centre is under the panel, so the target has to be pushed
+ * into the strip that is left.
+ */
+export function getSheetCover(): number {
+  if (!sheet || !isMobile()) return 0;
+  const state = getState();
+  if (state === "closed") return 0;
+  return state === "peek" ? Math.max(0, sheet.offsetHeight - peekY) : sheet.offsetHeight;
 }
 
 /**
@@ -79,7 +101,9 @@ function measure() {
  * que se vea nada, y ahí el FAB es justo lo que hace falta para volver.
  */
 function paintControls() {
-  const covered = isMobile() && getState() === "open";
+  // También en `peek`: los botones flotantes viven abajo, justo donde el sheet
+  // sigue tapando.
+  const covered = isMobile() && getState() !== "closed";
   if (fab) fab.hidden = isTabVisible("reportar") || covered;
   if (menu) menu.hidden = !isMobile() || covered;
   if (locate) locate.hidden = covered;
@@ -93,6 +117,8 @@ function paintScrim(state: State, animate: boolean) {
     return;
   }
   gsap.killTweensOf(scrim);
+  // Solo abierto: en `peek` el mapa tiene que verse y además recibir clics —el
+  // pin provisional se arrastra ahí—, y el scrim se los comería.
   if (state === "open") {
     scrim.hidden = false;
     if (!animate || reduceMotion) gsap.set(scrim, { opacity: 1 });
@@ -111,9 +137,14 @@ function paintScrim(state: State, animate: boolean) {
     // Ocultarlo antes de que termine el fundido dejaría el scrim parpadeando;
     // y si mientras tanto se volvió a abrir, no hay que tocarlo.
     onComplete: () => {
-      if (getState() === "closed" && scrim) scrim.hidden = true;
+      if (getState() !== "open" && scrim) scrim.hidden = true;
     },
   });
+}
+
+function offsetFor(state: State): number {
+  if (state === "open") return 0;
+  return state === "peek" ? peekY : closedY;
 }
 
 function moveTo(state: State, animate = true) {
@@ -124,7 +155,7 @@ function moveTo(state: State, animate = true) {
   // Al cerrar, la altura manda: si el panel cambió de contenido, el `closedY`
   // de la última medición se queda corto y el sheet no sale del todo.
   if (state === "closed") measure();
-  const y = state === "open" ? 0 : closedY;
+  const y = offsetFor(state);
   if (!animate || reduceMotion) {
     gsap.set(sheet, { y });
     return;
@@ -146,9 +177,21 @@ function moveTo(state: State, animate = true) {
 
 export function openSheet(): void {
   if (!isMobile() || getState() === "open") return;
-  scrollToTop();
+  // Desde `peek` el scroll se respeta: el panel nunca se fue de la pantalla, y
+  // devolverlo al principio le movería el piso a quien estaba leyendo.
+  if (getState() !== "peek") scrollToTop();
   measure();
   moveTo("open");
+}
+
+/**
+ * Lowers the sheet without closing it: the map above becomes visible while the
+ * form stays on screen. Only from `open` — nothing else has anything to lower.
+ */
+export function peekSheet(): void {
+  if (!isMobile() || getState() !== "open") return;
+  measure();
+  moveTo("peek");
 }
 
 export function closeSheet(): void {
@@ -185,7 +228,9 @@ function showTab(tab: string, open = true) {
   if (!isMobile()) return;
   measure();
   if (open) moveTo("open");
-  else if (getState() === "closed") gsap.set(sheet, { y: closedY });
+  // Sin abrir la posición no cambia, pero el alto sí pudo cambiar con el panel:
+  // el desplazamiento se vuelve a aplicar con la medida nueva.
+  else if (getState() !== "open") gsap.set(sheet, { y: offsetFor(getState()) });
 }
 
 export function openReportPanel(): void {
@@ -251,7 +296,7 @@ function initDrag() {
     velocity = 0;
     startY = lastY = event.clientY;
     lastTime = event.timeStamp;
-    startTranslate = getState() === "open" ? 0 : closedY;
+    startTranslate = (gsap.getProperty(sheet, "y") as number) ?? offsetFor(getState());
     grab.setPointerCapture(event.pointerId);
     gsap.killTweensOf(sheet);
   });
@@ -278,19 +323,33 @@ function initDrag() {
     dragging = false;
     if (grab.hasPointerCapture(event.pointerId)) grab.releasePointerCapture(event.pointerId);
 
-    // Tap en el handle con el sheet abierto: lo cierra, igual que la ✕.
+    // Tap en el handle con el sheet abierto: lo cierra, igual que la ✕. Desde
+    // `peek` sube: el tap termina de traer lo que ya estaba a medias.
     if (moved < TAP_SLOP) {
       moveTo(getState() === "open" ? "closed" : "open");
       return;
     }
 
-    // Un flick rápido gana sobre la posición; si no, manda el punto medio.
+    // Un flick rápido gana sobre la posición; si no, manda el destino más cerca.
     if (Math.abs(velocity) > 0.5) {
-      moveTo(velocity > 0 ? "closed" : "open");
+      // Hacia abajo desde arriba se para en `peek`: un solo gesto no se lleva
+      // el panel entero, y ahí es donde queda el mapa a la vista.
+      if (velocity < 0) moveTo("open");
+      else moveTo(getState() === "open" ? "peek" : "closed");
       return;
     }
     const y = (gsap.getProperty(sheet, "y") as number) ?? closedY;
-    moveTo(y < closedY / 2 ? "open" : "closed");
+    const states: State[] = ["open", "peek", "closed"];
+    let nearest: State = "closed";
+    let best = Infinity;
+    for (const state of states) {
+      const distance = Math.abs(y - offsetFor(state));
+      if (distance < best) {
+        best = distance;
+        nearest = state;
+      }
+    }
+    moveTo(nearest);
   };
 
   grab.addEventListener("pointerup", end);
@@ -312,6 +371,14 @@ export function initSheet(): void {
   for (const button of tabs) {
     button.addEventListener("click", () => showTab(button.dataset.tabBtn as string));
   }
+
+  // Bajado a `peek`, tocar el panel o llevarle el foco a un campo lo devuelve
+  // arriba: quien vuelve al formulario lo quiere entero, no la mitad.
+  const raiseFromPeek = () => {
+    if (getState() === "peek") openSheet();
+  };
+  body?.addEventListener("pointerdown", raiseFromPeek);
+  body?.addEventListener("focusin", raiseFromPeek);
 
   menu?.addEventListener("click", openSheet);
   scrim?.addEventListener("click", closeSheet);
@@ -341,7 +408,7 @@ export function initSheet(): void {
     // destino y pisaría este `set`. De cerrar bien se encarga su `onComplete`.
     if (gsap.isTweening(sheet)) return;
     measure();
-    if (getState() === "closed") gsap.set(sheet, { y: closedY });
+    if (getState() !== "open") gsap.set(sheet, { y: offsetFor(getState()) });
   }).observe(sheet);
 
   let resizeTimer = 0;

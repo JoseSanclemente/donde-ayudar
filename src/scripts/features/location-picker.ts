@@ -1,7 +1,7 @@
 import type { LatLng } from "leaflet";
 import { debounce, geocode, type GeocodeResult } from "../geocode";
 import { flyTo, hideDraft, isPicking, showDraft, startPicking, stopPicking } from "../map";
-import { closeSheet, openSheet } from "../sheet";
+import { closeSheet, getSheetCover, openSheet, peekSheet } from "../sheet";
 import { $, clearError, showError } from "../ui/dom";
 import { hidePickHint, showPickHint } from "../ui/pick-hint";
 
@@ -151,17 +151,23 @@ export function createLocationPicker(prefix: string): LocationPicker {
 
         if (result.precision === "exacta") {
           clearNote();
+          peekSheet();
         } else if (result.precision === "calculada") {
           // El punto ya está sobre la manzana correcta: basta con poder
           // arrastrarlo, no hace falta obligar a marcarlo desde cero.
           showNote(CALCULATED_NOTE);
+          peekSheet();
         } else {
           showNote(APPROX_NOTE);
+          // Acá no se baja el sheet: señalar en el mapa lo cierra entero, y las
+          // dos posiciones se pelearían.
           beginPicking();
         }
 
         const zoom = { exacta: 18, calculada: 18, aproximada: 16 }[result.precision];
-        void flyTo(result.lat, result.lng, zoom);
+        // El pin va al centro de la franja de mapa que queda sobre el sheet: en
+        // el centro del contenedor quedaría justo debajo del panel.
+        void flyTo(result.lat, result.lng, zoom, getSheetCover() / 2);
       });
       item.append(button);
       suggestions.append(item);

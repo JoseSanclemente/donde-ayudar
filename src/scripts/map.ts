@@ -9,7 +9,7 @@ import {
 } from "./resources";
 import { readCachedCoords } from "./geolocation";
 import type { ShareCard } from "./share-card";
-import { markerEstado, statusInfo, type ReportStatus } from "./status";
+import { isBlocked, markerEstado, statusInfo, type ReportStatus } from "./status";
 import { isMobile, onBreakpointChange } from "./ui/breakpoint";
 import { chipLabel, chipStyle } from "./ui/chips";
 import { telUrl, whatsappUrl } from "./ui/contact";
@@ -190,13 +190,12 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
 
   // Las notas y los contactos son de toda la zona, con el mismo tope de dos que
   // usa la lista: más que eso convierte el popup en un muro.
-  const notes = group.reports
+  const noteList = group.reports
     .filter((r) => r.note)
     .slice(0, 2)
-    .map(
-      (r) =>
-        `<p class="text-sm leading-snug text-slate-600">“${escapeHtml(r.note as string)}”</p>`,
-    )
+    .map((r) => r.note as string);
+  const notes = noteList
+    .map((note) => `<p class="text-sm leading-snug text-slate-600">“${escapeHtml(note)}”</p>`)
     .join("");
 
   // Confirmar antes de desplazarse es el consejo que repite toda la página: sin
@@ -575,7 +574,12 @@ export function getMarkerElement(id: string): HTMLElement | undefined {
   return (el?.querySelector(".pulse-inner") as HTMLElement | null) ?? undefined;
 }
 
-export function flyTo(lat: number, lng: number, zoom = 17): Promise<void> {
+/**
+ * `offsetY` pushes the target that many pixels above the container centre —
+ * what a caller needs when something covers the lower half of the map and the
+ * point has to land on the strip that is left.
+ */
+export function flyTo(lat: number, lng: number, zoom = 17, offsetY = 0): Promise<void> {
   claimView();
   return new Promise((resolve) => {
     let done = false;
@@ -591,7 +595,9 @@ export function flyTo(lat: number, lng: number, zoom = 17): Promise<void> {
       clearTimeout(timer);
       finish();
     });
-    map.flyTo([lat, lng], zoom, { duration: 1.2 });
+    let target = L.latLng(lat, lng);
+    if (offsetY) target = map.unproject(map.project(target, zoom).add([0, offsetY]), zoom);
+    map.flyTo(target, zoom, { duration: 1.2 });
   });
 }
 
