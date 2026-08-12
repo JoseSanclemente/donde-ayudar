@@ -8,6 +8,10 @@
  * punto que un crawler pueda visitar. Por eso lo que se comparte es un archivo,
  * no un enlace con `og:image`.
  *
+ * La ficha se lee en el orden en que se decide ir: qué es —el kicker—, cómo se
+ * llama, dónde queda, desde cuándo se sabe, el detalle suelto, lo que escribió
+ * quien reportó y qué hace falta llevar.
+ *
  * La ficha manda sobre el mapa: primero se mide todo lo que hay que decir y lo
  * que sobra se lo queda el recorte. Ningún insumo se esconde detrás de un «y 3
  * más» — quien lee la imagen tiene que saber qué llevar sin abrir nada.
@@ -40,8 +44,16 @@ export type ShareCard = {
   name: string;
   /** Los puntos traen dirección; un reporte no. */
   address: string | null;
+  /**
+   * «Actualizado hace 2 h». Va pegado a la identidad del punto —el dato no vale
+   * lo mismo si se leyó hace diez minutos que hace dos días—. Un punto de
+   * donación no lo tiene: `null`.
+   */
+  updated: string | null;
   /** Horario, teléfono, avisos: una línea de texto suelto cada una. */
   lines: string[];
+  /** Lo que alguien escribió del punto, tal cual. Se dibuja entre comillas. */
+  notes: string[];
   /** Título del bloque de chips («Recibe», «Necesita»). Vacío = sin bloque. */
   chipsTitle: string;
   chips: ShareChip[];
@@ -361,14 +373,23 @@ const TOP_GAP = 92;
 const KICKER_H = 68;
 const NAME_H = 78;
 const ADDRESS_H = 46;
+const UPDATED_H = 42;
 const LINE_H = 44;
+const NOTE_H = 42;
+/** Aire entre el texto suelto y el bloque de notas. */
+const NOTES_GAP = 20;
 const CHIPS_TITLE_H = 34;
+
+const UPDATED_FONT = `400 32px ${FONT}`;
+const NOTE_FONT = `italic 400 34px ${FONT}`;
 
 type Layout = {
   mapHeight: number;
   nameLines: string[];
   addressLines: string[];
+  updatedLine: string | null;
   lineGroups: string[][];
+  noteGroups: string[][];
   chipSize: number;
   chips: { chip: ShareChip; x: number; y: number; width: number }[];
   chipsHeight: number;
@@ -387,15 +408,28 @@ function measure(ctx: CanvasRenderingContext2D, card: ShareCard): Layout {
   ctx.font = `400 36px ${FONT}`;
   const addressLines = card.address ? wrap(ctx, card.address, MAX_WIDTH, 2) : [];
 
+  ctx.font = UPDATED_FONT;
+  const updatedLine = card.updated ? (wrap(ctx, card.updated, MAX_WIDTH, 1)[0] ?? null) : null;
+
   ctx.font = `400 34px ${FONT}`;
   const lineGroups = card.lines.map((line) => wrap(ctx, line, MAX_WIDTH, 2));
+
+  ctx.font = NOTE_FONT;
+  const noteGroups = card.notes.map((note) => wrap(ctx, `“${note}”`, MAX_WIDTH, 2));
+
+  const notesHeight =
+    noteGroups.length === 0
+      ? 0
+      : NOTES_GAP + noteGroups.reduce((total, group) => total + group.length * NOTE_H, 0);
 
   const textHeight =
     TOP_GAP +
     KICKER_H +
     nameLines.length * NAME_H +
     (addressLines.length > 0 ? addressLines.length * ADDRESS_H + 12 : 0) +
-    lineGroups.reduce((total, group) => total + group.length * LINE_H, 0);
+    (updatedLine ? UPDATED_H : 0) +
+    lineGroups.reduce((total, group) => total + group.length * LINE_H, 0) +
+    notesHeight;
 
   let chipSize = CHIP_SIZES[CHIP_SIZES.length - 1] as number;
   let chips: Layout["chips"] = [];
@@ -414,7 +448,17 @@ function measure(ctx: CanvasRenderingContext2D, card: ShareCard): Layout {
     textHeight + (card.chips.length > 0 ? CHIPS_TITLE_H + 28 + chipsHeight : 0) + FOOTER;
   const mapHeight = Math.max(MAP_MIN, Math.min(MAP_MAX, HEIGHT - needed));
 
-  return { mapHeight, nameLines, addressLines, lineGroups, chipSize, chips, chipsHeight };
+  return {
+    mapHeight,
+    nameLines,
+    addressLines,
+    updatedLine,
+    lineGroups,
+    noteGroups,
+    chipSize,
+    chips,
+    chipsHeight,
+  };
 }
 
 /* ---------------------------------- Ficha ---------------------------------- */
@@ -489,12 +533,35 @@ function drawCard(
     y += 12;
   }
 
+  // Pegado al nombre y a la dirección: cuándo se supo esto es parte de qué es
+  // esto, no un pie de página.
+  if (layout.updatedLine) {
+    ctx.font = UPDATED_FONT;
+    ctx.fillStyle = SLATE_400;
+    ctx.fillText(layout.updatedLine, PAD, y);
+    y += UPDATED_H;
+  }
+
   ctx.font = `400 34px ${FONT}`;
   ctx.fillStyle = SLATE_600;
   for (const group of layout.lineGroups) {
     for (const line of group) {
       ctx.fillText(line, PAD, y);
       y += LINE_H;
+    }
+  }
+
+  // En cursiva y entre comillas: lo que sigue no lo dice el sitio, lo dice quien
+  // reportó.
+  if (layout.noteGroups.length > 0) {
+    y += NOTES_GAP;
+    ctx.font = NOTE_FONT;
+    ctx.fillStyle = SLATE_600;
+    for (const group of layout.noteGroups) {
+      for (const line of group) {
+        ctx.fillText(line, PAD, y);
+        y += NOTE_H;
+      }
     }
   }
 

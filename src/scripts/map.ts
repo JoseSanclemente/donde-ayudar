@@ -215,11 +215,14 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
     accent: STATUS_ACCENT[group.status] ?? STATUS_ACCENT.activo,
     name: lead.name,
     address: null,
+    updated: `Actualizado ${relativeTime(extra.freshAt)}`,
+    // El aviso solo entra cuando dice algo que el kicker no dijo: «URGENTE» ya
+    // es «necesita ayuda con urgencia», pero «Cerrado» no es «no te desplaces».
     lines: [
       count > 1 ? `${count} reportes en este punto` : "",
-      statusInfo(group.status).aviso,
-      `Actualizado ${relativeTime(extra.freshAt)}`,
+      isBlocked(group.status) ? statusInfo(group.status).aviso : "",
     ].filter(Boolean),
+    notes: noteList,
     chipsTitle: "Necesita",
     chips: group.resources.map((resource) => ({
       label: resource.name,
@@ -811,12 +814,14 @@ function centroPopupHtml(centro: Centro, mine: boolean): string {
     accent: pausa ? "#64748b" : accent,
     name: centro.name,
     address: centro.direccion,
+    updated: null,
     lines: [
       centro.horario,
       pausa ? avisoLabel : "",
       centro.telefono ? `Tel. ${centro.telefono}` : "",
       ORIGEN[centro.origen],
     ].filter(Boolean),
+    notes: [pausa ? centro.nota_estado : null, centro.notas].filter(Boolean) as string[],
     chipsTitle: "Recibe",
     chips: recibeInsumos(centro)
       ? centro.recibe.map((item) => ({
