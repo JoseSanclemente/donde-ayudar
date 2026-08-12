@@ -94,6 +94,13 @@ export function groupReports(reports: Report[], radiusM = CLUSTER_RADIUS_M): Rep
     const oldest = group.reports.reduce((a, b) => (a.createdAt <= b.createdAt ? a : b));
     group.key = oldest.id;
 
+    // The map draws one marker per group, so the anchor is the same report that
+    // gives the group its identity — not the lead. The lead is the newest report,
+    // and anchoring there would make the pin hop up to `radiusM` every time a
+    // neighbour is reported.
+    group.lat = oldest.lat;
+    group.lng = oldest.lng;
+
     group.reportIds = group.reports.map((r) => r.id);
 
     // `latestAt` se calcula acá y no al crear el grupo: el lead es el más nuevo

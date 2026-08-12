@@ -1,5 +1,4 @@
 import L from "leaflet";
-import type { Report } from "./data/reports";
 import type { ReportGroup } from "./cluster";
 import { recibeInsumos, type Centro } from "./centros";
 import {
@@ -20,7 +19,10 @@ import { relativeTime } from "./ui/time";
 
 export const CALI_CENTER: [number, number] = [3.4516, -76.532];
 
+/** Group key -> its marker. One marker per point, never one per report. */
 const markers = new Map<string, L.Marker>();
+/** Report id -> the key of the group it was merged into. */
+const keyByReport = new Map<string, string>();
 let map: L.Map;
 let pickHandler: ((latlng: L.LatLng) => void) | null = null;
 
@@ -321,49 +323,70 @@ function paintEstado(marker: L.Marker, group: ReportGroup, extra: MarkerExtra): 
   el.classList.toggle("is-stale", extra.stale);
 }
 
+/** What the map needs about one point: the group and the freshness around it. */
+export type MarkerEntry = { group: ReportGroup; extra: MarkerExtra };
+
 /**
- * Un marcador por reporte, pero el popup habla de la zona: dos reportes del
- * mismo edificio son dos puntos encimados, y cada uno contando solo su pedazo
- * de la necesidad no sirve de nada.
+ * One marker per group, not per report: three reports in the same building are
+ * three pins stacked on top of each other saying the same thing, and the popup
+ * already speaks for the whole zone.
+ *
+ * The whole reconciliation lives here because the two registries do: the caller
+ * hands over the points that should exist and this decides what to create,
+ * refresh or drop.
  */
-export function addMarker(report: Report, group: ReportGroup, extra: MarkerExtra): L.Marker {
-  const marker = L.marker([report.lat, report.lng], { icon: pulseIcon }).addTo(map);
-  attachPopup(marker, reportPopupHtml(group, extra));
-  marker.on("click", selectOnMobile);
-  markers.set(report.id, marker);
-  paintEstado(marker, group, extra);
-  return marker;
+export function syncReportMarkers(entries: MarkerEntry[]): void {
+  keyByReport.clear();
+
+  for (const { group, extra } of entries) {
+    for (const id of group.reportIds) keyByReport.set(id, group.key);
+
+    let marker = markers.get(group.key);
+    if (marker) {
+      // The anchor is stable (see `groupReports`), so this only fires if the
+      // group's oldest report was the one deleted.
+      const at = marker.getLatLng();
+      if (at.lat !== group.lat || at.lng !== group.lng) marker.setLatLng([group.lat, group.lng]);
+    } else {
+      marker = L.marker([group.lat, group.lng], { icon: pulseIcon }).addTo(map);
+      marker.on("click", selectOnMobile);
+      markers.set(group.key, marker);
+    }
+
+    attachPopup(marker, reportPopupHtml(group, extra));
+    paintEstado(marker, group, extra);
+    // With the detail open, a status change or a covered resource has to show
+    // up right there: the sheet doesn't find out on its own.
+    if (marker === selected) emit(marker);
+  }
+
+  const live = new Set(entries.map(({ group }) => group.key));
+  for (const key of [...markers.keys()]) if (!live.has(key)) dropMarker(key);
 }
 
-/** Refresca el popup y la forma del marcador cuando cambia algo de la zona. */
-export function updateMarker(report: Report, group: ReportGroup, extra: MarkerExtra): void {
-  const marker = markers.get(report.id);
+function dropMarker(key: string): void {
+  const marker = markers.get(key);
   if (!marker) return;
-  attachPopup(marker, reportPopupHtml(group, extra));
-  paintEstado(marker, group, extra);
-  // Con el detalle abierto, un cambio de estado o un recurso cubierto tiene que
-  // verse ahí mismo: el sheet no se entera solo.
-  if (marker === selected) emit(marker);
-}
-
-/** Inner wrapper of a marker — safe to animate, unlike the positioned root. */
-export function getMarkerElement(id: string): HTMLElement | undefined {
-  const el = markers.get(id)?.getElement();
-  return (el?.querySelector(".pulse-inner") as HTMLElement | null) ?? undefined;
-}
-
-export function removeMarker(id: string): L.Marker | undefined {
-  const marker = markers.get(id);
-  if (!marker) return undefined;
-  markers.delete(id);
+  markers.delete(key);
   // El punto ya no existe: dejar su detalle abierto sería mostrar algo que el
   // mapa ya no tiene.
   if (marker === selected) emit(null);
-  return marker;
+  marker.remove();
 }
 
-export function detachMarker(marker: L.Marker): void {
-  marker.remove();
+/** The group a report was merged into — its marker, if any, is that group's. */
+export function markerKeyForReport(id: string): string | undefined {
+  return keyByReport.get(id);
+}
+
+/**
+ * Inner wrapper of the marker holding this report — safe to animate, unlike the
+ * positioned root.
+ */
+export function getMarkerElement(id: string): HTMLElement | undefined {
+  const key = keyByReport.get(id);
+  const el = key ? markers.get(key)?.getElement() : undefined;
+  return (el?.querySelector(".pulse-inner") as HTMLElement | null) ?? undefined;
 }
 
 export function flyTo(lat: number, lng: number, zoom = 17): Promise<void> {

@@ -13,13 +13,11 @@ import {
 import { isMine } from "../data/session";
 import { latestUpdateFor, onUpdates } from "../data/updates";
 import {
-  addMarker,
-  detachMarker,
   flyTo,
   getMarkerElement,
-  removeMarker,
-  updateMarker,
-  type MarkerExtra,
+  markerKeyForReport,
+  syncReportMarkers,
+  type MarkerEntry,
 } from "../map";
 import { CHIP_OFF, chipOnClass } from "../resources";
 import { closeSheet } from "../sheet";
@@ -34,8 +32,8 @@ const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").match
 /** Claves de los grupos desplegados — sobreviven al re-render completo. */
 const expanded = new Set<string>();
 
-/** Ids ya dibujados en el mapa. Los reportes ajenos llegan después del boot. */
-const drawn = new Set<string>();
+/** Grupos del último render: quién comparte punto con quién, al borrar. */
+let lastGroups: ReportGroup[] = [];
 
 let storeState: StoreState = "loading";
 let storeMessage: string | null = null;
@@ -385,35 +383,21 @@ export function initReportList(): void {
     return item;
   }
 
-  /** Reconcilia los marcadores con la lista: agrega, actualiza y quita. */
-  function syncMarkers(groups: ReportGroup[]) {
-    const live = new Set<string>();
-    for (const group of groups) {
+  /** Lo que el mapa necesita de cada punto. Reconciliar es cosa de `map.ts`. */
+  function markerEntries(groups: ReportGroup[]): MarkerEntry[] {
+    return groups.map((group) => {
       // La frescura es la de la zona, la misma que pinta la tarjeta: si no, el
       // popup y la lista se contradicen sobre el mismo punto.
       const freshAt = groupFreshAt(group);
-      const extra: MarkerExtra = {
-        freshAt,
-        stale: isStale(freshAt),
-        lastUpdate: groupLastUpdate(group)?.body,
+      return {
+        group,
+        extra: {
+          freshAt,
+          stale: isStale(freshAt),
+          lastUpdate: groupLastUpdate(group)?.body,
+        },
       };
-      for (const report of group.reports) {
-        live.add(report.id);
-        if (drawn.has(report.id)) {
-          // El popup se enlaza una sola vez en addMarker: sin esto queda viejo.
-          updateMarker(report, group, extra);
-        } else {
-          addMarker(report, group, extra);
-          drawn.add(report.id);
-        }
-      }
-    }
-    for (const id of drawn) {
-      if (live.has(id)) continue;
-      const marker = removeMarker(id);
-      if (marker) detachMarker(marker);
-      drawn.delete(id);
-    }
+    });
   }
 
   // Mientras los reportes vienen en camino no se puede decir «no hay reportes»:
@@ -440,19 +424,22 @@ export function initReportList(): void {
   }
 
   function deleteReport(id: string) {
-    const marker = removeMarker(id);
+    const key = markerKeyForReport(id);
+    const group = lastGroups.find((g) => g.key === key);
+    // Deleting one report out of a shared point does not delete the point: the
+    // marker stays for whoever is still there, so animating it away would leave
+    // an invisible pin behind. Only the last report of a point takes it with it,
+    // and the re-render after `removeReport` is what actually detaches it.
+    const alone = !group || group.reports.length === 1;
     const item = reportList.querySelector<HTMLLIElement>(`[data-id="${id}"]`);
-    const finish = () => {
-      if (marker) detachMarker(marker);
-      removeReport(id);
-    };
+    const finish = () => removeReport(id);
 
-    if (reduceMotion || (!marker && !item)) {
+    const markerEl = alone ? getMarkerElement(id) : undefined;
+    if (reduceMotion || (!markerEl && !item)) {
       finish();
       return;
     }
 
-    const markerEl = getMarkerElement(id);
     const timeline = gsap.timeline({ onComplete: finish });
     if (markerEl) {
       timeline.to(markerEl, { scale: 0, opacity: 0, duration: 0.3, ease: "back.in(2)" }, 0);
@@ -487,6 +474,7 @@ export function initReportList(): void {
   function render() {
     const reports = getReports();
     const groups = groupReports(reports);
+    lastGroups = groups;
     const keys = new Set(groups.map((g) => g.key));
     for (const key of expanded) if (!keys.has(key)) expanded.delete(key);
 
@@ -508,7 +496,9 @@ export function initReportList(): void {
     reportSummary.textContent = groups.length > 0 ? partes.join(" · ") : "";
 
     paintEmptyState(shown.length, groups.length);
-    syncMarkers(groups);
+    // Sobre todos los grupos, no sobre `shown`: el filtro de la lista nunca ha
+    // escondido marcadores.
+    syncReportMarkers(markerEntries(groups));
   }
 
   const scheduled = scheduleRender(render);
