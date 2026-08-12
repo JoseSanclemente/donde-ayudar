@@ -71,13 +71,14 @@ function emit(): void {
 }
 
 function retiredCount(): number {
-  return cache.filter((report) => isRetired(report.status, report.statusAt)).length;
+  return cache.filter((report) => isRetired(report.status, report.statusAt, report.createdAt)).length;
 }
 
 /**
- * A point retires by the clock, and a clock crossing the hour emits nothing on
- * its own: with the tab open, a report closed a minute ago would stay drawn
- * until the next write from anybody. One timer for the whole store, and `emit()`
+ * A point retires by the clock, and a clock crossing the threshold emits nothing
+ * on its own: with the tab open, a report closed an hour ago — or one nobody has
+ * touched all day — would stay drawn until the next write from anybody. One
+ * timer for the whole store, and `emit()`
  * fans out to every subscriber through the paths they already use. The count
  * guard keeps quiet minutes free of renders.
  */

@@ -4,9 +4,7 @@ import { esComunitario, recibeInsumos, type Centro } from "./centros";
 import {
   ALBERGUE_FILTER,
   byCategory,
-  categoryChip,
   categoryIdOf,
-  COVERED_CHIP,
   SANGRE_FILTER,
 } from "./resources";
 import { readCachedCoords } from "./geolocation";
@@ -625,21 +623,28 @@ const KICKER: Record<Centro["tipo"], { label: string; color: string }> = {
 };
 
 /**
- * Lo que recibe un punto, agrupado por categoría y con los insumos debajo:
- * «Logística y energía» no le dice a nadie que ahí sirven unas pilas. La lista
- * es la que dio el punto —no la categoría entera—, así que quien carga el carro
- * lleva justo lo que ahí reciben.
+ * Lo que recibe un punto, con un chip por insumo y la categoría de título —el
+ * mismo armado de `resourcesHtml`. Lo que el punto listó son esos insumos y no
+ * la categoría entera, así que el chip tiene que ser el insumo: es lo único que
+ * se puede comparar de un vistazo contra los chips de un reporte.
  */
 function recibeHtml(centro: Centro, pausa: boolean): string {
   if (!recibeInsumos(centro)) return "";
   const blocks = byCategory(centro.recibe, (item) => item).map((bucket) => {
-    // En pausa el chip va tachado, con el mismo `COVERED_CHIP` de un recurso ya
-    // cubierto: sigue siendo lo que ese centro recibe, pero no ahora.
-    const chip = `<span class="inline-block rounded-lg p-2 text-sm font-medium ${
-      pausa ? COVERED_CHIP : categoryChip(bucket.id)
-    }">${escapeHtml(bucket.label)}</span>`;
-    const detalle = `<p class="mt-1 text-sm leading-snug ${pausa ? "text-slate-400" : "text-slate-500"}">${escapeHtml(bucket.items.join(", "))}</p>`;
-    return `<div>${chip}${detalle}</div>`;
+    // En pausa los chips van tachados, con el mismo gris de un recurso ya
+    // cubierto: sigue siendo lo que ese centro recibe, pero no ahora. Sin el
+    // «✓» de `chipLabel`, eso sí: acá no hay nada cubierto.
+    const chips = bucket.items
+      .map(
+        (item) =>
+          `<span class="inline-block ${chipStyle(item, pausa)}">${escapeHtml(item)}</span>`,
+      )
+      .join(" ");
+    return `
+      <div>
+        <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">${escapeHtml(bucket.label)}</p>
+        <div class="mt-1 flex flex-wrap gap-1">${chips}</div>
+      </div>`;
   });
   // Con el detalle debajo, los chips dejaron de leerse solos: sin este título
   // parecen lo que el punto necesita, no lo que entrega quien va.

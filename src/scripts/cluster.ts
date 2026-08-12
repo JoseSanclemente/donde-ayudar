@@ -63,7 +63,7 @@ export function groupReports(reports: Report[], radiusM = CLUSTER_RADIUS_M): Rep
   const groups: ReportGroup[] = [];
 
   for (const report of reports) {
-    if (isRetired(report.status, report.statusAt)) continue;
+    if (isRetired(report.status, report.statusAt, report.createdAt)) continue;
 
     const group = groups.find((g) => distanceMeters(g.lead, report) <= radiusM);
     if (group) group.reports.push(report);

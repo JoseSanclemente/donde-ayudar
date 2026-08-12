@@ -8,7 +8,7 @@
  * compilar.
  */
 
-import { hoursSince } from "./ui/time";
+import { hoursSince, newestIso } from "./ui/time";
 
 export type ReportStatus = "activo" | "urgente" | "saturado" | "cerrado";
 
@@ -114,9 +114,19 @@ export function markerEstado(
  */
 export const RETIRE_HOURS = 1;
 
-/** A closed point past `RETIRE_HOURS` — off the map and off the list. */
-export function isRetired(status: ReportStatus, statusAt: string): boolean {
-  return status === "cerrado" && hoursSince(statusAt) >= RETIRE_HOURS;
+/**
+ * How long a point stays visible with nobody touching it.
+ *
+ * A need nobody has confirmed in a working day's worth of hours is a guess, not
+ * a fact: `isStale` already warns at 6 h, and two hours later the pin stops
+ * claiming to be live. Marking a status keeps it alive.
+ */
+export const IDLE_HOURS = 8;
+
+/** Off the map and off the list: closed a while ago, or idle for too long. */
+export function isRetired(status: ReportStatus, statusAt: string, createdAt: string): boolean {
+  if (status === "cerrado") return hoursSince(statusAt) >= RETIRE_HOURS;
+  return hoursSince(newestIso(statusAt, createdAt)) >= IDLE_HOURS;
 }
 
 /** Filtros de la lista. `null` = todos. */
