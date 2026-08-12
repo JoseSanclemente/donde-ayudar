@@ -182,7 +182,10 @@ import { SITE_NAME, SITE_TITLE } from "../consts";
             <ReportList />
           </div>
 
-          <div data-tab-panel="novedades"><UpdatesFeed /></div>
+          <!-- On desktop this card does not stay in the sidebar: the stylesheet
+               floats it over the map's top-right corner. It stays here in the
+               markup because on mobile it is one more tab of the sheet. -->
+          <div id="updates-card" data-tab-panel="novedades"><UpdatesFeed /></div>
 
           <div id="offers-card" data-tab-panel="ayuda"><OffersPanel /></div>
         </div>

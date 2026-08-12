@@ -70,8 +70,12 @@ function groupLastUpdate(
 export function initReportList(): void {
   const reportList = $<HTMLUListElement>("report-list");
   const reportUrgent = $<HTMLSpanElement>("report-urgent");
+  const reportCount = $<HTMLSpanElement>("report-count");
   const filterRow = $<HTMLDivElement>("report-filter");
   const emptyState = $<HTMLParagraphElement>("empty-state");
+  const card = $<HTMLElement>("report-card");
+  const toggle = $<HTMLButtonElement>("report-toggle");
+  const caret = $<HTMLSpanElement>("report-caret");
 
   /** Chips de la zona: cada uno alterna «cubierto» en todos los que lo piden. */
   function buildGroupChips(group: ReportGroup): HTMLDivElement {
@@ -455,6 +459,9 @@ export function initReportList(): void {
     const urgentes = groups.filter((g) => g.status === "urgente").length;
     reportUrgent.textContent = `${urgentes} urgente${urgentes === 1 ? "" : "s"}`;
     reportUrgent.classList.toggle("hidden", urgentes === 0);
+    // Collapsed, the header is all there is to see: without the number it would
+    // not say whether one zone was reported or forty.
+    reportCount.textContent = String(groups.length);
 
     paintEmptyState(shown.length, groups.length);
     // Sobre todos los grupos, no sobre `shown`: el filtro de la lista nunca ha
@@ -473,6 +480,18 @@ export function initReportList(): void {
     storeMessage = message;
     // Los reportes ajenos cambian quién puede borrar qué: hay que repintar.
     scheduled();
+  });
+
+  // The accordion is desktop only, and it starts closed: the sidebar opens on
+  // the map and on what is happening, not on a list forty cards long. The CSS
+  // rule lives behind the `lg` media query, so `data-collapsed` is inert on
+  // mobile and the sheet keeps showing its list whatever this says.
+  card.dataset.collapsed = "true";
+  toggle.addEventListener("click", () => {
+    const open = card.dataset.collapsed === "true";
+    card.dataset.collapsed = String(!open);
+    toggle.setAttribute("aria-expanded", String(open));
+    caret.textContent = open ? "▴" : "▾";
   });
 
   paintFilterChips();

@@ -516,6 +516,38 @@ body {
   #detail-card {
     display: none;
   }
+
+  /* The list is an accordion here, and `features/report-list.ts` opens it
+     closed: the sidebar opens on the map, not on forty cards. The rule lives
+     behind this media query on purpose — on mobile «Puntos» is a whole tab of
+     the sheet, and a tab that hides its own list would show nothing. */
+  #report-card[data-collapsed="true"] #report-card-body {
+    display: none;
+  }
+
+  /* The city log is not one more card at the bottom of a 26rem column: it
+     floats over the map's top-right corner, where it is read without
+     scrolling. `right` follows the 1600px cap of the page container — a plain
+     1.25rem would drift off the map's edge on a wide screen. The 1.25rem
+     matches the `lg:p-5` of `<main>`, so the card lines up with the rounded
+     frame of the map. */
+  #updates-card {
+    position: fixed;
+    top: 1.25rem;
+    right: max(1.25rem, calc(50vw - 800px + 1.25rem));
+    /* Above Leaflet's popup pane (700), below the floating buttons (1050).
+       Nothing else lives in that corner: the zoom control is top-left. */
+    z-index: 900;
+    width: 21rem;
+    max-height: calc(100vh - 2.5rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 0 1rem 0.5rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 8px 30px rgb(0 0 0 / 0.12);
+  }
 }
 
 @media (max-width: 1023px) {
