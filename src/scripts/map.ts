@@ -5,8 +5,7 @@ import {
   ALBERGUE_FILTER,
   byCategory,
   categoryChip,
-  categoryItemsEnPunto,
-  categoryLabel,
+  categoryIdOf,
   COVERED_CHIP,
   SANGRE_FILTER,
 } from "./resources";
@@ -626,25 +625,20 @@ const KICKER: Record<Centro["tipo"], { label: string; color: string }> = {
 };
 
 /**
- * Lo que recibe un punto curado, categoría por categoría y con el detalle
- * debajo: «Logística y energía» no le dice a nadie que ahí sirven unas pilas.
- * El detalle sale del catálogo de `resources.ts`, que es el mismo que ofrece el
- * formulario — no hay un segundo listado que se pueda desactualizar.
+ * Lo que recibe un punto, agrupado por categoría y con los insumos debajo:
+ * «Logística y energía» no le dice a nadie que ahí sirven unas pilas. La lista
+ * es la que dio el punto —no la categoría entera—, así que quien carga el carro
+ * lleva justo lo que ahí reciben.
  */
 function recibeHtml(centro: Centro, pausa: boolean): string {
   if (!recibeInsumos(centro)) return "";
-  const blocks = centro.recibe.map((id) => {
+  const blocks = byCategory(centro.recibe, (item) => item).map((bucket) => {
     // En pausa el chip va tachado, con el mismo `COVERED_CHIP` de un recurso ya
     // cubierto: sigue siendo lo que ese centro recibe, pero no ahora.
     const chip = `<span class="inline-block rounded-lg p-2 text-sm font-medium ${
-      pausa ? COVERED_CHIP : categoryChip(id)
-    }">${escapeHtml(categoryLabel(id))}</span>`;
-    const items = categoryItemsEnPunto(id);
-    // Una categoría sin ítems en el catálogo —«Voluntarios» los tiene, pero una
-    // futura podría no— se queda con el chip solo, no con dos puntos vacíos.
-    const detalle = items.length
-      ? `<p class="mt-1 text-sm leading-snug ${pausa ? "text-slate-400" : "text-slate-500"}">${escapeHtml(items.join(", "))}</p>`
-      : "";
+      pausa ? COVERED_CHIP : categoryChip(bucket.id)
+    }">${escapeHtml(bucket.label)}</span>`;
+    const detalle = `<p class="mt-1 text-sm leading-snug ${pausa ? "text-slate-400" : "text-slate-500"}">${escapeHtml(bucket.items.join(", "))}</p>`;
     return `<div>${chip}${detalle}</div>`;
   });
   // Con el detalle debajo, los chips dejaron de leerse solos: sin este título
@@ -742,7 +736,10 @@ function matchesFilter(centro: Centro): boolean {
   if (centroFilter === null) return true;
   if (centroFilter === SANGRE_FILTER) return centro.tipo === "sangre";
   if (centroFilter === ALBERGUE_FILTER) return centro.tipo === "albergue";
-  return recibeInsumos(centro) && centro.recibe.includes(centroFilter);
+  return (
+    recibeInsumos(centro) &&
+    centro.recibe.some((item) => categoryIdOf(item) === centroFilter)
+  );
 }
 
 /** Repuebla la capa. Devuelve cuántos centros quedaron visibles. */

@@ -1,20 +1,17 @@
 import gsap from "gsap";
 import { addReport } from "../data/reports";
 import { flyTo, getMarkerElement } from "../map";
-import { CATEGORIES, CHIP_OFF, chipClass, chipOnClass } from "../resources";
 import { closeReportPanel, closeSheet, isTabVisible, onTabChange } from "../sheet";
 import { isValidPhone } from "../ui/contact";
 import { $, clearError, showError } from "../ui/dom";
 import { createLocationPicker } from "./location-picker";
 import { onReportTabChange } from "./report-tabs";
+import { createResourcePicker } from "./resource-picker";
 
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 export function initReportForm(): void {
   const form = $<HTMLFormElement>("report-form");
-  const presetChips = $<HTMLDivElement>("preset-chips");
-  const selectedResources = $<HTMLDivElement>("selected-resources");
-  const resourcesError = $<HTMLParagraphElement>("resources-error");
   const urgente = $<HTMLInputElement>("urgente");
   const note = $<HTMLTextAreaElement>("note");
   const contactName = $<HTMLInputElement>("contact-name");
@@ -22,88 +19,11 @@ export function initReportForm(): void {
   const contactError = $<HTMLParagraphElement>("contact-error");
 
   // Dirección, sugerencias y pin arrastrable: los comparte con el formulario de
-  // acopios, así que el prefijo de los ids es lo único propio.
+  // acopios, así que el prefijo de los ids es lo único propio. El catálogo de
+  // insumos va igual — acá se pregunta qué falta y allá qué reciben, pero se
+  // nombra la misma cosa.
   const location = createLocationPicker("report");
-  const resources = new Set<string>();
-
-  /* ---------------------------------------------------------------- */
-  /* Chips de recursos                                                 */
-  /* ---------------------------------------------------------------- */
-
-  // El formulario no se destruye al cerrarlo, así que las categorías conservan
-  // lo que se dejó abierto la vez pasada y abrirlo de nuevo empieza a media
-  // altura. Plegarlas no pierde nada: lo elegido sigue en `resources`, se ve en
-  // los chips de abajo y la cuenta del encabezado lo dice sin desplegar.
-  function collapseCategories() {
-    presetChips.querySelectorAll("details").forEach((panel) => {
-      panel.open = false;
-    });
-  }
-
-  function syncPresetChips() {
-    presetChips.querySelectorAll<HTMLButtonElement>("[data-preset]").forEach((chip) => {
-      const active = resources.has(chip.dataset.preset as string);
-      chip.className = active ? chipOnClass(chip.dataset.category) : CHIP_OFF;
-      chip.setAttribute("aria-pressed", String(active));
-    });
-    syncCategoryCounts();
-  }
-
-  // Las categorías cerradas esconderían lo ya seleccionado, así que el encabezado
-  // lleva la cuenta de lo elegido dentro.
-  function syncCategoryCounts() {
-    for (const category of CATEGORIES) {
-      const badge = presetChips.querySelector<HTMLElement>(`[data-count="${category.id}"]`);
-      if (!badge) continue;
-      const selected = category.items.filter((item) => resources.has(item)).length;
-      badge.textContent =
-        selected === 0
-          ? String(category.items.length)
-          : selected === 1
-            ? "1 elegido"
-            : `${selected} elegidos`;
-      // Sin color propio: el encabezado ya va tintado con el de la categoría y
-      // un rojo encima competiría con él. Lo elegido se marca con el peso.
-      badge.className = selected > 0 ? "text-xs font-bold" : "text-xs opacity-70";
-    }
-  }
-
-  function renderSelectedResources() {
-    selectedResources.replaceChildren();
-    for (const resource of resources) {
-      const tag = document.createElement("span");
-      tag.className = `inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${chipClass(resource)}`;
-      tag.textContent = resource;
-
-      const remove = document.createElement("button");
-      remove.type = "button";
-      remove.className = "opacity-50 transition hover:opacity-100";
-      remove.setAttribute("aria-label", `Quitar ${resource}`);
-      remove.textContent = "×";
-      remove.addEventListener("click", () => toggleResource(resource, false));
-
-      tag.append(remove);
-      selectedResources.append(tag);
-    }
-    if (resources.size > 0) clearError(resourcesError);
-    syncPresetChips();
-  }
-
-  function toggleResource(resource: string, force?: boolean) {
-    const shouldAdd = force ?? !resources.has(resource);
-    if (shouldAdd) resources.add(resource);
-    else resources.delete(resource);
-    renderSelectedResources();
-  }
-
-  presetChips.addEventListener("click", (event) => {
-    const chip = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-preset]");
-    if (!chip) return;
-    toggleResource(chip.dataset.preset as string);
-    if (!reduceMotion) {
-      gsap.fromTo(chip, { scale: 0.92 }, { scale: 1, duration: 0.25, ease: "back.out(3)" });
-    }
-  });
+  const picker = createResourcePicker("report");
 
   /* ---------------------------------------------------------------- */
   /* Envío                                                             */
@@ -121,11 +41,12 @@ export function initReportForm(): void {
       location.clearNameError();
     }
 
-    if (resources.size === 0) {
-      showError(resourcesError, "Selecciona al menos un recurso.");
+    const resources = picker.values();
+    if (resources.length === 0) {
+      picker.showError("Selecciona al menos un recurso.");
       valid = false;
     } else {
-      clearError(resourcesError);
+      picker.clearError();
     }
 
     // Espejo de los CHECK de la base: mismo patrón y mismos largos. Sin esto,
@@ -156,7 +77,7 @@ export function initReportForm(): void {
       name,
       lat: coords.lat,
       lng: coords.lng,
-      resources: [...resources],
+      resources,
       status: urgente.checked ? "urgente" : "activo",
       note: note.value.trim() || null,
       contactName: person || null,
@@ -164,8 +85,7 @@ export function initReportForm(): void {
     });
 
     form.reset();
-    resources.clear();
-    renderSelectedResources();
+    picker.clear();
     location.reset();
     clearError(contactError);
 
@@ -195,7 +115,7 @@ export function initReportForm(): void {
   let wasVisible = isTabVisible("reportar");
   onTabChange(() => {
     const visible = isTabVisible("reportar");
-    if (visible && !wasVisible) collapseCategories();
+    if (visible && !wasVisible) picker.collapse();
     wasVisible = visible;
   });
 
@@ -205,7 +125,4 @@ export function initReportForm(): void {
     if (tab === "necesidad") location.resume();
     else location.suspend();
   });
-
-  collapseCategories();
-  renderSelectedResources();
 }

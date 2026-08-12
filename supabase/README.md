@@ -63,7 +63,7 @@ garantizaba el schema de Zod ahora lo garantizan los CHECK de la tabla.
 | `id` | Llave primaria. Slug kebab-case en los curados —era el nombre del archivo YAML—; uuid en los comunitarios, que pasa el mismo patrón |
 | `tipo` | `acopio`, `albergue` o `sangre` |
 | `origen` | `curado` o `comunidad`. Con `curado`, `user_id` tiene que ir nulo; con `comunidad`, obligatorio (`centros_origen_autor`) |
-| `recibe` | Vacío en `sangre`, y de 1 a 20 en los otros dos |
+| `recibe` | Nombres de insumo del catálogo de `src/scripts/resources.ts`, los mismos de `reports.resources`. Vacío en `sangre`, y de 1 a 80 en los otros dos |
 | `recibiendo` | `false` = sigue abierto pero no recibe: queda gris en el mapa. Vale para los tres tipos — un banco de sangre que ya cubrió su demanda se pausa igual |
 | `nota_estado` | Por qué no recibe. Solo se ve con `recibiendo: false` |
 | `activo` | `false` = cerrado, deja de dibujarse. No borres la fila |
@@ -84,11 +84,21 @@ update public.centros
 update public.centros set activo = false where id = '<uuid>';
 ```
 
-El constraint `centros_recibe_ids` lista los ids de categoría a mano. **Es el
-único lugar donde el catálogo está duplicado**: si agregas una categoría en
-`src/scripts/resources.ts`, agrégala también acá o la tabla la rechaza. Es a
-propósito — un id mal escrito acá desaparece un chip del popup sin avisar, y
-nadie vuelve a leer una fila que ya guardó.
+`recibe` guarda nombres de insumo, no ids de categoría: un punto que solo recibe
+pañales se publicaba como si recibiera toda la categoría, y el popup prometía
+leche en polvo que ahí no reciben. Lo que se pide y lo que se ofrece se nombran
+igual, así que se pueden comparar ítem por ítem.
+
+Se valida como `reports.resources` —por largo, no por contenido: de 1 a 80
+elementos (`centros_recibe_por_tipo`) y hasta 60 caracteres cada uno
+(`centros_recibe_largo`)—. **El catálogo ya no está duplicado fuera del repo**:
+agregar una categoría o un insumo en `src/scripts/resources.ts` no pide
+migración. El precio es que un nombre mal escrito a mano en el editor de tablas
+sale gris, bajo «Otros», en vez de ser rechazado.
+
+Las filas viejas guardadas por categoría siguen funcionando: `data/centros.ts`
+expande al leer cualquier id del catálogo que encuentre, así que escribir
+`salud` en el editor de tablas publica lo mismo de siempre.
 
 Cualquier cambio sale al aire de inmediato, sin deploy: la tabla va en el canal
 de realtime y el mapa de quien ya está mirando se repinta solo.

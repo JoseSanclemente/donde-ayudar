@@ -45,10 +45,12 @@ Two kinds of data, and they must not mix:
   curated point cannot be created from the browser. Deleting is the author's own point
   only, and **there is no update policy at all** — nothing edits a point once published.
   The map keeps the same square for both origins and only lightens the colour; the popup
-  labels both («Creado por la alcaldía» / «Creado por la comunidad»). Read
-  `supabase/README.md` before adding or changing one; the category ids in
-  `centros_recibe_ids` are the only copy of the `resources.ts` catalog outside the repo
-  and have to be kept in sync by hand.
+  labels both («Creado por la alcaldía» / «Creado por la comunidad»). `recibe` names
+  individual supplies from the `resources.ts` catalog — the same strings a report asks
+  for, so a need and a point can be compared item by item — and is validated by length
+  only, like `reports.resources`. Rows saved before that carry category ids instead;
+  `data/centros.ts` expands them on read. Read `supabase/README.md` before adding or
+  changing a point.
 
 ## Client layout
 
@@ -58,10 +60,13 @@ Two kinds of data, and they must not mix:
   loaders (`loadAddresses`, `loadStreets`).
 - **`features/`** — one UI piece per file, each with its `init…()`: `alert-banner`,
   `centros-layer`, `centro-form`, `location-picker`, `marker-sheet`, `offers-panel`,
-  `report-form`, `report-list`, `report-tabs`, `updates-feed`, `user-location`. They
-  subscribe to the stores; they never call Supabase directly. `location-picker` is the exception to "one
-  UI piece": it is a factory, and the two forms — a need and a collection point — each
-  create one over their own copy of `LocationField.astro`, keyed by an id prefix. The
+  `report-form`, `report-list`, `report-tabs`, `resource-picker`, `updates-feed`,
+  `user-location`. They
+  subscribe to the stores; they never call Supabase directly. `location-picker` and
+  `resource-picker` are the exception to "one
+  UI piece": they are factories, and the two forms — a need and a collection point — each
+  create one of each over their own copy of `LocationField.astro` and
+  `ResourcePicker.astro`, keyed by an id prefix. The
   draft pin and the click-to-pick mode are single, so `report-tabs` hands them over
   between the two with `suspend()`/`resume()`.
 - **`data/`** — everything that talks to Supabase. One store per table (`reports.ts`,

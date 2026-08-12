@@ -1,0 +1,82 @@
+---
+/**
+ * El catálogo de insumos, categoría por categoría. Lo comparten el reporte de
+ * una necesidad y el registro de un punto de acopio: uno pregunta qué falta y el
+ * otro qué reciben, pero los dos nombran la misma cosa — y por eso se pueden
+ * comparar ítem por ítem.
+ *
+ * Los ids llevan prefijo porque los dos formularios viven a la vez en el DOM,
+ * escondido uno detrás de la otra pestaña. `createResourcePicker(prefix)` en
+ * `src/scripts/features/resource-picker.ts` es la mitad de este componente.
+ */
+import { CATEGORIES, CHIP_OFF } from "../scripts/resources";
+
+interface Props {
+  prefix: string;
+  label: string;
+}
+
+const { prefix, label } = Astro.props;
+---
+
+<div>
+  <span class="block text-sm font-medium text-slate-700">{label}</span>
+  <div id={`${prefix}-preset-chips`} class="mt-2 space-y-2">
+    {
+      CATEGORIES.map((category) => (
+        <details
+          data-category={category.id}
+          class="overflow-hidden rounded-lg border border-slate-200"
+        >
+          <summary
+            class={`flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-medium transition hover:brightness-95 ${category.chip}`}
+          >
+            <span class="caret opacity-60 transition-transform">▸</span>
+            <span class="flex-1">{category.label}</span>
+            <span data-count={category.id} class="text-xs opacity-70">
+              {category.items.length}
+            </span>
+          </summary>
+          <div class="flex flex-wrap gap-2 px-3 py-3">
+            {category.items.map((item) => (
+              <button
+                type="button"
+                data-preset={item.trim()}
+                data-category={category.id}
+                aria-pressed="false"
+                class={CHIP_OFF}
+              >
+                {item.trim()}
+              </button>
+            ))}
+          </div>
+        </details>
+      ))
+    }
+  </div>
+
+  <div id={`${prefix}-selected-resources`} class="mt-3 flex flex-wrap gap-2"></div>
+  <p
+    id={`${prefix}-resources-error`}
+    class="mt-1 hidden text-xs font-medium text-red-600"
+  >
+  </p>
+</div>
+
+<style>
+  /* Safari sigue pintando el triángulo nativo aunque `list-none` esté puesto. */
+  summary::-webkit-details-marker {
+    display: none;
+  }
+
+  details[open] > summary .caret {
+    transform: rotate(90deg);
+  }
+
+  /* Sin texto no hay error que mostrar. `clearError` ya pone la clase `hidden`,
+     pero el hueco tampoco debe aparecer si alguna vez se vacía el párrafo sin
+     pasar por ahí — el margen de un error invisible se ve igual. */
+  p[id$="-resources-error"]:empty {
+    display: none;
+  }
+</style>

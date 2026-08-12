@@ -1,6 +1,6 @@
 ---
-import { CATEGORIES, CHIP_OFF } from "../scripts/resources";
 import LocationField from "./LocationField.astro";
+import ResourcePicker from "./ResourcePicker.astro";
 ---
 
 <form id="centro-form" novalidate class="space-y-5">
@@ -45,40 +45,9 @@ import LocationField from "./LocationField.astro";
     />
   </div>
 
-  <!-- Categorías, no ítems sueltos: la tabla guarda ids de categoría y el popup
-       del punto ya despliega debajo el detalle de cada una. -->
-  <div>
-    <span class="block text-sm font-medium text-slate-700">¿Qué está recibiendo?</span>
-    <div id="centro-recibe" class="mt-2 space-y-2">
-      {
-        CATEGORIES.map((category) => (
-          <details
-            data-category={category.id}
-            class="overflow-hidden rounded-lg border border-slate-200"
-          >
-            <summary
-              class={`flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-medium transition hover:brightness-95 ${category.chip}`}
-            >
-              <span class="caret opacity-60 transition-transform">▸</span>
-              <span class="flex-1">{category.label}</span>
-              <button
-                type="button"
-                data-recibe={category.id}
-                aria-pressed="false"
-                class={CHIP_OFF}
-              >
-                Recibir
-              </button>
-            </summary>
-            <div class="px-3 py-3 text-xs leading-relaxed text-slate-600">
-              {category.items.map((item) => item.trim()).join(" · ")}
-            </div>
-          </details>
-        ))
-      }
-    </div>
-    <p id="centro-recibe-error" class="mt-1 hidden text-xs font-medium text-red-600"></p>
-  </div>
+  <!-- Ítem por ítem, el mismo catálogo con el que se pide: un punto que solo
+       recibe pañales no debe publicarse como si recibiera toda la categoría. -->
+  <ResourcePicker prefix="centro" label="¿Qué está recibiendo?" />
 
   <div>
     <label for="centro-telefono" class="block text-sm font-medium text-slate-700">
@@ -149,18 +118,8 @@ import LocationField from "./LocationField.astro";
 </form>
 
 <style>
-  /* Safari sigue pintando el triángulo nativo aunque `list-none` esté puesto. */
-  summary::-webkit-details-marker {
-    display: none;
-  }
-
-  details[open] > summary .caret {
-    transform: rotate(90deg);
-  }
-
   /* Sin texto no hay error que mostrar; el margen de uno invisible se ve igual. */
   #centro-nombre-error:empty,
-  #centro-recibe-error:empty,
   #centro-telefono-error:empty {
     display: none;
   }

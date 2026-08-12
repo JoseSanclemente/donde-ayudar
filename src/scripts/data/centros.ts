@@ -1,4 +1,5 @@
 import type { Centro, CentroAcopio, Origen } from "../centros";
+import { categoryItemsEnPunto, isCategoryId } from "../resources";
 import { MISSING_ENV_MESSAGE, supabase } from "../supabase";
 import { createEmitter } from "./emitter";
 import { errorMessage, reportError } from "./errors";
@@ -66,6 +67,21 @@ function text(value: unknown): string | undefined {
 }
 
 /**
+ * La columna guardaba ids de categoría antes de que guardara nombres de insumo.
+ * La migración expandió las filas que había, pero el editor de tablas sigue
+ * siendo una superficie escrita a mano: un mantenedor que escriba `salud` tiene
+ * que seguir publicando lo mismo de siempre, no un chip «Otros». Lo que ya es
+ * nombre de insumo pasa derecho.
+ */
+function expandirRecibe(recibe: unknown): string[] {
+  if (!Array.isArray(recibe)) return [];
+  const items = recibe
+    .filter((value): value is string => typeof value === "string")
+    .flatMap((value) => (isCategoryId(value) ? categoryItemsEnPunto(value) : value.trim()));
+  return [...new Set(items)];
+}
+
+/**
  * Only the columns without which the point cannot be drawn at all. A new column
  * has to degrade, never invalidate the row: a browser that has not reloaded
  * since the previous deploy keeps reading this same table.
@@ -110,7 +126,7 @@ function fromRow(row: Row): Centro {
   return {
     ...base,
     tipo: row.tipo === "albergue" ? "albergue" : "acopio",
-    recibe: Array.isArray(row.recibe) ? row.recibe : [],
+    recibe: expandirRecibe(row.recibe),
   };
 }
 

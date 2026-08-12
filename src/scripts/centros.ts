@@ -45,7 +45,12 @@ type Base = {
 
 /** Lo que comparten los puntos que reciben insumos: `acopio` y `albergue`. */
 type Recibidor = {
-  /** Ids de categoría de `resources.ts`. */
+  /**
+   * Nombres de insumo del catálogo de `resources.ts` — los mismos que pide un
+   * reporte. Guardar la categoría entera hacía que un punto que solo recibe
+   * pañales prometiera también leche en polvo. Las filas viejas sí traen ids de
+   * categoría, y `data/centros.ts` los expande al leerlas.
+   */
   recibe: string[];
 };
 

@@ -321,7 +321,14 @@ create table public.centros (
   horario     text not null default '' check (char_length(horario) <= 120),
   telefono    text check (telefono is null or char_length(telefono) <= 40),
   notas       text check (notas is null or char_length(notas) <= 300),
-  recibe      text[] not null default '{}',
+  -- Nombres de insumo del catálogo de `src/scripts/resources.ts`, los mismos de
+  -- `reports.resources`: lo que se pide y lo que se ofrece se nombran igual, así
+  -- que se pueden comparar ítem por ítem. Se valida por largo, no por contenido
+  -- —el catálogo vive en el repo y crece sin migración—; la UI agrupa cada
+  -- nombre bajo su categoría y pinta gris lo que no reconoce.
+  recibe      text[] not null default '{}'
+              constraint centros_recibe_largo
+              check (public.max_text_len(recibe) <= 60),
   -- `false` = still open, not taking supplies right now (warehouse full). It
   -- stays on the map in grey; closing for real is `activo = false`.
   recibiendo  boolean not null default true,
@@ -331,18 +338,11 @@ create table public.centros (
   updated_at  timestamptz not null default now(),
 
   -- The discriminated union src/content.config.ts used to enforce: a blood bank
-  -- takes no supplies and must not list any, everything else must list one.
+  -- takes no supplies and must not list any, everything else must list one. The
+  -- ceiling is the whole catalog: a warehouse can and does take everything.
   constraint centros_recibe_por_tipo check (
     case when tipo = 'sangre' then cardinality(recibe) = 0
-         else cardinality(recibe) between 1 and 20 end
-  ),
-  -- Unlike `offers.category`, this one is a closed list: a typo here silently
-  -- drops a chip from the popup, and nobody rereads a row they already saved.
-  -- Keep it in sync with CATEGORIES in src/scripts/resources.ts.
-  constraint centros_recibe_ids check (
-    recibe <@ array[
-      'herramientas','rescate','logistica','bebes','alimentos','salud','voluntarios'
-    ]::text[]
+         else cardinality(recibe) between 1 and 80 end
   ),
   -- Un punto curado no tiene autor; uno comunitario tiene exactamente uno. Sin
   -- esto, un `user_id` nulo en una fila comunitaria la volvería imborrable.

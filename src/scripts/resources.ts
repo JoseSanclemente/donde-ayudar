@@ -7,9 +7,10 @@ export type ResourceCategory = {
   /** Chip seleccionado dentro del formulario. */
   chipOn: string;
   /**
-   * Subconjunto de `items` que tiene sentido en un punto curado. Solo se declara
-   * cuando la categoría pide menos allá que en una zona afectada — sin esto, el
-   * punto muestra la categoría completa.
+   * Subconjunto de `items` que tiene sentido en un punto de donación. Hoy solo
+   * lo usa `categoryItemsEnPunto`, al expandir un `recibe` viejo guardado por
+   * categoría: es lo que ese punto mostraba antes, y así no empieza a prometer
+   * lo que ahí no pasa.
    */
   itemsEnPunto?: string[];
 };
@@ -20,7 +21,8 @@ export type ResourceCategory = {
 export const CATEGORIES: ResourceCategory[] = [
   {
     // El id se queda como estaba aunque la etiqueta cambie: es el valor que
-    // usan los `recibe` de los centros curados y los reportes ya guardados.
+    // guardan la `category` de las ofertas y los `recibe` de los puntos que se
+    // publicaron antes de que la columna nombrara insumos.
     id: "herramientas",
     label: "Protección personal",
     items: ["Guantes de construcción", "Gafas", "Tapabocas N95", "Cascos"],
@@ -149,11 +151,22 @@ const BY_ID = new Map(
   CATEGORIES.map((category) => [category.id, category] as const),
 );
 
+/**
+ * El catálogo es texto escrito a mano y alguno trae un espacio de sobra al
+ * final, así que la llave va recortada y todo el que pregunta recorta también
+ * (`key`). Sin eso, un reporte guardado con el nombre limpio y otro con el
+ * espacio serían dos recursos distintos: dos chips, dos colores, y ninguno de
+ * los dos se deja marcar como cubierto por el otro.
+ */
 const BY_RESOURCE = new Map(
   CATEGORIES.flatMap((category) =>
-    category.items.map((item) => [item, category] as const),
+    category.items.map((item) => [item.trim(), category] as const),
   ),
 );
+
+function key(resource: string): string {
+  return resource.trim();
+}
 
 /**
  * El texto del ítem es la llave del catálogo: si un mismo recurso aparece en
@@ -168,7 +181,7 @@ const BY_RESOURCE = new Map(
 export function assertUniqueItems(): void {
   const seen = new Map<string, string>();
   for (const category of CATEGORIES) {
-    for (const item of category.items) {
+    for (const item of category.items.map((name) => name.trim())) {
       const previous = seen.get(item);
       if (previous) {
         throw new Error(
@@ -213,7 +226,7 @@ export const CHIP_BASE =
 export const CHIP_OFF = `${CHIP_BASE} border-slate-300 bg-white text-slate-700 hover:border-slate-400`;
 
 export function chipClass(resource: string): string {
-  return BY_RESOURCE.get(resource)?.chip ?? OTHER_CHIP;
+  return BY_RESOURCE.get(key(resource))?.chip ?? OTHER_CHIP;
 }
 
 /** Como `chipClass`, pero la llave es el id de categoría (centros de acopio). */
@@ -226,12 +239,25 @@ export function categoryLabel(categoryId: string): string {
 }
 
 /**
- * Qué entra en una categoría, visto desde un punto curado. «Logística y energía»
- * no le dice a nadie que puede llevar pilas, así que los puntos muestran el
- * detalle debajo del chip; si la categoría declaró un `itemsEnPunto`, ese manda
- * — un acopio sigue recibiendo «Voluntarios», solo que el detalle no promete lo
- * que ahí no pasa. Los nombres se recortan: el catálogo es texto escrito a mano
- * y alguno trae un espacio de sobra al final.
+ * La categoría a la que pertenece un insumo. `byCategory` responde lo mismo,
+ * pero reparte una lista entera: el filtro del mapa pregunta por uno solo.
+ */
+export function categoryIdOf(resource: string): string | undefined {
+  return BY_RESOURCE.get(key(resource))?.id;
+}
+
+/** Si el texto es un id del catálogo y no el nombre de un insumo. */
+export function isCategoryId(value: string): boolean {
+  return BY_ID.has(value);
+}
+
+/**
+ * Qué entra en una categoría, visto desde un punto de donación. Es la traducción
+ * de un `recibe` viejo, guardado por categoría y no por insumo: si la categoría
+ * declaró un `itemsEnPunto`, ese manda — un acopio sigue recibiendo
+ * «Voluntarios», solo que la lista no promete lo que ahí no pasa. Los nombres se
+ * recortan: el catálogo es texto escrito a mano y alguno trae un espacio de
+ * sobra al final.
  */
 export function categoryItemsEnPunto(categoryId: string): string[] {
   const category = BY_ID.get(categoryId);
@@ -259,7 +285,7 @@ export function byCategory<T>(
 ): CategoryBucket<T>[] {
   const buckets = new Map<string, T[]>();
   for (const item of items) {
-    const id = BY_RESOURCE.get(nameOf(item))?.id ?? OTHER_BUCKET.id;
+    const id = BY_RESOURCE.get(key(nameOf(item)))?.id ?? OTHER_BUCKET.id;
     const bucket = buckets.get(id) ?? [];
     bucket.push(item);
     buckets.set(id, bucket);
