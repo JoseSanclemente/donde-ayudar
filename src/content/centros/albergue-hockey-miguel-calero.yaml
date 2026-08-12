@@ -1,9 +1,0 @@
-# TODO(verificar): horario y `recibe` sin confirmar.
-tipo: albergue
-name: Coliseo de Hockey en Línea Miguel Calero
-direccion: "Calle 9 con carrera 37A/39, Cali, Valle"
-lat: 3.4222596197664648
-lng: -76.53807753078131
-horario: ""
-recibe: [salud, logistica, voluntarios]
-activo: true

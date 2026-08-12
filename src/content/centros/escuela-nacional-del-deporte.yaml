@@ -1,9 +1,0 @@
-# TODO(verificar): horario y `recibe` sin confirmar.
-tipo: acopio
-name: Escuela Nacional del Deporte
-direccion: "Cll 9 # 34 - 01, Eucarístico, Cali, Valle"
-lat: 3.426460467304358
-lng: -76.53700594023968
-horario: ""
-recibe: [logistica, bebes, herramientas, voluntarios]
-activo: true

@@ -1,8 +1,0 @@
-tipo: albergue
-name: Coliseo Metropolitano del Norte
-direccion: "Cra. 1a 12 #69-26, Cali, Valle"
-lat: 3.480736563747716
-lng: -76.49051058856566
-horario: ""
-recibe: [salud, logistica, voluntarios]
-activo: true

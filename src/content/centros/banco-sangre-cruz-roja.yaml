@@ -1,9 +1,0 @@
-# TODO(verificar): días de atención sin confirmar
-# (la pieza dice "puntos permanentes" pero no especifica cuáles días).
-tipo: sangre
-name: Banco de sangre Cruz Roja
-direccion: "Parqueadero Cruz Roja Valle, Cra. 38 Bis #5B, San Fernando"
-lat: 3.4274096316055784
-lng: -76.54509998845228
-horario: 8:00 a. m. – 6:00 p. m.
-activo: true
