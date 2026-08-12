@@ -3,6 +3,7 @@ import { debounce, geocode, type GeocodeResult } from "../geocode";
 import { flyTo, hideDraft, isPicking, showDraft, startPicking, stopPicking } from "../map";
 import { closeSheet, openSheet } from "../sheet";
 import { $, clearError, showError } from "../ui/dom";
+import { hidePickHint, showPickHint } from "../ui/pick-hint";
 
 /**
  * Dirección escrita, sugerencias, pin arrastrable y clic en el mapa: la mitad
@@ -249,11 +250,25 @@ export function createLocationPicker(prefix: string): LocationPicker {
     startPicking((latlng: LatLng) => {
       setCoords({ lat: latlng.lat, lng: latlng.lng });
       resetPickButton();
+      hidePickHint();
       showNote("Punto fijado. Arrástralo si necesitas moverlo.");
       openSheet();
     });
-    // En móvil el sheet tapa el mapa: hay que cerrarlo para poder señalar.
+    // En móvil el sheet tapa el mapa: hay que cerrarlo para poder señalar. Con
+    // el sheet fuera, el aviso del header es lo único que queda diciendo qué
+    // hacer y cómo salir — el botón rojo y la nota se fueron con el formulario.
     closeSheet();
+    showPickHint(cancelPicking);
+  }
+
+  function cancelPicking() {
+    stopPicking();
+    resetPickButton();
+    hidePickHint();
+    clearNote();
+    // Cancelar desde el aviso deja el mapa vacío: el formulario tiene que
+    // volver. Desde el botón el sheet ya está abierto y esto no hace nada.
+    openSheet();
   }
 
   function resetPickButton() {
@@ -264,9 +279,7 @@ export function createLocationPicker(prefix: string): LocationPicker {
 
   pickButton.addEventListener("click", () => {
     if (isPicking()) {
-      stopPicking();
-      resetPickButton();
-      clearNote();
+      cancelPicking();
       return;
     }
     hideSuggestions();
@@ -305,6 +318,7 @@ export function createLocationPicker(prefix: string): LocationPicker {
       clearError(nameError);
       stopPicking();
       resetPickButton();
+      hidePickHint();
       setCoords(null);
     },
 
@@ -313,6 +327,7 @@ export function createLocationPicker(prefix: string): LocationPicker {
       active = false;
       stopPicking();
       resetPickButton();
+      hidePickHint();
       hideSuggestions();
       // El pin se suelta, las coordenadas no: volver a la pestaña tiene que
       // encontrar el formulario tal como se dejó.

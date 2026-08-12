@@ -1,11 +1,11 @@
 import gsap from "gsap";
 import { addReport } from "../data/reports";
-import { flyTo, getMarkerElement } from "../map";
+import { flyTo, getMarkerElement, isPicking } from "../map";
 import { closeReportPanel, closeSheet, isTabVisible, onTabChange } from "../sheet";
 import { isValidPhone } from "../ui/contact";
 import { $, clearError, showError } from "../ui/dom";
 import { createLocationPicker } from "./location-picker";
-import { onReportTabChange } from "./report-tabs";
+import { currentReportTab, onReportTabChange } from "./report-tabs";
 import { createResourcePicker } from "./resource-picker";
 
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -113,10 +113,27 @@ export function initReportForm(): void {
   // o de reabrir el sheet: quien lo abre busca la dirección primero, y las
   // categorías desplegadas empujan todo lo demás fuera de la pantalla.
   let wasVisible = isTabVisible("reportar");
+  // Perder de vista el formulario se lleva el pin: un punto provisional en el
+  // mapa sin el formulario detrás no es más que una marca que nadie puede ni
+  // mover ni enviar. Da igual por dónde se fue —la ✕, el scrim, el arrastre,
+  // Escape o cambiar de panel—: lo que cuenta es que ya no se ve. Las
+  // coordenadas no se pierden: volver repone el pin donde estaba.
+  //
+  // Señalar en el mapa es la excepción y por eso el `isPicking()`: ahí el sheet
+  // se cierra a propósito para dejar tocar el mapa, y el formulario sigue vivo
+  // detrás esperando el punto.
+  const onScreen = () => isTabVisible("reportar") || isPicking();
+  let wasOnScreen = onScreen();
   onTabChange(() => {
     const visible = isTabVisible("reportar");
     if (visible && !wasVisible) picker.collapse();
     wasVisible = visible;
+
+    const shown = onScreen();
+    if (shown === wasOnScreen) return;
+    wasOnScreen = shown;
+    if (!shown) location.suspend();
+    else if (currentReportTab() === "necesidad") location.resume();
   });
 
   // El pin y el modo de señalar son únicos en el mapa: solo puede tenerlos la

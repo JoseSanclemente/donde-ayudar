@@ -1,6 +1,7 @@
 ---
 import Base from "../layouts/Base.astro";
 import AlertBanner from "../components/AlertBanner.astro";
+import PickHint from "../components/PickHint.astro";
 import ReportTabs from "../components/ReportTabs.astro";
 import ReportList from "../components/ReportList.astro";
 import OffersPanel from "../components/OffersPanel.astro";
@@ -37,6 +38,7 @@ import { SITE_NAME, SITE_TITLE } from "../consts";
         </p>
 
         <AlertBanner />
+        <PickHint />
       </header>
 
       <!-- Cerrado, el sheet sale entero de la pantalla: mientras está abierto el

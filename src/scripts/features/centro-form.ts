@@ -1,6 +1,6 @@
 import { addCentro } from "../data/centros";
-import { flyTo } from "../map";
-import { closeReportPanel, closeSheet } from "../sheet";
+import { flyTo, isPicking } from "../map";
+import { closeReportPanel, closeSheet, isTabVisible, onTabChange } from "../sheet";
 import { isValidPhone } from "../ui/contact";
 import { $, clearError, showError } from "../ui/dom";
 import { createLocationPicker } from "./location-picker";
@@ -107,6 +107,25 @@ export function initCentroForm(): void {
     } else {
       location.suspend();
     }
+  });
+
+  // Perder de vista el formulario se lleva el pin: un punto provisional en el
+  // mapa sin el formulario detrás no es más que una marca que nadie puede ni
+  // mover ni enviar. Da igual por dónde se fue —la ✕, el scrim, el arrastre,
+  // Escape o cambiar de panel—: lo que cuenta es que ya no se ve. Las
+  // coordenadas no se pierden: volver repone el pin donde estaba.
+  //
+  // Señalar en el mapa es la excepción y por eso el `isPicking()`: ahí el sheet
+  // se cierra a propósito para dejar tocar el mapa, y el formulario sigue vivo
+  // detrás esperando el punto.
+  const onScreen = () => isTabVisible("reportar") || isPicking();
+  let wasOnScreen = onScreen();
+  onTabChange(() => {
+    const shown = onScreen();
+    if (shown === wasOnScreen) return;
+    wasOnScreen = shown;
+    if (!shown) location.suspend();
+    else if (currentReportTab() === "acopio") location.resume();
   });
 
   if (currentReportTab() !== "acopio") location.suspend();
