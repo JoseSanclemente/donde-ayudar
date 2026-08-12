@@ -158,11 +158,24 @@ function shortLabel(item: NominatimItem): { label: string; detail: string } {
   };
 }
 
-/** Espera el turno que la política de uso de Nominatim exige. */
-async function throttle(): Promise<void> {
-  const elapsed = Date.now() - lastRequestAt;
-  if (elapsed < MIN_INTERVAL_MS) await wait(MIN_INTERVAL_MS - elapsed);
-  lastRequestAt = Date.now();
+/**
+ * Espera el turno que la política de uso de Nominatim exige.
+ *
+ * La cola es lo que hace que el freno sea un freno: leyendo `lastRequestAt` a
+ * secas, dos llamadas que empiezan a la vez —buscar mientras el reverso todavía
+ * no vuelve— calculan la misma espera y salen juntas. La sanción por pasarse es
+ * un bloqueo por IP, y la IP es la de quien está mirando el mapa.
+ */
+let queue: Promise<void> = Promise.resolve();
+
+function throttle(): Promise<void> {
+  const turn = queue.then(async () => {
+    const elapsed = Date.now() - lastRequestAt;
+    if (elapsed < MIN_INTERVAL_MS) await wait(MIN_INTERVAL_MS - elapsed);
+    lastRequestAt = Date.now();
+  });
+  queue = turn;
+  return turn;
 }
 
 async function query(

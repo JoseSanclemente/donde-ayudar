@@ -261,7 +261,7 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
   return `
     <div class="space-y-2">
       ${kicker}
-      <div class="flex flex-col justify-between gap-2>
+      <div class="flex flex-col justify-between gap-2">
         ${lugar}
         <p class="text-lg font-semibold text-slate-900">${escapeHtml(lead.name)}</p>
       </div>
@@ -338,7 +338,10 @@ function selectOnMobile(event: L.LeafletMouseEvent): void {
 
 /** Al cruzar el breakpoint hay que devolverle (o quitarle) el popup a cada marcador. */
 function syncPopupMode(): void {
-  const all = [...markers.values(), ...centros.map((centro) => centro.marker)];
+  const all = [
+    ...markers.values(),
+    ...[...centros.values()].map((centro) => centro.marker),
+  ];
   for (const marker of all) {
     const html = popupHtml.get(marker);
     if (html === undefined) continue;
@@ -643,7 +646,14 @@ export function flyTo(
 // reportes, y con zIndexOffset negativo para que el rojo pulsante de una
 // necesidad activa siempre quede por encima de un punto de entrega.
 const centrosLayer = L.layerGroup();
-const centros: Array<{ data: Centro; marker: L.Marker }> = [];
+/**
+ * Punto -> su marcador, por id. Es un registro y no una lista que se rehace
+ * porque el marcador tiene que sobrevivir a la emisión: cualquiera puede
+ * registrar un acopio en cualquier parte de la ciudad, eso llega por realtime, y
+ * rehacer la capa entera cerraba el detalle que alguien estaba leyendo de otro
+ * punto. Igual que los reportes, se reconcilia: crear, refrescar o soltar.
+ */
+const centros = new Map<string, { data: Centro; marker: L.Marker }>();
 let centroFilter: string | null = null;
 let centrosVisible = true;
 
@@ -919,52 +929,89 @@ function matchesFilter(centro: Centro): boolean {
   );
 }
 
-/** Repuebla la capa. Devuelve cuántos centros quedaron visibles. */
+/**
+ * Pone en la capa los que pasan el filtro y saca los que no. Va marcador por
+ * marcador y no con `clearLayers()`: vaciar la capa entera arranca del DOM
+ * también los que se van a volver a agregar en la misma vuelta, y con ellos el
+ * popup que estuviera abierto encima. Devuelve cuántos quedaron visibles.
+ */
 function applyCentros(): number {
-  centrosLayer.clearLayers();
   let shown = 0;
-  if (centrosVisible) {
-    for (const { data, marker } of centros) {
-      if (!matchesFilter(data)) continue;
-      centrosLayer.addLayer(marker);
-      shown += 1;
-    }
+  for (const { data, marker } of centros.values()) {
+    const visible = centrosVisible && matchesFilter(data);
+    if (visible) shown += 1;
+    if (visible === centrosLayer.hasLayer(marker)) continue;
+    if (visible) centrosLayer.addLayer(marker);
+    else centrosLayer.removeLayer(marker);
   }
   // Un filtro que esconde el punto abierto deja el detalle hablando de algo que
   // ya no está en el mapa.
-  const openCentro =
-    selected !== null && centros.some(({ marker }) => marker === selected);
-  if (openCentro && !centrosLayer.hasLayer(selected as L.Marker)) emit(null);
+  if (selected && !centrosLayer.hasLayer(selected) && isCentroMarker(selected))
+    emit(null);
   return shown;
 }
 
+function isCentroMarker(marker: L.Marker): boolean {
+  for (const { marker: candidate } of centros.values())
+    if (candidate === marker) return true;
+  return false;
+}
+
+/**
+ * El icono que le toca a un punto. Se elige en cada emisión y no una sola vez:
+ * pausar un punto en Supabase llega como una fila nueva sobre el mismo id, y el
+ * marcador se queda — lo que cambia es el dibujo.
+ */
+function centroIconFor(centro: Centro): L.DivIcon {
+  const { normal, pausa } = ICON[centro.tipo];
+  // Solo el acopio tiene variante comunitaria: es el único tipo que registra el
+  // formulario. La pausa gana sobre el origen — gris con barras dice «hoy no
+  // vayas», que es más urgente que quién lo publicó.
+  const suyo =
+    centro.tipo === "acopio" && esComunitario(centro) ? comunidadIcon : normal;
+  return enPausa(centro) && pausa ? pausa : suyo;
+}
+
 export function setCentros(entries: CentroEntry[]): number {
-  // La lista se reconstruye entera: los marcadores viejos —y con ellos el que
-  // estuviera abierto— dejan de existir. Es también lo que cierra el detalle de
-  // un punto recién borrado, sin que el borrado tenga que saber del panel.
-  if (selected && centros.some(({ marker }) => marker === selected)) emit(null);
-  centros.length = 0;
-  dropShareCards("c:");
+  const live = new Set(entries.map(({ data }) => data.id));
+  for (const [id, { marker }] of centros) {
+    if (live.has(id)) continue;
+    // El punto dejó de existir —lo borró su autor, o lo cerró un mantenedor—:
+    // dejar su detalle abierto sería mostrar algo que el mapa ya no tiene.
+    if (marker === selected) emit(null);
+    centrosLayer.removeLayer(marker);
+    marker.remove();
+    centros.delete(id);
+    shareCards.delete(`c:${id}`);
+  }
+
   for (const { data, mine } of entries) {
-    // The icon is picked here and never repainted afterwards, unlike
-    // `paintEstado` for reports. It does not have to be: pausing a point in
-    // Supabase re-emits the whole list and this function rebuilds every marker
-    // from scratch, so the new state arrives as a new icon.
-    const { normal, pausa } = ICON[data.tipo];
-    // Solo el acopio tiene variante comunitaria: es el único tipo que registra
-    // el formulario. La pausa gana sobre el origen — gris con barras dice «hoy no
-    // vayas», que es más urgente que quién lo publicó.
-    const suyo =
-      data.tipo === "acopio" && esComunitario(data) ? comunidadIcon : normal;
-    const icon = enPausa(data) && pausa ? pausa : suyo;
+    const existing = centros.get(data.id);
+    if (existing) {
+      existing.data = data;
+      const icon = centroIconFor(data);
+      // `setIcon` rehace el elemento del marcador, así que solo cuando el dibujo
+      // de verdad cambió: hacerlo por igual soltaría el popup abierto encima.
+      if (existing.marker.options.icon !== icon) existing.marker.setIcon(icon);
+      const at = existing.marker.getLatLng();
+      if (at.lat !== data.lat || at.lng !== data.lng)
+        existing.marker.setLatLng([data.lat, data.lng]);
+      attachPopup(existing.marker, centroPopupHtml(data, mine));
+      // Con el detalle abierto, una pausa o un cambio de horario tiene que
+      // aparecer ahí mismo: el sheet no se entera solo.
+      if (existing.marker === selected) emit(existing.marker);
+      continue;
+    }
+
     const marker = L.marker([data.lat, data.lng], {
-      icon,
+      icon: centroIconFor(data),
       zIndexOffset: -500,
     });
     attachPopup(marker, centroPopupHtml(data, mine));
     marker.on("click", selectOnMobile);
-    centros.push({ data, marker });
+    centros.set(data.id, { data, marker });
   }
+
   return applyCentros();
 }
 

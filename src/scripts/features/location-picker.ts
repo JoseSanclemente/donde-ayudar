@@ -1,5 +1,6 @@
 import type { LatLng } from "leaflet";
 import { debounce, geocode, reverseGeocode, type GeocodeResult } from "../geocode";
+import { loadStreets } from "../geo-index";
 import { locateUser } from "../geolocation";
 import { flyTo, hideDraft, isPicking, showDraft, startPicking, stopPicking } from "../map";
 import { closeSheet, getSheetCover, openSheet, peekSheet } from "../sheet";
@@ -231,6 +232,13 @@ export function createLocationPicker(prefix: string): LocationPicker {
       beginPicking();
     }
   }, 600);
+
+  // La malla vial son dos megas: pedirla en el arranque la pone a competir con
+  // las teselas y con el bundle, y hasta acá nadie la necesitaba. Tocar el campo
+  // es el primer aviso de que va a hacer falta, y sale con ventaja — el geocoder
+  // no arranca hasta la tercera letra. `loadStreets` se memoiza, así que los dos
+  // formularios pueden pedirla sin coordinarse.
+  nameInput.addEventListener("focus", () => void loadStreets(), { once: true });
 
   nameInput.addEventListener("input", () => {
     clearError(nameError);

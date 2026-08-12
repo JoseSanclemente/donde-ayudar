@@ -1,7 +1,12 @@
 import { groupReports } from "../cluster";
 import { getReports, onChange, reportLabel } from "../data/reports";
 import { isMine } from "../data/session";
-import { addUpdate, getUpdates, onUpdates, removeUpdate } from "../data/updates";
+import {
+  addUpdate,
+  getUpdates,
+  onUpdates,
+  removeUpdate,
+} from "../data/updates";
 import { flyTo } from "../map";
 import { closeSheet, isTabVisible, onTabChange, setTabDot } from "../sheet";
 import { $, clearError, maybe$, scheduleRender, showError } from "../ui/dom";
@@ -76,7 +81,9 @@ export function initUpdatesFeed(): void {
       setTabDot(TAB, false);
       return;
     }
-    const fresh = updates.some((update) => !seen.has(update.id) && !isMine(update));
+    const fresh = updates.some(
+      (update) => !seen.has(update.id) && !isMine(update),
+    );
     if (fresh) setTabDot(TAB, true);
   }
 
@@ -87,12 +94,14 @@ export function initUpdatesFeed(): void {
     more.classList.toggle("hidden", updates.length <= limit);
 
     // Índice para poder nombrar el punto de cada novedad sin volver a agrupar.
-    const names = new Map(getReports().map((report) => [report.id, report.name]));
+    const names = new Map(
+      getReports().map((report) => [report.id, report.name]),
+    );
 
     list.replaceChildren(
       ...updates.slice(0, limit).map((update) => {
         const item = document.createElement("li");
-        item.className = "border-l-2 border-slate-200 pl-3";
+        item.className = "border-l-2 border-slate-200 pl-3 space-y-3";
 
         const meta = document.createElement("div");
         meta.className = "flex items-center justify-between gap-2";
@@ -105,7 +114,8 @@ export function initUpdatesFeed(): void {
         if (isMine(update)) {
           const del = document.createElement("button");
           del.type = "button";
-          del.className = "text-xs font-medium text-slate-400 transition hover:text-red-600";
+          del.className =
+            "text-xs font-medium text-slate-400 transition hover:text-red-600";
           del.textContent = "Borrar";
           del.addEventListener("click", () => removeUpdate(update.id));
           meta.append(del);
@@ -121,7 +131,8 @@ export function initUpdatesFeed(): void {
         if (name) {
           const link = document.createElement("button");
           link.type = "button";
-          link.className = "mt-1 text-xs font-medium text-slate-500 hover:text-red-600";
+          link.className =
+            "mt-1 text-sm underline font-medium text-slate-500 hover:text-red-600";
           link.textContent = `↦ ${name}`;
           link.addEventListener("click", () => {
             const report = getReports().find((r) => r.id === update.reportId);

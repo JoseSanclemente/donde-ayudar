@@ -26,6 +26,13 @@ const ogImage = new URL(OG_IMAGE, Astro.site);
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="generator" content={Astro.generator} />
+
+    <!-- Los dos orígenes que se piden apenas arranca el script: las teselas del
+         mapa y la base. Sin esto cada uno paga su DNS y su TLS cuando ya se le
+         necesita, que en un celular con mala señal son cientos de milisegundos
+         antes del primer marcador. -->
+    <link rel="preconnect" href="https://a.basemaps.cartocdn.com" crossorigin />
+    <link rel="preconnect" href="https://fqyuuvinpmwwakqfkebt.supabase.co" crossorigin />
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />

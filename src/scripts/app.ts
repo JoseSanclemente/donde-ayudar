@@ -46,9 +46,17 @@ initSyncBadge();
 // «Hace 2 minutos» congelado media hora miente sobre la frescura del dato.
 startTimeTicker();
 
-// Se piden ya, no en la primera búsqueda: llegan mientras la persona escribe.
-void loadStreets();
+// El índice de direcciones se pide ya: son 56 KB y llegan mientras la persona
+// escribe. La malla vial son dos megas y no la pide nadie hasta que se toca el
+// campo de dirección — de eso se encarga `location-picker`. Acá solo se recoge
+// al que nunca abre el formulario, y con el hilo ya libre.
 void loadAddresses();
+
+const warmStreets = () => void loadStreets();
+if ("requestIdleCallback" in window) requestIdleCallback(warmStreets, { timeout: 10_000 });
+// Safari no tiene `requestIdleCallback`: el temporizador la deja igual de lejos
+// del primer pintado, que es lo único que se le pedía.
+else setTimeout(warmStreets, 5_000);
 
 onError(showToast);
 

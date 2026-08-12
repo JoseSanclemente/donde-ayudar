@@ -3,8 +3,8 @@
 Write in **English**: conversation, code, identifiers, comments, commit messages and
 documentation. There is no exception for "small" comments.
 
-Write in **Spanish** anything a visitor reads on screen: UI strings, the YAML content in
-`src/content/centros/`, error and toast messages. The site serves Cali.
+Write in **Spanish** anything a visitor reads on screen: UI strings, the rows a maintainer
+writes into `centros`, error and toast messages. The site serves Cali.
 
 Existing Spanish comments stay as they are. Rewrite one only when the change makes it
 wrong — no drive-by translation passes.
@@ -18,6 +18,19 @@ astro dev --background
 ```
 
 Manage the background server with `astro dev stop`, `astro dev status`, and `astro dev logs`.
+
+`pnpm check` runs `astro check` — types across `.astro` and `.ts` alike. Run it before a
+commit; the build does not typecheck.
+
+## Headers
+
+The security headers are not in `netlify.toml`. The CSP has to name the Supabase host, and
+written there it was the same fact in two places: switching projects left the CSP pointing
+at the old one, and what broke was not the build but realtime in production — the browser
+blocks the WebSocket in silence. `scripts/headers.mjs` is an Astro integration that writes
+`dist/_headers` on `astro:build:done`, deriving the origins from `PUBLIC_SUPABASE_URL` —
+the same variable that goes into the bundle. It throws when the variable is missing:
+publishing with no CSP is worse than not publishing.
 
 ## Data ownership
 
@@ -56,13 +69,17 @@ Two kinds of data, and they must not mix:
 
 `src/scripts/` is split into layers, and imports only ever flow downward — never back up:
 
-- **`app.ts`** — boot only: it calls each `init…()`, `initData()`, and the geo index
-  loaders (`loadAddresses`, `loadStreets`).
+- **`app.ts`** — boot only: it calls each `init…()`, `initData()`, and `loadAddresses()`.
+  The street grid is not asked for here: `public/geo/streets.json` is two megabytes, so
+  `location-picker` starts it on the first focus of an address field and `app.ts` only
+  warms it from an idle callback, for the visitor who never opens a form.
 - **`features/`** — one UI piece per file, each with its `init…()`: `alert-banner`,
-  `centros-layer`, `centro-form`, `location-picker`, `marker-sheet`, `offers-panel`,
-  `report-form`, `report-list`, `report-tabs`, `resource-picker`, `share`, `updates-feed`,
-  `user-location`. They
-  subscribe to the stores; they never call Supabase directly. `location-picker` and
+  `centro-form`, `centros-layer`, `header-offset`, `location-picker`, `marker-actions`,
+  `marker-sheet`, `offers-panel`, `report-form`, `report-list`, `report-tabs`,
+  `resource-picker`, `share`, `sync-badge`, `updates-feed`, `user-location`. They
+  subscribe to the stores; they never call Supabase directly. `marker-actions` is the odd
+  one: the marker detail is HTML built by `map.ts`, which cannot touch the stores, so the
+  wiring for its controls is delegated on `document` from there. `location-picker` and
   `resource-picker` are the exception to "one
   UI piece": they are factories, and the two forms — a need and a collection point — each
   create one of each over their own copy of `LocationField.astro` and
@@ -75,7 +92,10 @@ Two kinds of data, and they must not mix:
   `bindTable()` in `live.ts`, which merges every table into a single realtime channel.
   `boot.ts` runs once: anonymous session, initial load, and only then the channel.
   `session.ts` holds the current user id and `isMine()`, mirroring the RLS delete policy.
-  `errors.ts` is the error bus the toast consumes.
+  `errors.ts` is the error bus the toast consumes. `sync.ts` is the freshness of the data:
+  realtime never resends what happened while the socket was down, so it re-reads every
+  table on reconnect and when the tab comes back, and publishes the state that
+  `features/sync-badge.ts` shows in the header.
 - **Domain modules at the root of `src/scripts/`** — no Supabase, no DOM wiring:
   - `map.ts` — the Leaflet map, its markers and popups.
   - `cluster.ts` — merges nearby reports into groups.
@@ -120,8 +140,11 @@ Two kinds of data, and they must not mix:
     chip colours are spelled out in hex here — the canvas twin of the Tailwind classes in
     `resources.ts`, and a new category has to be added to both.
   - `supabase.ts` — the client; `null` when the env vars are missing.
-- **`ui/`** — stateless helpers with no domain knowledge (`dom`, `html`, `chips`,
-  `contact`, `time`, `toast`, `breakpoint`). They know neither the stores nor the features.
+- **`ui/`** — stateless helpers with no domain knowledge (`breakpoint`, `chips`, `contact`,
+  `dom`, `html`, `pick-hint`, `status-select`, `time`, `toast`). They know neither the
+  stores nor the features. `status-select` is the status `<select>` as a string, for the
+  two places built as HTML — the map popup and the mobile sheet; the list builds its own as
+  an element. Whoever listens for the `change` is a feature.
 
 When adding something, respect the layer — a feature that queries Supabase on its own, or
 a `ui/` helper that imports a store, breaks the scheme.

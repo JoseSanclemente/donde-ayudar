@@ -2,28 +2,13 @@
 # Supabase. PUBLIC_SUPABASE_URL y PUBLIC_SUPABASE_ANON_KEY se configuran en
 # Site settings -> Environment variables; tienen que existir en build time
 # porque Astro las inyecta en el bundle.
+#
+# Las cabeceras no están acá: la CSP tiene que nombrar el host de Supabase, y
+# escrito en este archivo era el mismo dato en dos sitios. Lo genera
+# `scripts/headers.mjs` en `dist/_headers`, a partir de la misma variable.
 [build]
   command = "pnpm build"
   publish = "dist"
 
 [build.environment]
   NODE_VERSION = "22.12.0"
-
-# La CSP lista los tres destinos que el sitio necesita y nada más: Supabase
-# (REST + el WebSocket de realtime), las teselas de CARTO y Nominatim para
-# buscar direcciones. `style-src` necesita 'unsafe-inline' porque Leaflet y GSAP
-# posicionan y animan escribiendo en `element.style`.
-[[headers]]
-  for = "/*"
-  [headers.values]
-    Content-Security-Policy = "default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; font-src 'self'; img-src 'self' data: https://*.basemaps.cartocdn.com; connect-src 'self' https://fqyuuvinpmwwakqfkebt.supabase.co wss://fqyuuvinpmwwakqfkebt.supabase.co https://nominatim.openstreetmap.org"
-    X-Content-Type-Options = "nosniff"
-    X-Frame-Options = "DENY"
-    # Nominatim recibe cada dirección que alguien escribe: que no reciba además
-    # la ruta completa desde donde se buscó.
-    Referrer-Policy = "strict-origin-when-cross-origin"
-    # `geolocation=(self)` y no `()`: la lista vacía apaga la API para todo el
-    # mundo, incluido el propio documento, y el navegador ni siquiera pregunta —
-    # el mapa se queda en Cali para siempre. `self` la deja solo para este
-    # origen. Las otras cuatro sí están apagadas del todo.
-    Permissions-Policy = "geolocation=(self), camera=(), microphone=(), payment=(), usb=()"

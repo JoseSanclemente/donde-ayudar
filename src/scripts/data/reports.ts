@@ -359,7 +359,13 @@ export async function loadReports(): Promise<void> {
   const { data, error } = await supabase
     .from(TABLE)
     .select("*")
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    // Esta lectura va en el arranque y en cada relectura —volver a la pestaña,
+    // reconectar el canal—, así que el techo tiene que estar escrito: sin él lo
+    // pone PostgREST por su cuenta y no se ve por ninguna parte. Los puntos se
+    // retiran por reloj (`isRetired`), así que el corte no quita nada de la
+    // pantalla.
+    .limit(500);
   if (error) throw error;
   cache = (data ?? []).filter(isRow).map(fromRow);
   emit();

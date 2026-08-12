@@ -14,6 +14,7 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
+    "check": "astro check",
     "preview": "astro preview",
     "astro": "astro",
     "geo:build": "node scripts/build-geo-index.mjs",
@@ -33,6 +34,7 @@
     "@astrojs/check": "^0.9.10",
     "@resvg/resvg-js": "^2.6.2",
     "@types/leaflet": "^1.9.22",
+    "@types/node": "^26.2.0",
     "typescript": "^6.0.3"
   }
 }
