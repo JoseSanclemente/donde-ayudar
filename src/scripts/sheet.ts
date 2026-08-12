@@ -24,6 +24,7 @@ let body: HTMLDivElement | null = null;
 let scrim: HTMLDivElement | null = null;
 let fab: HTMLButtonElement | null = null;
 let menu: HTMLButtonElement | null = null;
+let locate: HTMLButtonElement | null = null;
 let tabs: HTMLButtonElement[] = [];
 /** Desplazamiento que deja el sheet completamente fuera de la pantalla. */
 let closedY = 0;
@@ -70,7 +71,9 @@ function measure() {
 
 /**
  * Los botones flotantes viven con el sheet cerrado: abierto los taparía y el
- * sheet ya trae su propia ✕. El FAB además se esconde con el formulario ya
+ * sheet ya trae su propia ✕. Los tres se van juntos — el de centrar también:
+ * con el mapa tapado no hay nada que centrar, y quedarse solo lo dejaba
+ * flotando sobre el panel. El FAB además se esconde con el formulario ya
  * a la vista — sería un botón que no lleva a ningún lado. Pero solo a la
  * vista: cerrar el sheet con el formulario abierto lo deja en `reportar` sin
  * que se vea nada, y ahí el FAB es justo lo que hace falta para volver.
@@ -79,6 +82,7 @@ function paintControls() {
   const covered = isMobile() && getState() === "open";
   if (fab) fab.hidden = isTabVisible("reportar") || covered;
   if (menu) menu.hidden = !isMobile() || covered;
+  if (locate) locate.hidden = covered;
 }
 
 function paintScrim(state: State, animate: boolean) {
@@ -302,6 +306,7 @@ export function initSheet(): void {
   scrim = document.getElementById("sheet-scrim") as HTMLDivElement | null;
   fab = document.getElementById("fab-report") as HTMLButtonElement | null;
   menu = document.getElementById("sheet-toggle") as HTMLButtonElement | null;
+  locate = document.getElementById("locate-me") as HTMLButtonElement | null;
   tabs = [...grab.querySelectorAll<HTMLButtonElement>("[data-tab-btn]")];
 
   for (const button of tabs) {

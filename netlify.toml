@@ -22,4 +22,8 @@
     # Nominatim recibe cada dirección que alguien escribe: que no reciba además
     # la ruta completa desde donde se buscó.
     Referrer-Policy = "strict-origin-when-cross-origin"
-    Permissions-Policy = "geolocation=(), camera=(), microphone=(), payment=(), usb=()"
+    # `geolocation=(self)` y no `()`: la lista vacía apaga la API para todo el
+    # mundo, incluido el propio documento, y el navegador ni siquiera pregunta —
+    # el mapa se queda en Cali para siempre. `self` la deja solo para este
+    # origen. Las otras cuatro sí están apagadas del todo.
+    Permissions-Policy = "geolocation=(self), camera=(), microphone=(), payment=(), usb=()"
