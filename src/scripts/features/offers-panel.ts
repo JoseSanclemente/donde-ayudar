@@ -7,7 +7,7 @@ import { categoryChip, categoryLabel } from "../resources";
 import { closeSheet } from "../sheet";
 import { CHIP_SHAPE } from "../ui/chips";
 import { isValidPhone, telUrl, whatsappUrl } from "../ui/contact";
-import { $, clearError, scheduleRender, showError } from "../ui/dom";
+import { $, clearError, maybe$, scheduleRender, showError } from "../ui/dom";
 import { paintTime } from "../ui/time";
 
 /** Cuántas ofertas se ven antes de «Ver más». */
@@ -25,6 +25,9 @@ export function initOffersPanel(): void {
   const empty = $<HTMLParagraphElement>("offers-empty");
   const total = $<HTMLSpanElement>("offers-count");
   const more = $<HTMLButtonElement>("offers-more");
+  // The dot rides on the mobile tab button, which desktop never renders: it must
+  // not take the boot down when absent.
+  const dot = maybe$<HTMLSpanElement>("ayuda-dot");
 
   let limit = PAGE;
 
@@ -73,6 +76,9 @@ export function initOffersPanel(): void {
     // Cuenta lo que todavía se puede mover: una oferta ya despachada no es
     // capacidad disponible.
     total.textContent = String(available);
+    // Unlike the «Novedades» dot, this one is not an unread mark: it flags help
+    // still waiting for a destination, so opening the tab does not clear it.
+    if (dot) dot.hidden = available === 0;
     empty.classList.toggle("hidden", offers.length > 0);
     more.classList.toggle("hidden", offers.length <= limit);
 
