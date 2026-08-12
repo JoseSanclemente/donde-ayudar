@@ -381,6 +381,39 @@ body {
   color: #475569;
 }
 
+/* ---- Detalle del marcador (solo móvil) ----
+   Reusa el HTML del popup, y allá el aire vertical lo ponen las utilidades
+   `space-y-*` y `mt-1`, es decir margen en cada hijo. En el sheet ese espacio lo
+   reparte el contenedor: `gap` en cada bloque y margen cero en los hijos, así el
+   ritmo es uniforme y no depende de qué elementos existan. El popup de
+   escritorio no se toca — `#detail-card` está oculto en `lg`. */
+#detail-body .space-y-2,
+#detail-body .space-y-1\.5,
+#detail-body div:not([class]) {
+  display: flex;
+  flex-direction: column;
+}
+
+#detail-body .space-y-2 > * + *,
+#detail-body .space-y-1\.5 > * + *,
+#detail-body .mt-1,
+#detail-body a.centro-cta {
+  margin-top: 0;
+}
+
+#detail-body .space-y-2 {
+  gap: 1rem;
+}
+
+#detail-body .space-y-1\.5 {
+  gap: 0.375rem;
+}
+
+/* Los envases de un chip con su detalle debajo: los únicos `div` sin clase. */
+#detail-body div:not([class]) {
+  gap: 0.25rem;
+}
+
 /* ---- Botones flotantes: «Ver panel» y «Realizar reporte» ----
    El desplazamiento vertical vive acá y no en clases de Tailwind porque necesita
    `env(safe-area-inset-bottom)`. Van apilados en la esquina inferior derecha: el
@@ -455,10 +488,11 @@ body {
     display: none;
   }
 
-  /* Con el formulario abierto las tres pestañas sobran: `reportar` no está en
-     el tablist, así que ninguna se ve seleccionada y tocarlas sería salirse del
-     formulario a medio llenar. */
-  #sheet[data-tab="reportar"] #sheet-tabs {
+  /* Con el formulario o el detalle abiertos las tres pestañas sobran: ninguno
+     de los dos está en el tablist, así que ninguna se ve seleccionada y tocarlas
+     sería salirse de lo que se estaba mirando. La ✕ del encabezado es la salida. */
+  #sheet[data-tab="reportar"] #sheet-tabs,
+  #sheet[data-tab="detalle"] #sheet-tabs {
     display: none;
   }
 
@@ -482,12 +516,13 @@ body {
 
   /* The three tabs of the tablist share one height, the one «Puntos» reaches
      with the list full. Letting each panel size the sheet made it jump — the
-     tabs move under the thumb between «Novedades» and «Ayuda». `reportar` and
-     `detalle` stay out: they are not in the tablist and a form as tall as the
-     screen only adds empty space. */
+     tabs move under the thumb between «Novedades» and «Ayuda». `detalle` joins
+     them: a point's detail deserves the same room as the list it came from.
+     `reportar` stays out — a form as tall as the screen only adds empty space. */
   #sheet[data-tab="puntos"],
   #sheet[data-tab="novedades"],
-  #sheet[data-tab="ayuda"] {
+  #sheet[data-tab="ayuda"],
+  #sheet[data-tab="detalle"] {
     height: 86svh;
   }
 
@@ -511,11 +546,19 @@ body {
     touch-action: none;
   }
 
-  /* Los controles de Leaflet quedarían bajo el header flotante. La insignia de
-     frescura va en su propia línea bajo el título, así que el header mide una
-     fila más que antes. */
+  /* Los controles de Leaflet quedarían bajo el header flotante. `--header-h` la
+     mide `features/header-offset.ts`: el header crece con el área segura y con
+     el aviso de puntos saturados, y el valor fijo —que queda de reserva hasta
+     que corre el script— dejaba los botones tapados. */
   .leaflet-top {
-    top: 7.5rem;
+    top: calc(var(--header-h, 7.5rem) + 0.75rem);
+  }
+
+  /* Sus esquinas vienen en 1000 desde Leaflet, por encima del header (900): al
+     solaparse pintaban encima en vez de esconderse debajo. */
+  .leaflet-top,
+  .leaflet-bottom {
+    z-index: 800;
   }
 
   /* La atribución va pegada al borde inferior y a la izquierda: subirla para

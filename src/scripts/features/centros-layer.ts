@@ -1,11 +1,17 @@
-import { loadCentros } from "../centros";
+import { getCentros, onCentros } from "../data/centros";
 import { setCentros } from "../map";
 
 /**
- * Lista curada: llega serializada en el HTML desde la content collection, así
- * que acá solo se dibuja. No hay manera de agregar uno desde la UI, ni de
- * filtrarlos: los puntos donados son una capa fija del mapa.
+ * Curated layer: this file only draws it. There is no way to add a point from
+ * the UI, nor to filter them — they are a fixed layer of the map.
+ *
+ * It subscribes rather than drawing once, because the list stopped being build
+ * data: a maintainer pausing a center in Supabase has to reach the map of
+ * whoever is already looking at it, not the next deploy. The first call paints
+ * whatever the store already has (nothing, on a cold boot) and the subscription
+ * takes over from the initial load onwards.
  */
 export function initCentrosLayer(): void {
-  setCentros(loadCentros());
+  setCentros(getCentros());
+  onCentros(setCentros);
 }

@@ -1,4 +1,5 @@
 import { supabase } from "../supabase";
+import { loadCentros } from "./centros";
 import { createEmitter } from "./emitter";
 import { reportError } from "./errors";
 import { loadOffers } from "./offers";
@@ -11,7 +12,7 @@ import { loadUpdates } from "./updates";
  *
  * Realtime no reenvía lo que pasó mientras el socket estuvo caído, así que un
  * celular que durmió veinte minutos vuelve con un mapa que *parece* vivo. Este
- * módulo es el que lo desmiente: relee las tres tablas cuando el canal se
+ * módulo es el que lo desmiente: relee todas las tablas cuando el canal se
  * reconecta o cuando la pestaña vuelve al frente, y publica el estado para que
  * la insignia del encabezado lo muestre.
  */
@@ -48,7 +49,7 @@ export function markSynced(): void {
 }
 
 /**
- * Relee las tres tablas. `force` se salta el throttle — lo usa la reconexión,
+ * Relee todas las tablas. `force` se salta el throttle — lo usa la reconexión,
  * donde el hueco puede ser de segundos pero igual se perdieron eventos.
  *
  * A propósito no toca `setReportsState("loading")`: la caché ya está pintada y
@@ -66,7 +67,7 @@ export async function resyncAll(options: { force?: boolean } = {}): Promise<void
   emit();
 
   try {
-    await Promise.all([loadReports(), loadUpdates(), loadOffers()]);
+    await Promise.all([loadReports(), loadUpdates(), loadOffers(), loadCentros()]);
     state = { lastSyncAt: new Date().toISOString(), syncing: false, failed: false };
     emit();
   } catch {

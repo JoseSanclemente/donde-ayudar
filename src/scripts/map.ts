@@ -73,21 +73,23 @@ function contactHtml(name: string, phone: string | null): string {
  * orden que ya trae el grupo — pendientes primero, cubiertos al final.
  */
 function resourcesHtml(group: ReportGroup): string {
-  const blocks = byCategory(group.resources, (resource) => resource.name).map((bucket) => {
-    const chips = bucket.items
-      .map(
-        (resource) =>
-          `<span class="inline-block ${chipStyle(resource.name, resource.covered)}">${escapeHtml(
-            chipLabel(resource.name, resource.covered),
-          )}</span>`,
-      )
-      .join(" ");
-    return `
+  const blocks = byCategory(group.resources, (resource) => resource.name).map(
+    (bucket) => {
+      const chips = bucket.items
+        .map(
+          (resource) =>
+            `<span class="inline-block ${chipStyle(resource.name, resource.covered)}">${escapeHtml(
+              chipLabel(resource.name, resource.covered),
+            )}</span>`,
+        )
+        .join(" ");
+      return `
       <div>
         <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">${escapeHtml(bucket.label)}</p>
         <div class="mt-1 flex flex-wrap gap-1">${chips}</div>
       </div>`;
-  });
+    },
+  );
   return blocks.join("");
 }
 
@@ -127,7 +129,10 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
   const notes = group.reports
     .filter((r) => r.note)
     .slice(0, 2)
-    .map((r) => `<p class="text-xs leading-snug text-slate-600">“${escapeHtml(r.note as string)}”</p>`)
+    .map(
+      (r) =>
+        `<p class="text-xs leading-snug text-slate-600">“${escapeHtml(r.note as string)}”</p>`,
+    )
     .join("");
 
   // Confirmar antes de desplazarse es el consejo que repite toda la página: sin
@@ -141,7 +146,7 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
   return `
     <div class="space-y-2">
       ${kicker}
-      <p class="text-sm font-semibold text-slate-900">${escapeHtml(lead.name)}</p>
+      <p class="text-lg font-semibold text-slate-900">${escapeHtml(lead.name)}</p>
       ${cuantos}
       <div class="space-y-2">${resourcesHtml(group)}</div>
       ${resolved}
@@ -168,7 +173,9 @@ let selected: L.Marker | null = null;
 const popupHtml = new WeakMap<L.Marker, string>();
 
 /** `null` = lo que estaba abierto dejó de existir; el panel debe cerrarse. */
-export function onMarkerSelect(handler: (selection: MarkerSelection | null) => void): void {
+export function onMarkerSelect(
+  handler: (selection: MarkerSelection | null) => void,
+): void {
   selectHandler = handler;
 }
 
@@ -228,15 +235,18 @@ export function initMap(containerId: string): L.Map {
 
   // Positron: OSM data, minimal gray-on-white render — no POI icons, sparse
   // labels — so the red report markers are the only saturated thing on screen.
-  L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-    maxZoom: 20,
-    subdomains: "abcd",
-    // Durante la animación de zoom el nivel intermedio no se ve casi: pedir y
-    // pintar esas teselas es trabajo que cae justo en los frames del gesto.
-    updateWhenZooming: false,
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  }).addTo(map);
+  L.tileLayer(
+    "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    {
+      maxZoom: 20,
+      subdomains: "abcd",
+      // Durante la animación de zoom el nivel intermedio no se ve casi: pedir y
+      // pintar esas teselas es trabajo que cae justo en los frames del gesto.
+      updateWhenZooming: false,
+      attribution:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+    },
+  ).addTo(map);
 
   centrosLayer.addTo(map);
 
@@ -293,7 +303,10 @@ export function showDraft(
     zIndexOffset: 1000,
   })
     .addTo(map)
-    .bindTooltip("Arrástrame hasta el edificio", { direction: "top", offset: [0, -14] });
+    .bindTooltip("Arrástrame hasta el edificio", {
+      direction: "top",
+      offset: [0, -14],
+    });
 
   draftMarker.on("drag", () => {
     const { lat: dLat, lng: dLng } = draftMarker!.getLatLng();
@@ -311,7 +324,11 @@ export function hideDraft(): void {
  * Un solo atributo con la forma que toca, y no cinco clases que se pisan. La
  * precedencia entre estado, cubierto y urgencia vive en `status.ts`.
  */
-function paintEstado(marker: L.Marker, group: ReportGroup, extra: MarkerExtra): void {
+function paintEstado(
+  marker: L.Marker,
+  group: ReportGroup,
+  extra: MarkerExtra,
+): void {
   const el = marker.getElement();
   if (!el) return;
   const covered = group.resources.length > 0 && group.pending === 0;
@@ -346,7 +363,8 @@ export function syncReportMarkers(entries: MarkerEntry[]): void {
       // The anchor is stable (see `groupReports`), so this only fires if the
       // group's oldest report was the one deleted.
       const at = marker.getLatLng();
-      if (at.lat !== group.lat || at.lng !== group.lng) marker.setLatLng([group.lat, group.lng]);
+      if (at.lat !== group.lat || at.lng !== group.lng)
+        marker.setLatLng([group.lat, group.lng]);
     } else {
       marker = L.marker([group.lat, group.lng], { icon: pulseIcon }).addTo(map);
       marker.on("click", selectOnMobile);
@@ -507,7 +525,7 @@ function recibeHtml(centro: Centro, pausa: boolean): string {
   // Con el detalle debajo, los chips dejaron de leerse solos: sin este título
   // parecen lo que el punto necesita, no lo que entrega quien va.
   return `
-    <div class="space-y-1.5">
+    <div class="space-y-2">
       <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Recibe</p>
       ${blocks.join("")}
     </div>`;
@@ -544,9 +562,9 @@ function centroPopupHtml(centro: Centro): string {
   return `
     <div class="space-y-2">
       ${kicker}
-      <p class="text-sm font-semibold text-slate-900">${escapeHtml(centro.name)}</p>
+      <p class="text-lg font-semibold text-slate-900">${escapeHtml(centro.name)}</p>
       ${aviso}
-      <p class="text-xs text-slate-600">${escapeHtml(centro.direccion)}</p>
+      <p data-address class="text-xs text-slate-600">${escapeHtml(centro.direccion)}</p>
       <p class="text-xs text-slate-600">${escapeHtml(centro.horario)}</p>
       ${recibe}
       ${telefono}
@@ -583,7 +601,8 @@ function applyCentros(): number {
   }
   // Un filtro que esconde el punto abierto deja el detalle hablando de algo que
   // ya no está en el mapa.
-  const openCentro = selected !== null && centros.some(({ marker }) => marker === selected);
+  const openCentro =
+    selected !== null && centros.some(({ marker }) => marker === selected);
   if (openCentro && !centrosLayer.hasLayer(selected as L.Marker)) emit(null);
   return shown;
 }
@@ -594,9 +613,10 @@ export function setCentros(list: Centro[]): number {
   if (selected && centros.some(({ marker }) => marker === selected)) emit(null);
   centros.length = 0;
   for (const data of list) {
-    // El estado es dato de build y no cambia en runtime, así que el icono se
-    // elige una sola vez acá — no hace falta repintar el DOM en `applyCentros`
-    // como con `paintEstado` de los reportes.
+    // The icon is picked here and never repainted afterwards, unlike
+    // `paintEstado` for reports. It does not have to be: pausing a point in
+    // Supabase re-emits the whole list and this function rebuilds every marker
+    // from scratch, so the new state arrives as a new icon.
     const { normal, pausa } = ICON[data.tipo];
     const icon = enPausa(data) && pausa ? pausa : normal;
     const marker = L.marker([data.lat, data.lng], {

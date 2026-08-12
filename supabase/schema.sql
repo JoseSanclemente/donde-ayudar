@@ -1,5 +1,6 @@
--- Esquema completo de las tres tablas escribibles: reportes, novedades y
--- ofertas de ayuda.
+-- Full schema. Three tables anyone can write to — reports, updates, offers —
+-- plus `centros`, the curated donation points, which everyone reads and only a
+-- maintainer with `service_role` writes.
 --
 -- Este archivo es la FOTO COMPLETA: se corre tal cual en el SQL Editor de un
 -- proyecto nuevo. Para un proyecto que ya está arriba no se corre esto, sino el
@@ -7,9 +8,6 @@
 --
 -- Lo único que no está acá: Authentication -> Sign In / Providers -> habilitar
 -- "Anonymous sign-ins". Sin eso, nadie puede insertar.
---
--- Los centros de acopio NO viven acá: son datos curados del repo
--- (src/content/centros/), validados en cada build.
 
 -- El largo de cada elemento de un arreglo no se puede medir en un CHECK: no
 -- admite subconsultas. Por eso la medición vive en esta función inmutable.
@@ -284,6 +282,87 @@ $$;
 revoke all     on function public.assign_offer(uuid, uuid) from public;
 revoke execute on function public.assign_offer(uuid, uuid) from anon;
 grant  execute on function public.assign_offer(uuid, uuid) to authenticated;
+
+/* ================================================================== */
+/* Puntos de donación — curados, de lectura pública                    */
+/* ================================================================== */
+
+-- The only table nobody can write from the browser. It used to be YAML files
+-- in src/content/centros/ validated by Zod at build time; the rebuild that
+-- every correction needed was the problem, so the checks below take over what
+-- the schema used to guarantee and the rows are edited in the Supabase table
+-- editor, which runs as `service_role` and bypasses RLS.
+create table public.centros (
+  -- Slug, not uuid: it is the old YAML filename, it survives the migration,
+  -- and a maintainer scanning the table editor can tell the rows apart.
+  id          text primary key check (id ~ '^[a-z0-9-]{3,60}$'),
+  tipo        text not null check (tipo in ('acopio','albergue','sangre')),
+  name        text not null check (char_length(name) between 3 and 120),
+  direccion   text not null check (char_length(direccion) between 3 and 200),
+  -- Mismo bounding box de Cali que los reportes.
+  lat         double precision not null check (lat between 3.2 and 3.6),
+  lng         double precision not null check (lng between -76.75 and -76.3),
+  -- Empty string is a real value here: a point whose opening hours nobody has
+  -- confirmed yet. The popup just leaves the line blank.
+  horario     text not null default '' check (char_length(horario) <= 120),
+  telefono    text check (telefono is null or char_length(telefono) <= 40),
+  notas       text check (notas is null or char_length(notas) <= 300),
+  recibe      text[] not null default '{}',
+  -- `false` = still open, not taking supplies right now (warehouse full). It
+  -- stays on the map in grey; closing for real is `activo = false`.
+  recibiendo  boolean not null default true,
+  nota_estado text check (nota_estado is null or char_length(nota_estado) <= 200),
+  activo      boolean not null default true,
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now(),
+
+  -- The discriminated union src/content.config.ts used to enforce: a blood bank
+  -- takes no supplies and must not list any, everything else must list one.
+  constraint centros_recibe_por_tipo check (
+    case when tipo = 'sangre' then cardinality(recibe) = 0
+         else cardinality(recibe) between 1 and 20 end
+  ),
+  -- Unlike `offers.category`, this one is a closed list: a typo here silently
+  -- drops a chip from the popup, and nobody rereads a row they already saved.
+  -- Keep it in sync with CATEGORIES in src/scripts/resources.ts.
+  constraint centros_recibe_ids check (
+    recibe <@ array[
+      'herramientas','rescate','logistica','bebes','alimentos','salud','voluntarios'
+    ]::text[]
+  )
+);
+
+-- The client only ever asks for the active ones.
+create index centros_activo_idx on public.centros (activo);
+
+alter table public.centros replica identity full;
+alter table public.centros enable row level security;
+alter publication supabase_realtime add table public.centros;
+
+-- The only policy. With no insert/update/delete policy RLS denies all three to
+-- anon and authenticated, which is the whole point: repo and dashboard access
+-- stay the only way to publish a point.
+create policy "puntos visibles para todos"
+  on public.centros for select to anon, authenticated using (true);
+
+-- `updated_at` is the maintainer's own trail — which point was touched last
+-- time the city changed. The other tables have no UPDATE path, so this trigger
+-- has no equivalent to reuse.
+create or replace function public.touch_updated_at()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  new.updated_at = now();
+  return new;
+end;
+$$;
+
+revoke all on function public.touch_updated_at() from public;
+
+create trigger centros_touch_updated_at before update on public.centros
+  for each row execute function public.touch_updated_at();
 
 /* ================================================================== */
 /* Freno de inserciones                                                */

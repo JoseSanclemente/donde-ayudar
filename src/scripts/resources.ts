@@ -157,9 +157,13 @@ const BY_RESOURCE = new Map(
 
 /**
  * El texto del ítem es la llave del catálogo: si un mismo recurso aparece en
- * dos categorías, la última gana en silencio y les cambia el color a reportes
- * ya guardados. Se llama desde `content.config.ts`, así que un duplicado rompe
- * el build — que es donde se tienen que romper estas cosas.
+ * dos categorías, la última gana en silencio —`BY_RESOURCE` la pisa— y les
+ * cambia el color a reportes ya guardados.
+ *
+ * Only runs in dev (see below). It used to run at build time, from the schema
+ * of the content collection that no longer exists; dev is the next-closest
+ * place, because it is where this catalog gets edited. In production a throw
+ * here would take the whole map down over a chip color.
  */
 export function assertUniqueItems(): void {
   const seen = new Map<string, string>();
@@ -175,6 +179,8 @@ export function assertUniqueItems(): void {
     }
   }
 }
+
+if (import.meta.env.DEV) assertUniqueItems();
 
 /** Recursos escritos a mano y reportes viejos con recursos fuera del catálogo. */
 export const OTHER_CHIP = "bg-slate-100 text-slate-700";

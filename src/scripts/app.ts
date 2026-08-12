@@ -3,6 +3,7 @@ import { initData } from "./data/boot";
 import { onError } from "./data/errors";
 import { initAlertBanner } from "./features/alert-banner";
 import { initCentrosLayer } from "./features/centros-layer";
+import { initHeaderOffset } from "./features/header-offset";
 import { initMarkerSheet } from "./features/marker-sheet";
 import { initOffersPanel } from "./features/offers-panel";
 import { initReportForm } from "./features/report-form";
@@ -21,6 +22,8 @@ initMap("map");
 initSheet();
 initMarkerSheet();
 initCentrosLayer();
+// Antes del aviso: la primera vez que aparece ya cambia la altura del header.
+initHeaderOffset();
 initAlertBanner();
 initReportForm();
 initReportList();

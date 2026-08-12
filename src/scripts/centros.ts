@@ -1,11 +1,11 @@
 /**
- * Puntos curados por el equipo — acopios, bancos de sangre y albergues —, no
- * editables desde la interfaz.
+ * Curated points — collection centers, blood banks and shelters. Not editable
+ * from the interface.
  *
- * Viven como archivos YAML en `src/content/centros/` y los valida el schema de
- * `src/content.config.ts` en cada build. `index.astro` serializa la colección en
- * un `<script type="application/json">` y este módulo la lee de ahí — el sitio
- * es estático, así que no hay fetch ni endpoint que consultar.
+ * This module is only the shape of one: the types and the narrowing everyone
+ * shares. They live in the `centros` table, which only a maintainer with
+ * `service_role` can write; reading them is `data/centros.ts`, and drawing them
+ * is `map.ts`.
  */
 type Base = {
   id: string;
@@ -23,8 +23,8 @@ type Recibidor = {
   /** Ids de categoría de `resources.ts`. */
   recibe: string[];
   /**
-   * `false` = sigue abierto pero no recibe por ahora. Sin `?`: el schema le
-   * aplica el default en build, así que siempre llega serializado.
+   * `false` = still open, not taking supplies right now. No `?`: the column is
+   * `not null default true`, so the store always has a value to hand over.
    */
   recibiendo: boolean;
   /** Por qué no recibe. Solo se muestra con `recibiendo: false`. */
@@ -50,14 +50,3 @@ export function recibeInsumos(centro: Centro): centro is CentroAcopio | Albergue
   return centro.tipo !== "sangre";
 }
 
-/** Lee el JSON embebido en el HTML. Devuelve `[]` si aún no hay centros. */
-export function loadCentros(elementId = "centros-data"): Centro[] {
-  const raw = document.getElementById(elementId)?.textContent;
-  if (!raw) return [];
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as Centro[]) : [];
-  } catch {
-    return [];
-  }
-}

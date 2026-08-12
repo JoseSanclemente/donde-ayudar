@@ -5,7 +5,7 @@ necesitan, y los puntos donde donar.
 
 Es un sitio estático de una sola ruta: un mapa de Cali (Leaflet) con dos capas de datos
 que nunca se mezclan — los **reportes** que levanta cualquier visitante y los **puntos de
-donación** curados en este repositorio.
+donación** curados por el equipo.
 
 ## Dos tipos de datos
 
@@ -17,16 +17,17 @@ recurso como cubierto es comunal y pasa por el RPC `set_resource_covered`, que n
 ninguna otra columna. El sitio sigue siendo estático: el navegador habla directo con
 Supabase usando la anon key.
 
-**Puntos de donación.** Curados. Son archivos YAML en `src/content/centros/`, validados
-en tiempo de build por `src/content.config.ts`. Hay tres clases, separadas por el
-discriminador `tipo`: `acopio` (centros de acopio) y `albergue` (albergues) llevan
-`recibe` y se pueden pausar con `recibiendo: false`; `sangre` (bancos de sangre) no lleva
-ninguno de los dos.
+**Puntos de donación.** Curados. Viven en la tabla `centros` de Supabase, que es la única
+de solo lectura: tiene una policy de `select` y ninguna de `insert`, `update` ni `delete`,
+así que RLS se las niega a todo el mundo. Hay tres clases, separadas por el discriminador
+`tipo`: `acopio` (centros de acopio) y `albergue` (albergues) llevan `recibe` y se pueden
+pausar con `recibiendo: false`; `sangre` (bancos de sangre) no lleva ninguno de los dos.
 
-Como el sitio es estático, un visitante no tiene forma de escribir uno: tener acceso de
-escritura al repositorio es el único "permiso de administrador" del proyecto. Para
-agregar o corregir un punto, lee primero
-[`src/content/centros/README.md`](src/content/centros/README.md) y abre un PR.
+Un visitante no tiene forma de escribir uno: se editan en el dashboard de Supabase
+(**Table Editor → centros**), que corre como `service_role` y se salta RLS. Tener acceso
+al dashboard —o al repositorio— es el único "permiso de administrador" del proyecto. Para
+agregar o corregir un punto, lee primero [`supabase/README.md`](supabase/README.md). El
+cambio sale al aire de inmediato, sin deploy.
 
 ## Stack
 
@@ -47,8 +48,9 @@ Project Settings → API. El prefijo `PUBLIC_` es lo que hace que Astro las inye
 bundle del navegador, que es donde se usan; ambas son públicas por diseño y lo que
 protege los datos es RLS, no el secreto de la llave. La `service_role` no va acá nunca.
 
-Sin las variables el sitio igual levanta: el mapa y los puntos de donación funcionan, y
-los reportes muestran un error en vez de cargar (`src/scripts/supabase.ts`).
+Sin las variables el sitio igual levanta, pero queda vacío: el mapa de Cali se dibuja y
+todo lo demás —reportes y puntos de donación— muestra un error en vez de cargar
+(`src/scripts/supabase.ts`).
 
 Para montar el backend desde cero: correr `supabase/schema.sql` tal cual en el SQL Editor
 del proyecto y habilitar Authentication → Sign In / Providers → **Anonymous sign-ins**
@@ -62,7 +64,7 @@ Todos se corren desde la raíz del proyecto:
 | :------------- | :------------------------------------------------------------ |
 | `pnpm install` | Instala las dependencias                                       |
 | `pnpm dev`     | Servidor local en `localhost:4321`                             |
-| `pnpm build`   | Construye a `./dist/` y valida los YAML de `centros`           |
+| `pnpm build`   | Construye a `./dist/`                                          |
 | `pnpm preview` | Previsualiza el build antes de desplegar                       |
 | `pnpm astro …` | CLI de Astro (`astro add`, `astro check`, `astro -- --help`)   |
 

@@ -32,13 +32,16 @@ Two kinds of data, and they must not mix:
   `updates` (the city log) and `offers` (help someone has available): anyone inserts, only
   the author deletes, and the communal bit — assigning an offer to a point — goes through
   the `assign_offer` RPC, which touches only `report_id` and `assigned_at`.
-- **Puntos de donación** — curated. YAML files in `src/content/centros/`, validated at
-  build time by `src/content.config.ts`. Three kinds, split by a `tipo` discriminator:
-  `acopio` (collection centers) and `albergue` (shelters) both carry `recibe` and can be
-  paused with `recibiendo: false`; `sangre` (blood banks) carries neither.
-  Repo write access is the only "admin privilege" in this project; the site is static, so
-  a visitor has no way to write one. Read `src/content/centros/README.md` before adding
-  or changing one.
+- **Puntos de donación** — curated, and the one table nobody can write from the browser.
+  They live in Supabase too (`centros`), but with a single `select` policy and no insert,
+  update or delete policy, so RLS denies all three. A maintainer edits them in the
+  dashboard's table editor, which runs as `service_role`; dashboard and repo access are
+  the only "admin privilege" in this project. Three kinds, split by a `tipo`
+  discriminator: `acopio` (collection centers) and `albergue` (shelters) both carry
+  `recibe` and can be paused with `recibiendo: false`; `sangre` (blood banks) carries
+  neither — the `centros_recibe_por_tipo` check enforces it. Read `supabase/README.md`
+  before adding or changing one; the category ids in `centros_recibe_ids` are the only
+  copy of the `resources.ts` catalog outside the repo and have to be kept in sync by hand.
 
 ## Client layout
 
@@ -50,7 +53,8 @@ Two kinds of data, and they must not mix:
   `centros-layer`, `marker-sheet`, `offers-panel`, `report-form`, `report-list`,
   `updates-feed`. They subscribe to the stores; they never call Supabase directly.
 - **`data/`** — everything that talks to Supabase. One store per table (`reports.ts`,
-  `updates.ts`, `offers.ts`), each with its `emitter.ts` to announce changes and its
+  `updates.ts`, `offers.ts`, `centros.ts` — this last one read-only, no write path at
+  all), each with its `emitter.ts` to announce changes and its
   `bindTable()` in `live.ts`, which merges every table into a single realtime channel.
   `boot.ts` runs once: anonymous session, initial load, and only then the channel.
   `session.ts` holds the current user id and `isMine()`, mirroring the RLS delete policy.
@@ -58,8 +62,8 @@ Two kinds of data, and they must not mix:
 - **Domain modules at the root of `src/scripts/`** — no Supabase, no DOM wiring:
   - `map.ts` — the Leaflet map, its markers and popups.
   - `cluster.ts` — merges nearby reports into groups.
-  - `centros.ts` — reads the curated points that `index.astro` serializes into a
-    `<script type="application/json">`; the site is static, so there is nothing to fetch.
+  - `centros.ts` — the shape of a curated point: types and the `recibeInsumos()`
+    narrowing. Reading them is `data/centros.ts`, drawing them is `map.ts`.
   - `resources.ts` / `status.ts` — the catalogs (resource categories and chips, point
     statuses). Tailwind classes are spelled out literally here: the scanner reads these
     files as plain text, so an interpolated class name never gets compiled.

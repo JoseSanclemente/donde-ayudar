@@ -14,9 +14,6 @@ Fuera de estos archivos hay un solo paso manual: en el dashboard,
 **Authentication → Sign In / Providers → habilitar "Anonymous sign-ins"**. Sin
 eso nadie puede insertar, porque toda escritura pasa por una sesión anónima.
 
-Los puntos de donación (acopio, bancos de sangre, albergues) **no** viven acá: son datos
-curados del repo, en `src/content/centros/`, validados en cada build.
-
 ## Qué puede escribir un visitante
 
 Tres tablas abiertas a escritura anónima — `reports`, `updates`, `offers` — con
@@ -37,6 +34,36 @@ español, que el cliente muestra tal cual en el toast.
 
 Además, un trigger `throttle_inserts` limita las inserciones por autor y por
 minuto: 6 reportes, 10 novedades, 4 ofertas.
+
+## Los puntos de donación
+
+`centros` es la cuarta tabla y la única de solo lectura: acopios, albergues y
+bancos de sangre. Tiene una sola policy, de `select`, y ninguna de `insert`,
+`update` ni `delete` — sin policy, RLS las niega. Se editan en el dashboard
+(**Table Editor → centros**), que corre como `service_role` y se salta RLS.
+
+Antes eran archivos YAML en `src/content/centros/`, validados en cada build. El
+costo era el deploy: corregir un horario pedía commit y build de Netlify. Lo que
+garantizaba el schema de Zod ahora lo garantizan los CHECK de la tabla.
+
+| Campo | Qué cuidar |
+| --- | --- |
+| `id` | Slug kebab-case, es la llave primaria. Era el nombre del archivo YAML |
+| `tipo` | `acopio`, `albergue` o `sangre` |
+| `recibe` | Vacío en `sangre`, y de 1 a 20 en los otros dos |
+| `recibiendo` | `false` = sigue abierto pero no recibe: queda gris en el mapa |
+| `nota_estado` | Por qué no recibe. Solo se ve con `recibiendo: false` |
+| `activo` | `false` = cerrado, deja de dibujarse. No borres la fila |
+| `lat` / `lng` | Dentro del bounding box de Cali, igual que un reporte |
+
+El constraint `centros_recibe_ids` lista los ids de categoría a mano. **Es el
+único lugar donde el catálogo está duplicado**: si agregas una categoría en
+`src/scripts/resources.ts`, agrégala también acá o la tabla la rechaza. Es a
+propósito — un id mal escrito acá desaparece un chip del popup sin avisar, y
+nadie vuelve a leer una fila que ya guardó.
+
+Cualquier cambio sale al aire de inmediato, sin deploy: la tabla va en el canal
+de realtime y el mapa de quien ya está mirando se repinta solo.
 
 ## Cortacircuitos
 

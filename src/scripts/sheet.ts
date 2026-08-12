@@ -319,9 +319,9 @@ export function initSheet(): void {
     // El formulario primero: con él abierto, Escape cierra el formulario, no
     // todo el sheet de un golpe.
     if (sheet.dataset.tab === "reportar") closeReportPanel();
-    // Con el detalle abierto, Escape suelta el marcador y devuelve la lista —
-    // cerrar todo el sheet sería más de lo que se pidió.
-    else if (sheet.dataset.tab === "detalle") closeDetailPanel();
+    // El detalle no: su única salida visible es la ✕ del encabezado, así que
+    // Escape hace lo mismo que ella y cierra el sheet — `closeSheet` ya suelta
+    // el marcador de camino.
     else closeSheet();
   });
 

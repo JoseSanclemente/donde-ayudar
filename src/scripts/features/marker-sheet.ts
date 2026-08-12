@@ -10,9 +10,6 @@ import { $ } from "../ui/dom";
  */
 export function initMarkerSheet(): void {
   const body = $<HTMLDivElement>("detail-body");
-  const back = $<HTMLButtonElement>("detail-back");
-
-  back.addEventListener("click", closeDetailPanel);
 
   onMarkerSelect((selection) => {
     if (!selection) {

@@ -1,5 +1,4 @@
 ---
-import { getCollection } from "astro:content";
 import Base from "../layouts/Base.astro";
 import AlertBanner from "../components/AlertBanner.astro";
 import ReportForm from "../components/ReportForm.astro";
@@ -7,12 +6,6 @@ import ReportList from "../components/ReportList.astro";
 import OffersPanel from "../components/OffersPanel.astro";
 import UpdatesFeed from "../components/UpdatesFeed.astro";
 import { SITE_NAME, SITE_TITLE } from "../consts";
-
-// Los centros de acopio son datos de build (ver src/content/centros/README.md):
-// se resuelven acá y viajan al cliente embebidos en el HTML, no por fetch.
-const centros = (await getCollection("centros", ({ data }) => data.activo)).map(
-  ({ id, data }) => ({ id, ...data }),
-);
 ---
 
 <Base title={SITE_TITLE}>
@@ -169,18 +162,10 @@ const centros = (await getCollection("centros", ({ data }) => data.activo)).map(
 
           <!-- Detalle de un punto del mapa. Como el formulario, es una pestaña
                sin botón en el encabezado: solo se llega tocando un marcador, y
-               el «Volver» es la única salida hacia la lista. En escritorio no
+               la ✕ del encabezado del sheet es la única salida. En escritorio no
                existe — allá el detalle sigue siendo el popup de Leaflet. -->
           <div id="detail-card" data-tab-panel="detalle">
-            <button
-              type="button"
-              id="detail-back"
-              class="mb-3 inline-flex items-center gap-1 rounded-lg px-2 py-1.5 text-xs font-semibold text-slate-600 transition hover:bg-slate-100 hover:text-slate-900"
-            >
-              <span aria-hidden="true">‹</span>
-              Volver a puntos
-            </button>
-            <div id="detail-body" class="space-y-2"></div>
+            <div id="detail-body" class="flex flex-col gap-2"></div>
           </div>
 
           <!-- «Puntos» es la lista de edificios. En escritorio el sheet es
@@ -242,13 +227,6 @@ const centros = (await getCollection("centros", ({ data }) => data.activo)).map(
     </button>
   </div>
 </Base>
-
-<script
-  is:inline
-  type="application/json"
-  id="centros-data"
-  set:html={JSON.stringify(centros).replace(/</g, "\\u003c")}
-/>
 
 <script>
   import "../scripts/app";
