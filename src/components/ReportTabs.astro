@@ -1,0 +1,67 @@
+---
+/**
+ * Las dos cosas que alguien puede publicar en el mapa: una necesidad y un punto
+ * de acopio. Son dos formularios largos, así que van en pestañas y no uno
+ * debajo del otro — quien viene a reportar no debería pasar por encima del
+ * formulario que no es suyo.
+ *
+ * Es una pestaña dentro de la pestaña `reportar` del sheet, con su propio
+ * estado en `data-report-tab`. La ✕ del encabezado sigue cerrando el panel
+ * entero, y la mueve `sheet.ts` como siempre.
+ */
+import CentroForm from "./CentroForm.astro";
+import ReportForm from "./ReportForm.astro";
+---
+
+<div id="report-tabs" data-report-tab="necesidad">
+  <div class="flex items-start justify-between gap-3">
+    <h2 class="sr-only">Publicar en el mapa</h2>
+    <div
+      role="tablist"
+      class="flex min-w-0 flex-1 gap-1.5 rounded-xl bg-slate-100 p-1"
+    >
+      <button
+        type="button"
+        role="tab"
+        data-report-tab-btn="necesidad"
+        aria-selected="true"
+        class="flex-1 rounded-lg px-2 py-2 text-sm font-semibold text-slate-600 transition aria-selected:bg-white aria-selected:text-red-700 aria-selected:shadow-sm"
+      >
+        Reportar necesidad
+      </button>
+      <button
+        type="button"
+        role="tab"
+        data-report-tab-btn="acopio"
+        aria-selected="false"
+        class="flex-1 rounded-lg px-2 py-2 text-sm font-semibold text-slate-600 transition aria-selected:bg-white aria-selected:text-red-700 aria-selected:shadow-sm"
+      >
+        Registrar acopio
+      </button>
+    </div>
+    <button
+      type="button"
+      id="close-report"
+      aria-label="Cerrar el formulario"
+      class="shrink-0 rounded-md p-1.5 text-xl leading-none text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+    >
+      ×
+    </button>
+  </div>
+
+  <div data-report-panel="necesidad" class="mt-5"><ReportForm /></div>
+  <div data-report-panel="acopio" class="mt-5"><CentroForm /></div>
+</div>
+
+<style>
+  /* Un formulario a la vez. Genérico como las reglas del sheet: una pestaña más
+     es un `data-report-panel` más en el HTML, no un selector más acá. */
+  #report-tabs [data-report-panel] {
+    display: none;
+  }
+
+  #report-tabs[data-report-tab="necesidad"] [data-report-panel="necesidad"],
+  #report-tabs[data-report-tab="acopio"] [data-report-panel="acopio"] {
+    display: block;
+  }
+</style>

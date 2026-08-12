@@ -30,9 +30,11 @@ create table public.reports (
   id          uuid primary key default gen_random_uuid(),
   user_id     uuid not null default auth.uid() references auth.users on delete cascade,
   name        text not null check (char_length(name) between 1 and 120),
-  -- Bounding box de Cali: corta la basura y los clics accidentales lejos.
-  lat         double precision not null check (lat between 3.2 and 3.6),
-  lng         double precision not null check (lng between -76.75 and -76.3),
+  -- Bounding box de Colombia: corta la basura y los clics accidentales lejos,
+  -- pero deja reportar fuera de Cali. La emergencia no se queda en una ciudad y
+  -- la caja vieja —solo Cali— rechazaba un punto de Buga en la base de datos.
+  lat         double precision not null check (lat between -4.3 and 13.5),
+  lng         double precision not null check (lng between -82.0 and -66.8),
   -- Sin el tope de largo, un solo insert podía guardar megabytes de texto que
   -- todos los visitantes se descargan al abrir el mapa.
   resources   text[] not null
@@ -287,21 +289,33 @@ grant  execute on function public.assign_offer(uuid, uuid) to authenticated;
 /* Puntos de donación — curados, de lectura pública                    */
 /* ================================================================== */
 
--- The only table nobody can write from the browser. It used to be YAML files
--- in src/content/centros/ validated by Zod at build time; the rebuild that
--- every correction needed was the problem, so the checks below take over what
--- the schema used to guarantee and the rows are edited in the Supabase table
--- editor, which runs as `service_role` and bypasses RLS.
+-- Los puntos de donación. Dos orígenes en una sola tabla, y `origen` los separa:
+-- los curados los edita un maintainer en el editor de tablas, que corre como
+-- `service_role` y se salta RLS; los comunitarios los registra cualquiera desde
+-- el formulario. Ninguno de los dos se puede editar desde el navegador — no hay
+-- policy de UPDATE — así que un punto curado sigue siendo intocable.
+--
+-- Antes eran archivos YAML en src/content/centros/ validados por Zod en el
+-- build; el rebuild que exigía cada corrección era el problema, así que los
+-- CHECK de acá se quedaron con lo que garantizaba el esquema.
 create table public.centros (
-  -- Slug, not uuid: it is the old YAML filename, it survives the migration,
-  -- and a maintainer scanning the table editor can tell the rows apart.
+  -- Slug para los curados: es el nombre del YAML viejo, sobrevivió a la
+  -- migración y deja distinguir las filas en el editor de tablas. Un punto
+  -- comunitario trae un uuid, que son 36 caracteres de hex y guiones y pasan
+  -- este mismo patrón sin tocarlo.
   id          text primary key check (id ~ '^[a-z0-9-]{3,60}$'),
   tipo        text not null check (tipo in ('acopio','albergue','sangre')),
+  -- Quién lo publicó. El formulario solo registra acopios: los albergues y los
+  -- bancos de sangre siguen siendo curados (ver la policy de insert).
+  origen      text not null default 'curado' check (origen in ('curado','comunidad')),
+  -- Autor del punto comunitario, para que pueda borrar el suyo. Los curados no
+  -- tienen autor: los publica el editor de tablas, no una sesión.
+  user_id     uuid references auth.users on delete cascade,
   name        text not null check (char_length(name) between 3 and 120),
   direccion   text not null check (char_length(direccion) between 3 and 200),
-  -- Mismo bounding box de Cali que los reportes.
-  lat         double precision not null check (lat between 3.2 and 3.6),
-  lng         double precision not null check (lng between -76.75 and -76.3),
+  -- Mismo bounding box de Colombia que los reportes.
+  lat         double precision not null check (lat between -4.3 and 13.5),
+  lng         double precision not null check (lng between -82.0 and -66.8),
   -- Empty string is a real value here: a point whose opening hours nobody has
   -- confirmed yet. The popup just leaves the line blank.
   horario     text not null default '' check (char_length(horario) <= 120),
@@ -329,21 +343,49 @@ create table public.centros (
     recibe <@ array[
       'herramientas','rescate','logistica','bebes','alimentos','salud','voluntarios'
     ]::text[]
+  ),
+  -- Un punto curado no tiene autor; uno comunitario tiene exactamente uno. Sin
+  -- esto, un `user_id` nulo en una fila comunitaria la volvería imborrable.
+  constraint centros_origen_autor check (
+    (origen = 'curado'    and user_id is null) or
+    (origen = 'comunidad' and user_id is not null)
   )
 );
 
 -- The client only ever asks for the active ones.
 create index centros_activo_idx on public.centros (activo);
+-- El freno de inserciones cuenta por autor y por minuto.
+create index centros_user_created_idx on public.centros (user_id, created_at desc);
 
 alter table public.centros replica identity full;
 alter table public.centros enable row level security;
 alter publication supabase_realtime add table public.centros;
 
--- The only policy. With no insert/update/delete policy RLS denies all three to
--- anon and authenticated, which is the whole point: repo and dashboard access
--- stay the only way to publish a point.
 create policy "puntos visibles para todos"
   on public.centros for select to anon, authenticated using (true);
+
+-- Toda la superficie de escritura de la tabla, y es a propósito así de estrecha:
+-- solo un acopio, solo `origen = 'comunidad'`, solo a nombre de quien inserta.
+-- Un punto curado no se puede crear desde el navegador ni por accidente ni a
+-- propósito — el editor de tablas sigue siendo la única vía.
+create policy "la comunidad registra acopios"
+  on public.centros for insert to authenticated
+  with check (
+    origen = 'comunidad'
+    and tipo = 'acopio'
+    and activo
+    and (select auth.uid()) = user_id
+  );
+
+-- Espejo de `reports`: cada quien borra lo suyo, y lo curado no lo borra nadie.
+create policy "cada quien borra su punto"
+  on public.centros for delete to authenticated
+  using (origen = 'comunidad' and (select auth.uid()) = user_id);
+
+-- Sigue sin haber policy de UPDATE. Corregir un punto ajeno —o el propio— es
+-- una edición completa de la fila: nombre, coordenadas y horario a la vez. Las
+-- otras tablas resuelven lo comunitario con RPC de una sola columna; acá no hay
+-- ninguna columna comunitaria que valga abrir.
 
 -- `updated_at` is the maintainer's own trail — which point was touched last
 -- time the city changed. The other tables have no UPDATE path, so this trigger
@@ -368,7 +410,7 @@ create trigger centros_touch_updated_at before update on public.centros
 /* Freno de inserciones                                                */
 /* ================================================================== */
 
--- Tres tablas abiertas a escritura anónima. Los CHECK acotan el tamaño de una
+-- Cuatro tablas abiertas a escritura anónima. Los CHECK acotan el tamaño de una
 -- fila; esto acota el ritmo. No frena a alguien decidido — puede pedir sesiones
 -- anónimas nuevas — pero sí frena el script tonto y el dedo pegado en «enviar».
 -- `security definer` para poder contar las filas propias sin depender de RLS.
@@ -411,3 +453,9 @@ create trigger updates_throttle before insert on public.updates
 
 create trigger offers_throttle before insert on public.offers
   for each row execute function public.throttle_inserts(4);
+
+-- El más bajo de los cuatro: un punto de acopio es una respuesta, no un reporte,
+-- y nadie abre tres bodegas en un minuto. Cuenta por `user_id`, así que las
+-- filas curadas —sin autor— nunca entran en la cuenta.
+create trigger centros_throttle before insert on public.centros
+  for each row execute function public.throttle_inserts(3);

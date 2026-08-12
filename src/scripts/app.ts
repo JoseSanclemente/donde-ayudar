@@ -4,10 +4,13 @@ import { onError } from "./data/errors";
 import { initAlertBanner } from "./features/alert-banner";
 import { initCentrosLayer } from "./features/centros-layer";
 import { initHeaderOffset } from "./features/header-offset";
+import { initMarkerActions } from "./features/marker-actions";
 import { initMarkerSheet } from "./features/marker-sheet";
 import { initOffersPanel } from "./features/offers-panel";
+import { initCentroForm } from "./features/centro-form";
 import { initReportForm } from "./features/report-form";
 import { initReportList } from "./features/report-list";
+import { initReportTabs } from "./features/report-tabs";
 import { initSyncBadge } from "./features/sync-badge";
 import { initUpdatesFeed } from "./features/updates-feed";
 import { loadAddresses, loadStreets } from "./geo-index";
@@ -21,11 +24,15 @@ const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").match
 initMap("map");
 initSheet();
 initMarkerSheet();
+initMarkerActions();
 initCentrosLayer();
 // Antes del aviso: la primera vez que aparece ya cambia la altura del header.
 initHeaderOffset();
 initAlertBanner();
+// Antes de los dos formularios: los dos se suscriben a su cambio de pestaña.
+initReportTabs();
 initReportForm();
+initCentroForm();
 initReportList();
 initUpdatesFeed();
 initOffersPanel();

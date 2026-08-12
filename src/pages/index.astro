@@ -1,7 +1,7 @@
 ---
 import Base from "../layouts/Base.astro";
 import AlertBanner from "../components/AlertBanner.astro";
-import ReportForm from "../components/ReportForm.astro";
+import ReportTabs from "../components/ReportTabs.astro";
 import ReportList from "../components/ReportList.astro";
 import OffersPanel from "../components/OffersPanel.astro";
 import UpdatesFeed from "../components/UpdatesFeed.astro";
@@ -158,7 +158,7 @@ import { SITE_NAME, SITE_TITLE } from "../consts";
           id="sheet-body"
           class="flex min-h-0 flex-1 flex-col gap-5 overflow-y-auto overscroll-contain px-4 pb-4 lg:contents"
         >
-          <div id="form-card" data-tab-panel="reportar"><ReportForm /></div>
+          <div id="form-card" data-tab-panel="reportar"><ReportTabs /></div>
 
           <!-- Detalle de un punto del mapa. Como el formulario, es una pestaña
                sin botón en el encabezado: solo se llega tocando un marcador, y

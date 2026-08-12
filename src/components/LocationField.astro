@@ -1,0 +1,76 @@
+---
+/**
+ * Dirección + ubicación en el mapa. Lo comparten el reporte de una necesidad y
+ * el registro de un punto de acopio: los dos preguntan lo mismo y lo resuelven
+ * con la misma cascada de geocodificación y el mismo pin arrastrable.
+ *
+ * Los ids llevan prefijo porque los dos formularios viven a la vez en el DOM,
+ * escondido uno detrás de la otra pestaña. `createLocationPicker(prefix)` en
+ * `src/scripts/features/location-picker.ts` es la mitad de este componente.
+ */
+interface Props {
+  prefix: string;
+  label: string;
+  placeholder: string;
+}
+
+const { prefix, label, placeholder } = Astro.props;
+---
+
+<div class="relative">
+  <label for={`${prefix}-name`} class="block text-sm font-medium text-slate-700">
+    {label}
+  </label>
+  <input
+    id={`${prefix}-name`}
+    name={`${prefix}-name`}
+    type="text"
+    autocomplete="off"
+    maxlength="120"
+    placeholder={placeholder}
+    class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm outline-none focus:border-slate-400"
+  />
+  <p id={`${prefix}-name-error`} class="mt-1 hidden text-xs font-medium text-red-600"></p>
+
+  <ul
+    id={`${prefix}-suggestions`}
+    class="absolute z-[1200] mt-1 hidden max-h-56 w-full overflow-auto rounded-lg border border-slate-200 bg-white shadow-lg"
+  >
+  </ul>
+</div>
+
+<div class="mt-5 rounded-lg border border-slate-300 bg-slate-50 p-3">
+  <div class="flex items-center justify-between gap-3">
+    <p class="text-xs text-slate-600">
+      Ubicación: <span id={`${prefix}-location-status`} class="font-semibold text-slate-800"
+        >sin fijar</span
+      >
+    </p>
+    <button
+      type="button"
+      id={`${prefix}-pick-on-map`}
+      class="shrink-0 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:border-red-400 hover:text-red-600"
+    >
+      Ubicar en el mapa
+    </button>
+  </div>
+  <!-- El consejo va antes de buscar, no después de que la búsqueda falle:
+       OpenStreetMap no tiene la mayoría de los edificios residenciales de
+       Cali, así que la dirección escrita casi siempre cae a media cuadra.
+       Quien lo pone a mano acierta a la primera. -->
+  <p class="mt-2 text-xs leading-snug text-slate-500">
+    <span class="font-semibold text-slate-700">Lo más preciso es fijarlo tú: </span>
+    Toca «Ubicar en el mapa» y marca la zona.
+  </p>
+  <p id={`${prefix}-geo-note`} class="mt-2 hidden text-xs text-amber-700"></p>
+</div>
+
+<style>
+  /* Sin texto no hay error que mostrar. `clearError` ya pone la clase `hidden`,
+     pero el hueco tampoco debe aparecer si alguna vez se vacía el párrafo sin
+     pasar por ahí — el margen de un error invisible se ve igual. */
+  p[id$="-name-error"]:empty,
+  p[id$="-geo-note"]:empty {
+    display: none;
+  }
+</style>

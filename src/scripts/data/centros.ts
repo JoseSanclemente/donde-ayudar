@@ -1,23 +1,31 @@
-import type { Centro } from "../centros";
-import { supabase } from "../supabase";
+import type { Centro, CentroAcopio, Origen } from "../centros";
+import { MISSING_ENV_MESSAGE, supabase } from "../supabase";
 import { createEmitter } from "./emitter";
+import { errorMessage, reportError } from "./errors";
 import { bindTable, type RealtimePayload } from "./live";
+import { getUserId } from "./session";
 
 /**
- * Curated points — collection centers, shelters and blood banks. Read only.
+ * Donation points — collection centers, shelters and blood banks.
  *
- * The one store with no write path: the table has no insert, update or delete
- * policy, so a visitor cannot publish a point by accident or on purpose. The
- * people who keep the list edit it in the Supabase table editor, which runs as
- * `service_role` and bypasses RLS.
+ * The narrowest write path of the four stores, and on purpose. There is no
+ * update policy at all, so nothing here edits a point once it is published, and
+ * the insert only accepts a collection center registered by the community
+ * (`origen: "comunidad"`, `user_id` the current session). Shelters, blood banks
+ * and every curated point stay the maintainer's, written in the Supabase table
+ * editor, which runs as `service_role` and bypasses RLS.
  *
  * These used to be YAML files in `src/content/centros/`, validated on every
  * build. That was the problem: fixing a shelter's opening hours took a commit
- * and a deploy, and in an emergency that delay is the whole issue.
+ * and a deploy, and in an emergency that delay is the whole issue. Waiting for
+ * a maintainer to publish a new collection center is the same problem one step
+ * later, which is what the community insert answers.
  */
 type Row = {
   id: string;
   tipo: string;
+  origen: string | null;
+  user_id: string | null;
   name: string;
   direccion: string;
   lat: number;
@@ -29,6 +37,18 @@ type Row = {
   recibiendo: boolean | null;
   nota_estado: string | null;
   activo: boolean;
+};
+
+/** Lo que el formulario deja escribir: un acopio, y solo estos campos. */
+export type NuevoAcopio = {
+  name: string;
+  direccion: string;
+  lat: number;
+  lng: number;
+  horario: string;
+  telefono: string | null;
+  notas: string | null;
+  recibe: string[];
 };
 
 const TABLE = "centros";
@@ -65,6 +85,10 @@ function isRow(value: unknown): value is Row {
 function fromRow(row: Row): Centro {
   const base = {
     id: row.id,
+    // `curado` por defecto: una fila guardada antes de que existiera la columna
+    // —o leída por una pestaña que no ha recargado— es de las once originales.
+    origen: (row.origen === "comunidad" ? "comunidad" : "curado") as Origen,
+    userId: row.user_id ?? null,
     name: row.name,
     direccion: row.direccion ?? "",
     lat: row.lat,
@@ -72,20 +96,21 @@ function fromRow(row: Row): Centro {
     horario: row.horario ?? "",
     telefono: text(row.telefono),
     notas: text(row.notas),
+    // The column is `not null default true`; the `?? true` covers a payload from
+    // an older shape, not the database.
+    recibiendo: row.recibiendo ?? true,
+    nota_estado: text(row.nota_estado),
   };
 
   // A blood bank takes no supplies, and `centros_recibe_por_tipo` guarantees it
-  // in the table, so the block never gets built for one.
+  // in the table, so the `recibe` block never gets built for one — but it can
+  // still be paused, so the rest of `base` carries over untouched.
   if (row.tipo === "sangre") return { ...base, tipo: "sangre" };
 
   return {
     ...base,
     tipo: row.tipo === "albergue" ? "albergue" : "acopio",
     recibe: Array.isArray(row.recibe) ? row.recibe : [],
-    // The column is `not null default true`; the `?? true` covers a payload from
-    // an older shape, not the database.
-    recibiendo: row.recibiendo ?? true,
-    nota_estado: text(row.nota_estado),
   };
 }
 
@@ -106,6 +131,104 @@ export async function loadCentros(): Promise<void> {
   if (error) throw error;
   cache = sorted((data ?? []).filter(isRow).map(fromRow));
   emit();
+}
+
+/* ------------------------------------------------------------------ */
+/* Escritura — solo acopios de la comunidad, optimista como los reportes */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Publica un punto de acopio. Devuelve el centro ya en la caché: el marcador
+ * aparece en el mapa antes de que el insert vuelva, y si el insert falla se
+ * quita solo.
+ *
+ * El id es un uuid y no un slug del nombre: el CHECK de la tabla acepta
+ * minúsculas, dígitos y guiones, que es exactamente lo que trae un uuid, y así
+ * dos personas registrando «Colegio San José» a la vez no chocan.
+ */
+export function addCentro(input: NuevoAcopio): CentroAcopio {
+  const centro: CentroAcopio = {
+    ...input,
+    id: crypto.randomUUID(),
+    tipo: "acopio",
+    origen: "comunidad",
+    userId: getUserId() ?? "",
+    telefono: input.telefono ?? undefined,
+    notas: input.notas ?? undefined,
+    recibiendo: true,
+  };
+  cache = sorted([...cache, centro]);
+  emit();
+  void pushCentro(centro);
+  return centro;
+}
+
+async function pushCentro(centro: CentroAcopio): Promise<void> {
+  if (!supabase) {
+    dropLocally(centro.id);
+    reportError(MISSING_ENV_MESSAGE);
+    return;
+  }
+  const userId = getUserId();
+  if (!userId) {
+    dropLocally(centro.id);
+    reportError("Aún no hay sesión. Recarga la página e inténtalo de nuevo.");
+    return;
+  }
+
+  const { data, error } = await supabase
+    .from(TABLE)
+    .insert({
+      id: centro.id,
+      tipo: "acopio",
+      origen: "comunidad",
+      user_id: userId,
+      name: centro.name,
+      direccion: centro.direccion,
+      lat: centro.lat,
+      lng: centro.lng,
+      horario: centro.horario,
+      telefono: centro.telefono ?? null,
+      notas: centro.notas ?? null,
+      recibe: centro.recibe,
+    })
+    .select()
+    .single();
+
+  if (error || !isRow(data)) {
+    dropLocally(centro.id);
+    reportError(
+      errorMessage(
+        error,
+        "No se pudo registrar el punto. Revisa la conexión e inténtalo de nuevo.",
+      ),
+    );
+    return;
+  }
+
+  cache = sorted([...cache.filter((c) => c.id !== data.id), fromRow(data)]);
+  emit();
+}
+
+function dropLocally(id: string): void {
+  cache = cache.filter((centro) => centro.id !== id);
+  emit();
+}
+
+export function removeCentro(id: string): void {
+  const previous = cache.find((centro) => centro.id === id);
+  dropLocally(id);
+  if (!previous) return;
+  void (async () => {
+    if (!supabase) return;
+    const { error } = await supabase.from(TABLE).delete().eq("id", id);
+    if (!error) return;
+    // La policy solo deja borrar el punto propio, y ninguno curado: si falla, el
+    // punto sigue vivo para todos los demás y el mapa tiene que reponerlo.
+    cache = sorted([...cache, previous]);
+    emit();
+    reportError("Solo puedes eliminar los puntos que registraste en este navegador.");
+  })();
 }
 
 function applyRealtime(payload: RealtimePayload): void {

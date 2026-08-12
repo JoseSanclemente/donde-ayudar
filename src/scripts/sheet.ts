@@ -190,7 +190,7 @@ export function openReportPanel(): void {
   // En escritorio el formulario aparece como una tarjeta más de la barra
   // lateral: si el scroll está abajo, abrirlo sin llevarlo a la vista no se ve.
   document.getElementById("form-card")?.scrollIntoView({ block: "start", behavior: "smooth" });
-  document.getElementById("name")?.focus();
+  document.getElementById("report-name")?.focus();
 }
 
 export function closeReportPanel(): void {

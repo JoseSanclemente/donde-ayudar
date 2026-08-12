@@ -1,6 +1,6 @@
 import L from "leaflet";
 import type { ReportGroup } from "./cluster";
-import { recibeInsumos, type Centro } from "./centros";
+import { esComunitario, recibeInsumos, type Centro } from "./centros";
 import {
   ALBERGUE_FILTER,
   byCategory,
@@ -15,6 +15,7 @@ import { isMobile, onBreakpointChange } from "./ui/breakpoint";
 import { chipLabel, chipStyle } from "./ui/chips";
 import { telUrl, whatsappUrl } from "./ui/contact";
 import { directionsUrl, escapeHtml, NAV_ICON } from "./ui/html";
+import { statusSelectHtml } from "./ui/status-select";
 import { relativeTime } from "./ui/time";
 
 export const CALI_CENTER: [number, number] = [3.4516, -76.532];
@@ -112,10 +113,15 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
       ? `<p class="text-xs text-slate-500">${count} reportes en este punto</p>`
       : "";
 
-  const info = statusInfo(group.status);
   // El estado encabeza el popup: antes de saber qué falta hay que saber si se
-  // puede llegar.
-  const kicker = `<span class="inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${info.chip}">${escapeHtml(info.aviso)}</span>`;
+  // puede llegar. Va como selector y no como chip de lectura porque cambiarlo es
+  // comunitario, y quien está parado frente al punto es quien lo sabe — el chip
+  // solo le dejaba la opción de ir a buscar la fila en la lista. El aviso
+  // («no te desplaces») queda debajo: la etiqueta del `<option>` nombra el
+  // estado, no dice qué hacer con él.
+  const kicker = `
+      ${statusSelectHtml(group.status, group.reportIds, lead.name)}
+      <p class="text-xs text-slate-500">${escapeHtml(statusInfo(group.status).aviso)}</p>`;
 
   // Una hora fresca respalda el dato; una vieja advierte que ya no lo hace.
   const fresh = `<p class="text-xs ${extra.stale ? "font-medium text-amber-700" : "text-slate-500"}">Actualizado ${escapeHtml(relativeTime(extra.freshAt))}${extra.stale ? " — confirma antes de ir" : ""}</p>`;
@@ -131,7 +137,7 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
     .slice(0, 2)
     .map(
       (r) =>
-        `<p class="text-xs leading-snug text-slate-600">“${escapeHtml(r.note as string)}”</p>`,
+        `<p class="text-sm leading-snug text-slate-600">“${escapeHtml(r.note as string)}”</p>`,
     )
     .join("");
 
@@ -444,6 +450,18 @@ const centroIcon = L.divIcon({
   popupAnchor: [0, -10],
 });
 
+// Registrado por la comunidad: el mismo cuadrado, un indigo más claro. Quién lo
+// publicó no cambia qué es el punto, así que tampoco cambia la forma — un tercer
+// contorno se leería como un cuarto tipo. Lo que sí lo dice con todas sus letras
+// es el popup, y ahí se etiquetan los dos orígenes.
+const comunidadIcon = L.divIcon({
+  className: "centro-marker",
+  html: '<span class="centro-pin" data-comunidad></span>',
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
+  popupAnchor: [0, -10],
+});
+
 // Mismo cuadrado que un acopio, en gris y con barras de pausa: sigue siendo el
 // mismo sitio, solo que ahora mismo no recibe. Se queda en el mapa a propósito
 // — borrarlo dejaría sin explicación a quien ya lo vio ayer.
@@ -458,6 +476,14 @@ const pausaIcon = L.divIcon({
 const sangreIcon = L.divIcon({
   className: "sangre-marker",
   html: '<span class="sangre-pin"></span>',
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+  popupAnchor: [0, -11],
+});
+
+const sangrePausaIcon = L.divIcon({
+  className: "sangre-marker",
+  html: '<span class="sangre-pin" data-pausa></span>',
   iconSize: [18, 18],
   iconAnchor: [9, 9],
   popupAnchor: [0, -11],
@@ -481,17 +507,28 @@ const alberguePausaIcon = L.divIcon({
   popupAnchor: [0, -12],
 });
 
-/** Icono por tipo con su variante en pausa. `sangre` no se pausa: no lleva par. */
+/** Icono por tipo con su variante en pausa. */
 const ICON: Record<Centro["tipo"], { normal: L.DivIcon; pausa?: L.DivIcon }> = {
   acopio: { normal: centroIcon, pausa: pausaIcon },
-  sangre: { normal: sangreIcon },
+  sangre: { normal: sangreIcon, pausa: sangrePausaIcon },
   albergue: { normal: albergueIcon, pausa: alberguePausaIcon },
 };
 
-/** Un punto que recibe insumos y hoy no lo hace. Un banco de sangre nunca lo está. */
+/** Un punto que sigue abierto y hoy no recibe. */
 function enPausa(centro: Centro): boolean {
-  return recibeInsumos(centro) && !centro.recibiendo;
+  return !centro.recibiendo;
 }
+
+/**
+ * Quién publicó el punto. Se etiquetan los dos orígenes y no solo el
+ * comunitario: «creado por la comunidad» no dice nada si lo otro va sin marcar,
+ * y la pregunta que resuelve —¿esto lo verificó alguien?— necesita las dos
+ * respuestas a la vista.
+ */
+const ORIGEN: Record<Centro["origen"], string> = {
+  curado: "Creado por la alcaldía",
+  comunidad: "Creado por la comunidad",
+};
 
 /** Etiqueta y color del kicker por tipo. Un cuarto tipo es una entrada más. */
 const KICKER: Record<Centro["tipo"], { label: string; color: string }> = {
@@ -511,14 +548,14 @@ function recibeHtml(centro: Centro, pausa: boolean): string {
   const blocks = centro.recibe.map((id) => {
     // En pausa el chip va tachado, con el mismo `COVERED_CHIP` de un recurso ya
     // cubierto: sigue siendo lo que ese centro recibe, pero no ahora.
-    const chip = `<span class="inline-block rounded-full px-2 py-0.5 text-xs font-medium ${
+    const chip = `<span class="inline-block rounded-lg p-2 text-sm font-medium ${
       pausa ? COVERED_CHIP : categoryChip(id)
     }">${escapeHtml(categoryLabel(id))}</span>`;
     const items = categoryItemsEnPunto(id);
     // Una categoría sin ítems en el catálogo —«Voluntarios» los tiene, pero una
     // futura podría no— se queda con el chip solo, no con dos puntos vacíos.
     const detalle = items.length
-      ? `<p class="mt-1 text-xs leading-snug ${pausa ? "text-slate-400" : "text-slate-500"}">${escapeHtml(items.join(", "))}</p>`
+      ? `<p class="mt-1 text-sm leading-snug ${pausa ? "text-slate-400" : "text-slate-500"}">${escapeHtml(items.join(", "))}</p>`
       : "";
     return `<div>${chip}${detalle}</div>`;
   });
@@ -526,12 +563,19 @@ function recibeHtml(centro: Centro, pausa: boolean): string {
   // parecen lo que el punto necesita, no lo que entrega quien va.
   return `
     <div class="space-y-2">
-      <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Recibe</p>
+      <p class="text-xs m-0 font-semibold uppercase tracking-wide text-slate-500">Recibe</p>
       ${blocks.join("")}
     </div>`;
 }
 
-function centroPopupHtml(centro: Centro): string {
+/**
+ * Un punto y si es de quien está mirando. Igual que `MarkerExtra`: lo que no
+ * vive en la fila entra por parámetro, para que `map.ts` no tenga que importar
+ * los stores. Quien lo calcula es `features/centros-layer.ts`.
+ */
+export type CentroEntry = { data: Centro; mine: boolean };
+
+function centroPopupHtml(centro: Centro, mine: boolean): string {
   const pausa = enPausa(centro);
   const recibe = recibeHtml(centro, pausa);
   const telefono = centro.telefono
@@ -546,25 +590,49 @@ function centroPopupHtml(centro: Centro): string {
   const kicker = pausa
     ? `<p class="text-xs font-semibold uppercase tracking-wide text-slate-500">${label} · No recibe por ahora</p>`
     : `<p class="text-xs font-semibold uppercase tracking-wide ${color}">${label}</p>`;
-  const notaEstado =
-    recibeInsumos(centro) && centro.nota_estado
-      ? `<p class="text-xs text-slate-600">${escapeHtml(centro.nota_estado)}</p>`
-      : "";
+  const notaEstado = centro.nota_estado
+    ? `<p class="text-xs text-slate-600">${escapeHtml(centro.nota_estado)}</p>`
+    : "";
+  // Un banco de sangre no recibe insumos sino donantes: decirle «donaciones» a
+  // secas deja pensando si la puerta sigue abierta para donar sangre.
+  const avisoLabel =
+    centro.tipo === "sangre"
+      ? "No recibe donantes por ahora"
+      : "No recibe donaciones por ahora";
   // Mismo ámbar que el aviso de un reporte viejo: "existe, pero no te desplaces".
   const aviso = pausa
-    ? `<p class="text-xs font-medium text-amber-700">No recibe donaciones por ahora</p>${notaEstado}`
+    ? `<p class="text-xs font-medium text-amber-700">${avisoLabel}</p>${notaEstado}`
     : "";
   // En pausa el CTA deja de ser el azul sólido: sigue disponible para quien
   // quiera ubicarlo, pero no invita al viaje.
   const ctaClass = pausa
-    ? "centro-cta centro-cta-quiet mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-xs font-semibold no-underline transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300"
-    : "centro-cta mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-xs font-semibold no-underline shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300";
+    ? "centro-cta centro-cta-quiet mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-md font-semibold no-underline transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300"
+    : "centro-cta mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-md font-semibold no-underline shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300";
+  const origen = `<p class="text-sm text-slate-500">${ORIGEN[centro.origen]}</p>`;
+  // Las dos condiciones de la policy de delete, y por eso las dos acá: ofrecer
+  // el botón sobre un punto curado sería ofrecer algo que el servidor rechaza.
+  // Va al final y en gris: se busca cuando se necesita, no compite con «Cómo
+  // llegar», que es a lo que viene todo el mundo.
+  const borrar =
+    mine && esComunitario(centro)
+      ? `<button
+        type="button"
+        data-delete-centro="${escapeHtml(centro.id)}"
+        data-point-name="${escapeHtml(centro.name)}"
+        class="mt-1 w-full text-xs font-medium text-slate-400 transition hover:text-red-600"
+      >Eliminar este punto</button>`
+      : "";
+  // Nombre, quién lo publicó y dónde queda son la misma respuesta —«qué es esto
+  // y dónde está»—, así que van pegados en un bloque y el resto respira aparte.
   return `
     <div class="space-y-2">
-      ${kicker}
-      <p class="text-lg font-semibold text-slate-900">${escapeHtml(centro.name)}</p>
+      <div class="space-y-1">
+        ${kicker}
+        <p class="text-lg font-semibold leading-tight text-slate-900 mt-3">${escapeHtml(centro.name)}</p>
+        ${origen}
+        <p data-address class="text-xs text-slate-600">${escapeHtml(centro.direccion)}</p>
+      </div>
       ${aviso}
-      <p data-address class="text-xs text-slate-600">${escapeHtml(centro.direccion)}</p>
       <p class="text-xs text-slate-600">${escapeHtml(centro.horario)}</p>
       ${recibe}
       ${telefono}
@@ -575,6 +643,7 @@ function centroPopupHtml(centro: Centro): string {
         target="_blank"
         rel="noopener noreferrer"
       >${NAV_ICON}Cómo llegar</a>
+      ${borrar}
     </div>`;
 }
 
@@ -607,23 +676,29 @@ function applyCentros(): number {
   return shown;
 }
 
-export function setCentros(list: Centro[]): number {
+export function setCentros(entries: CentroEntry[]): number {
   // La lista se reconstruye entera: los marcadores viejos —y con ellos el que
-  // estuviera abierto— dejan de existir.
+  // estuviera abierto— dejan de existir. Es también lo que cierra el detalle de
+  // un punto recién borrado, sin que el borrado tenga que saber del panel.
   if (selected && centros.some(({ marker }) => marker === selected)) emit(null);
   centros.length = 0;
-  for (const data of list) {
+  for (const { data, mine } of entries) {
     // The icon is picked here and never repainted afterwards, unlike
     // `paintEstado` for reports. It does not have to be: pausing a point in
     // Supabase re-emits the whole list and this function rebuilds every marker
     // from scratch, so the new state arrives as a new icon.
     const { normal, pausa } = ICON[data.tipo];
-    const icon = enPausa(data) && pausa ? pausa : normal;
+    // Solo el acopio tiene variante comunitaria: es el único tipo que registra
+    // el formulario. La pausa gana sobre el origen — gris con barras dice «hoy no
+    // vayas», que es más urgente que quién lo publicó.
+    const suyo =
+      data.tipo === "acopio" && esComunitario(data) ? comunidadIcon : normal;
+    const icon = enPausa(data) && pausa ? pausa : suyo;
     const marker = L.marker([data.lat, data.lng], {
       icon,
       zIndexOffset: -500,
     });
-    attachPopup(marker, centroPopupHtml(data));
+    attachPopup(marker, centroPopupHtml(data, mine));
     marker.on("click", selectOnMobile);
     centros.push({ data, marker });
   }

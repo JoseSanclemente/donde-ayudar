@@ -32,16 +32,23 @@ Two kinds of data, and they must not mix:
   `updates` (the city log) and `offers` (help someone has available): anyone inserts, only
   the author deletes, and the communal bit — assigning an offer to a point — goes through
   the `assign_offer` RPC, which touches only `report_id` and `assigned_at`.
-- **Puntos de donación** — curated, and the one table nobody can write from the browser.
-  They live in Supabase too (`centros`), but with a single `select` policy and no insert,
-  update or delete policy, so RLS denies all three. A maintainer edits them in the
-  dashboard's table editor, which runs as `service_role`; dashboard and repo access are
-  the only "admin privilege" in this project. Three kinds, split by a `tipo`
-  discriminator: `acopio` (collection centers) and `albergue` (shelters) both carry
-  `recibe` and can be paused with `recibiendo: false`; `sangre` (blood banks) carries
-  neither — the `centros_recibe_por_tipo` check enforces it. Read `supabase/README.md`
-  before adding or changing one; the category ids in `centros_recibe_ids` are the only
-  copy of the `resources.ts` catalog outside the repo and have to be kept in sync by hand.
+- **Puntos de donación** — the table with the narrowest write surface, in Supabase too
+  (`centros`). Three kinds, split by a `tipo` discriminator: `acopio` (collection centers)
+  and `albergue` (shelters) both carry `recibe` and can be paused with `recibiendo:
+  false`; `sangre` (blood banks) carries neither — the `centros_recibe_por_tipo` check
+  enforces it. A second discriminator, `origen`, says who published it: a `curado` point
+  is edited by a maintainer in the dashboard's table editor, which runs as `service_role`
+  (dashboard and repo access are the only "admin privilege" in this project); a
+  `comunidad` point is registered by anyone from the form and publishes immediately. The
+  insert policy is the whole write surface and pins all of `origen = 'comunidad'`, `tipo =
+  'acopio'`, `activo` and `user_id = auth.uid()`, so a shelter, a blood bank or any
+  curated point cannot be created from the browser. Deleting is the author's own point
+  only, and **there is no update policy at all** — nothing edits a point once published.
+  The map keeps the same square for both origins and only lightens the colour; the popup
+  labels both («Creado por la alcaldía» / «Creado por la comunidad»). Read
+  `supabase/README.md` before adding or changing one; the category ids in
+  `centros_recibe_ids` are the only copy of the `resources.ts` catalog outside the repo
+  and have to be kept in sync by hand.
 
 ## Client layout
 
@@ -50,11 +57,16 @@ Two kinds of data, and they must not mix:
 - **`app.ts`** — boot only: it calls each `init…()`, `initData()`, and the geo index
   loaders (`loadAddresses`, `loadStreets`).
 - **`features/`** — one UI piece per file, each with its `init…()`: `alert-banner`,
-  `centros-layer`, `marker-sheet`, `offers-panel`, `report-form`, `report-list`,
-  `updates-feed`. They subscribe to the stores; they never call Supabase directly.
+  `centros-layer`, `centro-form`, `location-picker`, `marker-sheet`, `offers-panel`,
+  `report-form`, `report-list`, `report-tabs`, `updates-feed`. They subscribe to the
+  stores; they never call Supabase directly. `location-picker` is the exception to "one
+  UI piece": it is a factory, and the two forms — a need and a collection point — each
+  create one over their own copy of `LocationField.astro`, keyed by an id prefix. The
+  draft pin and the click-to-pick mode are single, so `report-tabs` hands them over
+  between the two with `suspend()`/`resume()`.
 - **`data/`** — everything that talks to Supabase. One store per table (`reports.ts`,
-  `updates.ts`, `offers.ts`, `centros.ts` — this last one read-only, no write path at
-  all), each with its `emitter.ts` to announce changes and its
+  `updates.ts`, `offers.ts`, `centros.ts` — this last one insert-only, and only for a
+  community `acopio`), each with its `emitter.ts` to announce changes and its
   `bindTable()` in `live.ts`, which merges every table into a single realtime channel.
   `boot.ts` runs once: anonymous session, initial load, and only then the channel.
   `session.ts` holds the current user id and `isMine()`, mirroring the RLS delete policy.
@@ -62,8 +74,9 @@ Two kinds of data, and they must not mix:
 - **Domain modules at the root of `src/scripts/`** — no Supabase, no DOM wiring:
   - `map.ts` — the Leaflet map, its markers and popups.
   - `cluster.ts` — merges nearby reports into groups.
-  - `centros.ts` — the shape of a curated point: types and the `recibeInsumos()`
-    narrowing. Reading them is `data/centros.ts`, drawing them is `map.ts`.
+  - `centros.ts` — the shape of a donation point: types and the `recibeInsumos()` /
+    `esComunitario()` narrowings. Reading and writing them is `data/centros.ts`, drawing
+    them is `map.ts`.
   - `resources.ts` / `status.ts` — the catalogs (resource categories and chips, point
     statuses). Tailwind classes are spelled out literally here: the scanner reads these
     files as plain text, so an interpolated class name never gets compiled.

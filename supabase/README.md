@@ -16,9 +16,9 @@ eso nadie puede insertar, porque toda escritura pasa por una sesión anónima.
 
 ## Qué puede escribir un visitante
 
-Tres tablas abiertas a escritura anónima — `reports`, `updates`, `offers` — con
-la misma forma: cualquiera lee todo, cualquiera inserta lo suyo, y solo el autor
-borra lo suyo (`auth.uid() = user_id`).
+Cuatro tablas abiertas a escritura anónima — `reports`, `updates`, `offers` y,
+solo en parte, `centros` — con la misma forma: cualquiera lee todo, cualquiera
+inserta lo suyo, y solo el autor borra lo suyo (`auth.uid() = user_id`).
 
 **Ninguna tiene policy de UPDATE.** Lo que sí es comunitario pasa por funciones
 `security definer` que tocan una sola columna cada una:
@@ -33,14 +33,26 @@ Todas topan en 50 ids por llamada y levantan `errcode 22023` con un mensaje en
 español, que el cliente muestra tal cual en el toast.
 
 Además, un trigger `throttle_inserts` limita las inserciones por autor y por
-minuto: 6 reportes, 10 novedades, 4 ofertas.
+minuto: 6 reportes, 10 novedades, 4 ofertas, 3 puntos de acopio.
 
 ## Los puntos de donación
 
-`centros` es la cuarta tabla y la única de solo lectura: acopios, albergues y
-bancos de sangre. Tiene una sola policy, de `select`, y ninguna de `insert`,
-`update` ni `delete` — sin policy, RLS las niega. Se editan en el dashboard
-(**Table Editor → centros**), que corre como `service_role` y se salta RLS.
+`centros` es la cuarta tabla: acopios, albergues y bancos de sangre. Dos
+orígenes conviven ahí, y la columna `origen` los separa.
+
+- **`curado`** — lo edita un mantenedor en el dashboard (**Table Editor →
+  centros**), que corre como `service_role` y se salta RLS. `user_id` va nulo.
+- **`comunidad`** — lo registra cualquiera desde el formulario del sitio y sale
+  al mapa de inmediato, con el pin en un indigo más claro y la etiqueta «Creado
+  por la comunidad» en el popup. Los curados llevan la suya, «Creado por la
+  alcaldía»: la primera no dice nada si la otra va sin marcar.
+
+La policy de `insert` es la superficie de escritura entera, y es estrecha a
+propósito: `origen = 'comunidad'`, `tipo = 'acopio'`, `activo`, y `user_id =
+auth.uid()`. Un albergue, un banco de sangre o cualquier punto curado no se
+pueden crear desde el navegador. La de `delete` deja borrar solo el punto propio
+y comunitario. **No hay policy de UPDATE**: ni el autor edita su punto después de
+publicarlo. Corregir uno es cosa del dashboard.
 
 Antes eran archivos YAML en `src/content/centros/`, validados en cada build. El
 costo era el deploy: corregir un horario pedía commit y build de Netlify. Lo que
@@ -48,13 +60,29 @@ garantizaba el schema de Zod ahora lo garantizan los CHECK de la tabla.
 
 | Campo | Qué cuidar |
 | --- | --- |
-| `id` | Slug kebab-case, es la llave primaria. Era el nombre del archivo YAML |
+| `id` | Llave primaria. Slug kebab-case en los curados —era el nombre del archivo YAML—; uuid en los comunitarios, que pasa el mismo patrón |
 | `tipo` | `acopio`, `albergue` o `sangre` |
+| `origen` | `curado` o `comunidad`. Con `curado`, `user_id` tiene que ir nulo; con `comunidad`, obligatorio (`centros_origen_autor`) |
 | `recibe` | Vacío en `sangre`, y de 1 a 20 en los otros dos |
-| `recibiendo` | `false` = sigue abierto pero no recibe: queda gris en el mapa |
+| `recibiendo` | `false` = sigue abierto pero no recibe: queda gris en el mapa. Vale para los tres tipos — un banco de sangre que ya cubrió su demanda se pausa igual |
 | `nota_estado` | Por qué no recibe. Solo se ve con `recibiendo: false` |
 | `activo` | `false` = cerrado, deja de dibujarse. No borres la fila |
-| `lat` / `lng` | Dentro del bounding box de Cali, igual que un reporte |
+| `lat` / `lng` | Dentro del bounding box de Colombia, igual que un reporte. Era el de Cali hasta que la ayuda empezó a coordinarse con otros municipios |
+
+**Promover un punto comunitario** que resultó bueno, para que deje de verse como
+sin verificar:
+
+```sql
+update public.centros
+   set origen = 'curado', user_id = null
+ where id = '<uuid>';
+```
+
+**Bajar uno malo** sin borrarlo, igual que cualquier otro punto cerrado:
+
+```sql
+update public.centros set activo = false where id = '<uuid>';
+```
 
 El constraint `centros_recibe_ids` lista los ids de categoría a mano. **Es el
 único lugar donde el catálogo está duplicado**: si agregas una categoría en

@@ -1,42 +1,17 @@
 import gsap from "gsap";
-import type { LatLng } from "leaflet";
 import { addReport } from "../data/reports";
-import { debounce, geocode, type GeocodeResult } from "../geocode";
-import {
-  flyTo,
-  getMarkerElement,
-  hideDraft,
-  isPicking,
-  showDraft,
-  startPicking,
-  stopPicking,
-} from "../map";
+import { flyTo, getMarkerElement } from "../map";
 import { CATEGORIES, CHIP_OFF, chipClass, chipOnClass } from "../resources";
-import { closeReportPanel, closeSheet, isTabVisible, onTabChange, openSheet } from "../sheet";
+import { closeReportPanel, closeSheet, isTabVisible, onTabChange } from "../sheet";
 import { isValidPhone } from "../ui/contact";
 import { $, clearError, showError } from "../ui/dom";
+import { createLocationPicker } from "./location-picker";
+import { onReportTabChange } from "./report-tabs";
 
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-const CALCULATED_NOTE =
-  "Punto calculado desde la esquina y los metros de la placa. La mitad de las veces cae a menos de 25 m del edificio: arrastra el punto si no queda encima.";
-
-const APPROX_NOTE =
-  "Solo se pudo ubicar la vía, no el número. Arrastra el punto o usa «Ubicar en el mapa» para ponerlo sobre el edificio.";
-
-const BADGES: Partial<Record<GeocodeResult["precision"], string>> = {
-  calculada: "calculada — desde la esquina",
-  aproximada: "aproximada — vía sin numeración",
-};
-
 export function initReportForm(): void {
   const form = $<HTMLFormElement>("report-form");
-  const nameInput = $<HTMLInputElement>("name");
-  const nameError = $<HTMLParagraphElement>("name-error");
-  const suggestions = $<HTMLUListElement>("suggestions");
-  const locationStatus = $<HTMLSpanElement>("location-status");
-  const pickButton = $<HTMLButtonElement>("pick-on-map");
-  const geoNote = $<HTMLParagraphElement>("geo-note");
   const presetChips = $<HTMLDivElement>("preset-chips");
   const selectedResources = $<HTMLDivElement>("selected-resources");
   const resourcesError = $<HTMLParagraphElement>("resources-error");
@@ -46,39 +21,10 @@ export function initReportForm(): void {
   const contactPhone = $<HTMLInputElement>("contact-phone");
   const contactError = $<HTMLParagraphElement>("contact-error");
 
-  let coords: { lat: number; lng: number } | null = null;
+  // Dirección, sugerencias y pin arrastrable: los comparte con el formulario de
+  // acopios, así que el prefijo de los ids es lo único propio.
+  const location = createLocationPicker("report");
   const resources = new Set<string>();
-  let geocodeAbort: AbortController | null = null;
-
-  function setCoords(next: { lat: number; lng: number } | null, source?: string) {
-    coords = next;
-    if (next) {
-      locationStatus.textContent = source
-        ? `fijada — ${source}`
-        : `fijada — ${next.lat.toFixed(5)}, ${next.lng.toFixed(5)}`;
-      locationStatus.className = "font-semibold text-emerald-700";
-      // Pin provisional arrastrable: OSM casi nunca tiene el edificio exacto,
-      // así que el ajuste fino siempre queda en manos de quien reporta.
-      showDraft(next.lat, next.lng, (lat, lng) => {
-        coords = { lat, lng };
-        locationStatus.textContent = `fijada — ${lat.toFixed(5)}, ${lng.toFixed(5)}`;
-      });
-    } else {
-      locationStatus.textContent = "sin fijar";
-      locationStatus.className = "font-semibold text-slate-800";
-      hideDraft();
-    }
-  }
-
-  function showNote(message: string) {
-    geoNote.textContent = message;
-    geoNote.classList.remove("hidden");
-  }
-
-  function clearNote() {
-    geoNote.textContent = "";
-    geoNote.classList.add("hidden");
-  }
 
   /* ---------------------------------------------------------------- */
   /* Chips de recursos                                                 */
@@ -160,181 +106,6 @@ export function initReportForm(): void {
   });
 
   /* ---------------------------------------------------------------- */
-  /* Geocodificación                                                   */
-  /* ---------------------------------------------------------------- */
-
-  function hideSuggestions() {
-    suggestions.replaceChildren();
-    suggestions.classList.add("hidden");
-  }
-
-  function renderSuggestions(results: GeocodeResult[]) {
-    suggestions.replaceChildren();
-    for (const result of results) {
-      const item = document.createElement("li");
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "block w-full px-3 py-2 text-left transition hover:bg-red-50";
-
-      const title = document.createElement("span");
-      title.className = "block text-xs font-medium text-slate-800";
-      title.textContent = result.label;
-      button.append(title);
-
-      if (result.detail) {
-        const detail = document.createElement("span");
-        detail.className = "block text-[11px] text-slate-500";
-        detail.textContent = result.detail;
-        button.append(detail);
-      }
-
-      const badge = BADGES[result.precision];
-      if (badge) {
-        const element = document.createElement("span");
-        element.className = "mt-0.5 inline-block text-[11px] text-amber-600";
-        element.textContent = badge;
-        button.append(element);
-      }
-
-      button.addEventListener("click", () => {
-        const source = {
-          exacta: "dirección encontrada",
-          calculada: "calculada desde la esquina",
-          aproximada: "vía aproximada",
-        }[result.precision];
-
-        setCoords({ lat: result.lat, lng: result.lng }, source);
-        if (!nameInput.value.trim()) nameInput.value = result.label;
-        hideSuggestions();
-
-        if (result.precision === "exacta") {
-          clearNote();
-        } else if (result.precision === "calculada") {
-          // El punto ya está sobre la manzana correcta: basta con poder
-          // arrastrarlo, no hace falta obligar a marcarlo desde cero.
-          showNote(CALCULATED_NOTE);
-        } else {
-          showNote(APPROX_NOTE);
-          beginPicking();
-        }
-
-        const zoom = { exacta: 18, calculada: 18, aproximada: 16 }[result.precision];
-        void flyTo(result.lat, result.lng, zoom);
-      });
-      item.append(button);
-      suggestions.append(item);
-    }
-    suggestions.classList.toggle("hidden", results.length === 0);
-  }
-
-  /**
-   * OpenStreetMap no tiene la mayoría de los edificios residenciales de Cali
-   * (sí los tiene Google Maps, que es propietario). Buscar no es la vía
-   * principal para ubicar: lo es el clic en el mapa.
-   */
-  function renderNoResults(query: string) {
-    suggestions.replaceChildren();
-
-    const item = document.createElement("li");
-    item.className = "p-3";
-
-    const text = document.createElement("p");
-    text.className = "text-xs text-slate-600";
-    text.textContent = `«${query}» no está en OpenStreetMap. Ubícalo a mano: haz clic en el mapa sobre el edificio.`;
-
-    const action = document.createElement("button");
-    action.type = "button";
-    action.className =
-      "mt-2 w-full rounded-md bg-slate-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-600";
-    action.textContent = "Ubicar en el mapa";
-    action.addEventListener("click", () => {
-      hideSuggestions();
-      beginPicking();
-    });
-
-    item.append(text, action);
-    suggestions.append(item);
-    suggestions.classList.remove("hidden");
-  }
-
-  const runGeocode = debounce(async (query: string) => {
-    geocodeAbort?.abort();
-    geocodeAbort = new AbortController();
-    const signal = geocodeAbort.signal;
-    try {
-      const results = await geocode(query, signal);
-      if (signal.aborted) return;
-      if (results.length === 0) {
-        renderNoResults(query);
-        clearNote();
-        beginPicking();
-      } else {
-        renderSuggestions(results);
-        clearNote();
-      }
-    } catch (error) {
-      if ((error as Error).name === "AbortError" || signal.aborted) return;
-      renderNoResults(query);
-      beginPicking();
-    }
-  }, 600);
-
-  nameInput.addEventListener("input", () => {
-    clearError(nameError);
-    const query = nameInput.value.trim();
-    if (query.length < 3) {
-      hideSuggestions();
-      return;
-    }
-    runGeocode(query);
-  });
-
-  document.addEventListener("click", (event) => {
-    if (!suggestions.contains(event.target as Node) && event.target !== nameInput) {
-      hideSuggestions();
-    }
-  });
-
-  /* ---------------------------------------------------------------- */
-  /* Señalar en el mapa                                                */
-  /* ---------------------------------------------------------------- */
-
-  function beginPicking() {
-    if (isPicking()) return;
-    pickButton.textContent = "Haz clic en el mapa…";
-    pickButton.className =
-      "shrink-0 rounded-md border border-red-500 bg-red-500 px-2.5 py-1.5 text-xs font-medium text-white";
-    showNote(
-      "Haz clic en el mapa sobre el edificio. Luego puedes arrastrar el punto para afinarlo.",
-    );
-    startPicking((latlng: LatLng) => {
-      setCoords({ lat: latlng.lat, lng: latlng.lng });
-      resetPickButton();
-      showNote("Punto fijado. Arrástralo si necesitas moverlo.");
-      openSheet();
-    });
-    // En móvil el sheet tapa el mapa: hay que cerrarlo para poder señalar.
-    closeSheet();
-  }
-
-  function resetPickButton() {
-    pickButton.textContent = "Ubicar en el mapa";
-    pickButton.className =
-      "shrink-0 rounded-md border border-slate-300 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-700 transition hover:border-red-400 hover:text-red-600";
-  }
-
-  pickButton.addEventListener("click", () => {
-    if (isPicking()) {
-      stopPicking();
-      resetPickButton();
-      clearNote();
-      return;
-    }
-    hideSuggestions();
-    beginPicking();
-  });
-
-  /* ---------------------------------------------------------------- */
   /* Envío                                                             */
   /* ---------------------------------------------------------------- */
 
@@ -342,12 +113,12 @@ export function initReportForm(): void {
     event.preventDefault();
     let valid = true;
 
-    const name = nameInput.value.trim();
+    const name = location.getName();
     if (!name) {
-      showError(nameError, "Escribe el nombre o la dirección del edificio.");
+      location.showNameError("Escribe el nombre o la dirección del edificio.");
       valid = false;
     } else {
-      clearError(nameError);
+      location.clearNameError();
     }
 
     if (resources.size === 0) {
@@ -375,11 +146,8 @@ export function initReportForm(): void {
       clearError(contactError);
     }
 
-    if (!coords) {
-      showNote("Falta la ubicación — usa «Ubicar en el mapa» o elige una sugerencia.");
-      beginPicking();
-      valid = false;
-    }
+    const coords = location.requireCoords();
+    if (!coords) valid = false;
 
     if (!valid || !coords) return;
 
@@ -395,15 +163,10 @@ export function initReportForm(): void {
       contactPhone: person && phone ? phone : null,
     });
 
-    hideSuggestions();
-    clearNote();
-    stopPicking();
-    resetPickButton();
-
     form.reset();
     resources.clear();
     renderSelectedResources();
-    setCoords(null);
+    location.reset();
     clearError(contactError);
 
     // Cerrar el sheet y el panel: lo que queda a la vista es el marcador
@@ -436,7 +199,13 @@ export function initReportForm(): void {
     wasVisible = visible;
   });
 
+  // El pin y el modo de señalar son únicos en el mapa: solo puede tenerlos la
+  // pestaña que se está viendo.
+  onReportTabChange((tab) => {
+    if (tab === "necesidad") location.resume();
+    else location.suspend();
+  });
+
   collapseCategories();
   renderSelectedResources();
-  setCoords(null);
 }

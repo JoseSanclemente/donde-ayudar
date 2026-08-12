@@ -1,12 +1,14 @@
 /**
- * Curated points — collection centers, blood banks and shelters. Not editable
- * from the interface.
+ * Donation points — collection centers, blood banks and shelters. Never
+ * editable from the interface, whoever published them.
  *
  * This module is only the shape of one: the types and the narrowing everyone
- * shares. They live in the `centros` table, which only a maintainer with
- * `service_role` can write; reading them is `data/centros.ts`, and drawing them
- * is `map.ts`.
+ * shares. They live in the `centros` table, where a curated point is written by
+ * a maintainer with `service_role` and a community one is registered from the
+ * form; reading them is `data/centros.ts`, and drawing them is `map.ts`.
  */
+export type Origen = "curado" | "comunidad";
+
 type Base = {
   id: string;
   name: string;
@@ -16,24 +18,40 @@ type Base = {
   horario: string;
   telefono?: string;
   notas?: string;
-};
-
-/** Lo que comparten los puntos que reciben insumos: `acopio` y `albergue`. */
-type Recibidor = {
-  /** Ids de categoría de `resources.ts`. */
-  recibe: string[];
   /**
-   * `false` = still open, not taking supplies right now. No `?`: the column is
+   * Who published it. It is not a fourth kind of point — the map keeps the same
+   * shape and only lightens the colour — but the popup does say it, on both
+   * origins: «creado por la comunidad» means nothing if the alternative goes
+   * unlabelled.
+   */
+  origen: Origen;
+  /**
+   * Author of a community point, so they can delete their own. A curated one
+   * has none: the table editor publishes it, not a session.
+   */
+  userId: string | null;
+  /**
+   * `false` = still open, not taking donations right now. No `?`: the column is
    * `not null default true`, so the store always has a value to hand over.
+   *
+   * It sits on every type, not only the ones that take supplies: a blood bank
+   * that already met its demand stops taking donors the same way, and hiding it
+   * from the map would send people who saw it yesterday to a closed door.
    */
   recibiendo: boolean;
   /** Por qué no recibe. Solo se muestra con `recibiendo: false`. */
   nota_estado?: string;
 };
 
+/** Lo que comparten los puntos que reciben insumos: `acopio` y `albergue`. */
+type Recibidor = {
+  /** Ids de categoría de `resources.ts`. */
+  recibe: string[];
+};
+
 export type CentroAcopio = Base & Recibidor & { tipo: "acopio" };
 
-/** Punto permanente de donación de sangre: no recibe insumos, no lleva `recibe`. */
+/** Punto de donación de sangre: no recibe insumos, no lleva `recibe`. */
 export type BancoSangre = Base & { tipo: "sangre" };
 
 /** Albergue: recibe personas, y también insumos — lleva `recibe` como un acopio. */
@@ -48,5 +66,10 @@ export type Centro = CentroAcopio | BancoSangre | Albergue;
  */
 export function recibeInsumos(centro: Centro): centro is CentroAcopio | Albergue {
   return centro.tipo !== "sangre";
+}
+
+/** Lo registró alguien desde el formulario, no un maintainer. */
+export function esComunitario(centro: Centro): boolean {
+  return centro.origen === "comunidad";
 }
 

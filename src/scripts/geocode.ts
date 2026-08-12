@@ -1,6 +1,6 @@
 /**
- * Resuelve una dirección de Cali a un punto, en cuatro niveles: gana el
- * primero que responda.
+ * Resuelve una dirección a un punto, en cuatro niveles: gana el primero que
+ * responda.
  *
  *   1. índice local de direcciones — el edificio está mapeado en OSM (raro:
  *      son 1.086 en toda la ciudad, ~0,1%)
@@ -8,7 +8,11 @@
  *   3. Nominatim — para lo que se busca por nombre ("Hospital Universitario")
  *   4. clic en el mapa — lo resuelve la persona, en `app.ts`
  *
- * Los niveles 1 y 2 no tocan la red: leen los índices de `public/geo/`.
+ * Los niveles 1 y 2 no tocan la red: leen los índices de `public/geo/`. Y son
+ * de Cali nada más — el índice y la malla vial se construyen con los datos de
+ * la ciudad. Fuera de Cali la cascada arranca directo en Nominatim, y si eso
+ * tampoco encuentra la placa queda el clic en el mapa, que de todos modos es la
+ * vía recomendada.
  */
 import { parseAddress, type CaliAddress } from "./address";
 import {
@@ -86,7 +90,10 @@ async function fromIndexes(address: CaliAddress): Promise<GeocodeResult[]> {
 
 const ENDPOINT = "https://nominatim.openstreetmap.org/search";
 
-// Cali bounding box (left, top, right, bottom)
+// Cali bounding box (left, top, right, bottom). Va sin `bounded`, así que es una
+// preferencia y no un recorte: Nominatim pone primero lo que cae adentro y sigue
+// devolviendo el resto. Con `bounded=1` una dirección de Buga no aparecía, y la
+// ayuda ya se está coordinando con otros municipios.
 const VIEWBOX = "-76.62,3.52,-76.44,3.32";
 
 // Nominatim usage policy: at most 1 request per second.
@@ -143,7 +150,6 @@ async function query(q: string, signal?: AbortSignal): Promise<NominatimItem[]> 
   url.searchParams.set("limit", "8");
   url.searchParams.set("countrycodes", "co");
   url.searchParams.set("viewbox", VIEWBOX);
-  url.searchParams.set("bounded", "1");
 
   const response = await fetch(url, {
     signal,

@@ -1,5 +1,5 @@
 import type { Report } from "./data/reports";
-import type { ReportStatus } from "./status";
+import { isRetired, type ReportStatus } from "./status";
 import { newestIso } from "./ui/time";
 
 export type GroupResource = {
@@ -52,11 +52,19 @@ export function distanceMeters(a: Coords, b: Coords): number {
  * Agrupa por proximidad, recorriendo en el orden que llega del store
  * (más reciente primero). El primer reporte de cada grupo queda como `lead`,
  * así que un reporte recién creado siempre encabeza su grupo.
+ *
+ * Retired reports (see `isRetired`) never make it into a group. This is the one
+ * door every consumer of the store walks through — list, map, alert banner,
+ * offers panel — so filtering here retires the point from the whole UI at once.
+ * A group left with no reports simply stops existing, and `syncReportMarkers`
+ * drops its marker.
  */
 export function groupReports(reports: Report[], radiusM = CLUSTER_RADIUS_M): ReportGroup[] {
   const groups: ReportGroup[] = [];
 
   for (const report of reports) {
+    if (isRetired(report.status, report.statusAt)) continue;
+
     const group = groups.find((g) => distanceMeters(g.lead, report) <= radiusM);
     if (group) group.reports.push(report);
     else

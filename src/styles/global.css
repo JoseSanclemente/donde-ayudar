@@ -222,6 +222,14 @@ body {
    estado; la forma sigue diciendo de qué se trata: cuadrado = acopio, círculo =
    reporte. Por eso un acopio en pausa y un reporte saturado no se confunden. El
    punto no se borra del mapa: quien ya lo vio necesita saber por qué no ir. */
+/* Registrado por la comunidad: el mismo cuadrado, un indigo más claro. Quién lo
+   publicó no cambia qué es el punto, así que no cambia la forma; el popup es el
+   que lo dice con todas sus letras. Va antes de la pausa a propósito: gris con
+   barras tiene que ganarle al color del origen. */
+.centro-marker .centro-pin[data-comunidad] {
+  background: #818cf8;
+}
+
 .centro-marker .centro-pin[data-pausa] {
   position: relative;
   background: #64748b;
@@ -281,6 +289,14 @@ body {
   width: 2px;
   height: 8px;
   margin: -4px 0 0 -1px;
+}
+
+/* Banco de sangre en pausa: el mismo círculo con cruz, en gris. Las barras de
+   pausa del acopio dirían "detenido" pero borrarían la cruz, que es lo único
+   que dice de qué punto se trata — y en el mapa se ve el pin antes que el
+   popup. El gris ya carga el estado; la cruz se queda diciendo qué es. */
+.sangre-marker .sangre-pin[data-pausa] {
+  background: #64748b;
 }
 
 /* ---- Albergue: casita ámbar ----

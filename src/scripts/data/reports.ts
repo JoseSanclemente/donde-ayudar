@@ -3,7 +3,7 @@ import { createEmitter } from "./emitter";
 import { errorMessage, reportError } from "./errors";
 import { bindTable, type RealtimePayload } from "./live";
 import { getUserId } from "./session";
-import { isStatus, type ReportStatus } from "../status";
+import { isRetired, isStatus, type ReportStatus } from "../status";
 
 export type Report = {
   id: string;
@@ -68,6 +68,27 @@ const states = createEmitter<{ state: StoreState; message: string | null }>();
 
 function emit(): void {
   changes.emit(cache);
+}
+
+function retiredCount(): number {
+  return cache.filter((report) => isRetired(report.status, report.statusAt)).length;
+}
+
+/**
+ * A point retires by the clock, and a clock crossing the hour emits nothing on
+ * its own: with the tab open, a report closed a minute ago would stay drawn
+ * until the next write from anybody. One timer for the whole store, and `emit()`
+ * fans out to every subscriber through the paths they already use. The count
+ * guard keeps quiet minutes free of renders.
+ */
+export function startRetireSweep(): void {
+  let retired = retiredCount();
+  setInterval(() => {
+    const now = retiredCount();
+    if (now === retired) return;
+    retired = now;
+    emit();
+  }, 60_000);
 }
 
 /** La expone el arranque (`data/boot.ts`) para marcar carga, listo o error. */

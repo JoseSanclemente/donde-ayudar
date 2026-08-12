@@ -24,6 +24,7 @@ import { isBlocked, statusInfo, STATUSES, type ReportStatus } from "../status";
 import { chipLabel, chipStyle } from "../ui/chips";
 import { telUrl, whatsappUrl } from "../ui/contact";
 import { $, scheduleRender } from "../ui/dom";
+import { confirmClose } from "../ui/status-select";
 import { isStale, newestIso, paintTime } from "../ui/time";
 
 const reduceMotion = window.matchMedia(
@@ -68,8 +69,7 @@ function groupLastUpdate(
 
 export function initReportList(): void {
   const reportList = $<HTMLUListElement>("report-list");
-  const reportCount = $<HTMLSpanElement>("report-count");
-  const reportSummary = $<HTMLParagraphElement>("report-summary");
+  const reportUrgent = $<HTMLSpanElement>("report-urgent");
   const filterRow = $<HTMLDivElement>("report-filter");
   const emptyState = $<HTMLParagraphElement>("empty-state");
 
@@ -124,14 +124,7 @@ export function initReportList(): void {
 
     select.addEventListener("change", () => {
       const next = select.value as ReportStatus;
-      // Cerrar un punto le corta la ayuda a todo el mundo, y cualquiera puede
-      // hacerlo: al menos que no sea por un toque accidental en la lista.
-      if (
-        next === "cerrado" &&
-        !confirm(
-          `¿Marcar «${group.lead.name}» como cerrado? Le va a aparecer a todo el mundo como «no te desplaces».`,
-        )
-      ) {
+      if (next === "cerrado" && !confirmClose(group.lead.name)) {
         select.value = group.status;
         return;
       }
@@ -157,7 +150,7 @@ export function initReportList(): void {
     box.className = "mt-2 space-y-1";
     for (const note of notes) {
       const line = document.createElement("p");
-      line.className = "text-xs leading-snug text-slate-600";
+      line.className = "text-sm leading-snug text-slate-600";
       line.textContent = `“${note}”`;
       box.append(line);
     }
@@ -208,11 +201,16 @@ export function initReportList(): void {
     item.dataset.groupKey = group.key;
     item.dataset.leadId = group.lead.id;
     const resolved = group.pending === 0;
+    // Un punto cerrado se apaga: sigue en la lista —quien lo vio ayer merece
+    // saber que ya no recibe— pero deja de competir por la atención con los que
+    // sí necesitan gente. Solo «cerrado»: un saturado vuelve a recibir en un
+    // rato, un cerrado no.
+    const dim = group.status === "cerrado" ? " opacity-60" : "";
     // Un punto cubierto se pinta verde pase lo que pase — que ya no falta nada
     // pesa más que cómo esté el sitio. Si falta algo, el color lo pone el estado.
     item.className = resolved
-      ? "rounded-xl flex flex-col gap-3 border border-emerald-200 bg-emerald-50/40 px-3 py-4"
-      : `rounded-xl flex flex-col gap-3 border px-3 py-4 ${statusInfo(group.status).card}`;
+      ? `rounded-xl flex flex-col gap-3 border border-emerald-200 bg-emerald-50/40 px-3 py-4${dim}`
+      : `rounded-xl flex flex-col gap-3 border px-3 py-4 ${statusInfo(group.status).card}${dim}`;
 
     const head = document.createElement("div");
     head.className = "flex items-start justify-between gap-2";
@@ -422,21 +420,12 @@ export function initReportList(): void {
     const shown = groups.filter(matchesFilter);
     reportList.replaceChildren(...shown.map(buildGroupItem));
 
-    reportCount.textContent = String(reports.length);
-
-    // El contador de arriba cuenta reportes; este cuenta puntos, que es lo que
-    // se ve en la lista y en el mapa. Sin la aclaración los dos números se
-    // contradicen.
+    // Lo único que se resume arriba son los urgentes. El resto de cifras se
+    // contradecían entre sí —una contaba reportes y otra puntos— y «saturados»
+    // metía en el mismo saco a los cerrados, que no es lo mismo.
     const urgentes = groups.filter((g) => g.status === "urgente").length;
-    const bloqueados = groups.filter((g) => isBlocked(g.status)).length;
-    const partes = [
-      `${groups.length} ${groups.length === 1 ? "punto" : "puntos"}`,
-      urgentes > 0 ? `${urgentes} urgente${urgentes === 1 ? "" : "s"}` : null,
-      bloqueados > 0
-        ? `${bloqueados} saturado${bloqueados === 1 ? "" : "s"}`
-        : null,
-    ].filter(Boolean);
-    reportSummary.textContent = groups.length > 0 ? partes.join(" · ") : "";
+    reportUrgent.textContent = `${urgentes} urgente${urgentes === 1 ? "" : "s"}`;
+    reportUrgent.classList.toggle("hidden", urgentes === 0);
 
     paintEmptyState(shown.length, groups.length);
     // Sobre todos los grupos, no sobre `shown`: el filtro de la lista nunca ha

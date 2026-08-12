@@ -2,7 +2,7 @@ import { MISSING_ENV_MESSAGE, supabase } from "../supabase";
 import { loadCentros } from "./centros";
 import { onReconnect, startLive } from "./live";
 import { loadOffers } from "./offers";
-import { loadReports, setReportsState } from "./reports";
+import { loadReports, setReportsState, startRetireSweep } from "./reports";
 import { initSession } from "./session";
 import { initSync, markSynced, resyncAll } from "./sync";
 import { loadUpdates } from "./updates";
@@ -27,6 +27,7 @@ export async function initData(): Promise<void> {
     onReconnect(() => void resyncAll({ force: true }));
     startLive();
     initSync();
+    startRetireSweep();
     setReportsState("ready");
   } catch {
     setReportsState("error", "No se pudieron cargar los reportes. Revisa la conexión.");

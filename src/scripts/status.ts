@@ -8,6 +8,8 @@
  * compilar.
  */
 
+import { hoursSince } from "./ui/time";
+
 export type ReportStatus = "activo" | "urgente" | "saturado" | "cerrado";
 
 export type StatusInfo = {
@@ -101,6 +103,20 @@ export function markerEstado(
   if (allCovered) return "cubierto";
   if (status === "urgente") return "urgente";
   return "activo";
+}
+
+/**
+ * How long a closed point stays visible after it was closed.
+ *
+ * Closing means the place needs nobody else, but somebody may already be on
+ * their way: an hour is enough for them to reach the marker and read why it
+ * went quiet. After that the pin is only noise competing with the live ones.
+ */
+export const RETIRE_HOURS = 1;
+
+/** A closed point past `RETIRE_HOURS` — off the map and off the list. */
+export function isRetired(status: ReportStatus, statusAt: string): boolean {
+  return status === "cerrado" && hoursSince(statusAt) >= RETIRE_HOURS;
 }
 
 /** Filtros de la lista. `null` = todos. */

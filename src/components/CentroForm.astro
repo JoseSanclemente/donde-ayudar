@@ -1,0 +1,144 @@
+---
+import { CATEGORIES, CHIP_OFF } from "../scripts/resources";
+import LocationField from "./LocationField.astro";
+---
+
+<form id="centro-form" novalidate class="space-y-5">
+  <p class="text-sm text-slate-500">
+    Un sitio que está recibiendo donaciones: una bodega, un parqueadero, un colegio.
+  </p>
+
+  <div>
+    <label for="centro-nombre" class="block text-sm font-medium text-slate-700">
+      Nombre del punto
+    </label>
+    <input
+      id="centro-nombre"
+      type="text"
+      autocomplete="off"
+      maxlength="120"
+      placeholder="Ej. Coliseo del Pueblo"
+      class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm outline-none focus:border-slate-400"
+    />
+    <p id="centro-nombre-error" class="mt-1 hidden text-xs font-medium text-red-600"></p>
+  </div>
+
+  <div>
+    <LocationField
+      prefix="centro"
+      label="Dirección"
+      placeholder="Ej. Cll 9 # 34 - 01, Cali"
+    />
+  </div>
+
+  <div>
+    <label for="centro-horario" class="block text-sm font-medium text-slate-700">
+      Horario <span class="font-normal text-slate-400">(opcional)</span>
+    </label>
+    <input
+      id="centro-horario"
+      type="text"
+      autocomplete="off"
+      maxlength="120"
+      placeholder="Ej. Lun a sáb, 8:00 a. m. – 6:00 p. m."
+      class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm outline-none focus:border-slate-400"
+    />
+  </div>
+
+  <!-- Categorías, no ítems sueltos: la tabla guarda ids de categoría y el popup
+       del punto ya despliega debajo el detalle de cada una. -->
+  <div>
+    <span class="block text-sm font-medium text-slate-700">¿Qué está recibiendo?</span>
+    <div id="centro-recibe" class="mt-2 flex flex-wrap gap-2">
+      {
+        CATEGORIES.map((category) => (
+          <button
+            type="button"
+            data-recibe={category.id}
+            aria-pressed="false"
+            class={CHIP_OFF}
+          >
+            {category.label}
+          </button>
+        ))
+      }
+    </div>
+    <p id="centro-recibe-error" class="mt-1 hidden text-xs font-medium text-red-600"></p>
+  </div>
+
+  <div>
+    <label for="centro-telefono" class="block text-sm font-medium text-slate-700">
+      Teléfono <span class="font-normal text-slate-400">(opcional)</span>
+    </label>
+    <input
+      id="centro-telefono"
+      type="tel"
+      maxlength="20"
+      autocomplete="off"
+      placeholder="Teléfono"
+      class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm outline-none focus:border-slate-400"
+    />
+    <p id="centro-telefono-error" class="mt-1 hidden text-xs font-medium text-red-600"></p>
+
+    <!-- Mismo aviso azul que en los otros dos formularios: publicar un teléfono
+         es la misma decisión en todos. -->
+    <div
+      class="mt-2 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs font-medium text-blue-700"
+    >
+      <svg
+        viewBox="0 0 20 20"
+        aria-hidden="true"
+        class="mt-0.5 h-4 w-4 shrink-0"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.6"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <circle cx="10" cy="10" r="7.5"></circle>
+        <path d="M10 9.2v4.3"></path>
+        <path d="M10 6.6v.1"></path>
+      </svg>
+      <p>Se muestra públicamente en el mapa.</p>
+    </div>
+  </div>
+
+  <div>
+    <label for="centro-notas" class="block text-sm font-medium text-slate-700">
+      Nota <span class="font-normal text-slate-400">(opcional)</span>
+    </label>
+    <textarea
+      id="centro-notas"
+      rows="2"
+      maxlength="300"
+      placeholder="Ej: entrada por la portería norte; no reciben ropa usada."
+      class="mt-1.5 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm outline-none focus:border-slate-400"
+    ></textarea>
+  </div>
+
+  <div
+    class="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800"
+  >
+    <p>
+      El punto aparece en el mapa de inmediato, marcado como <span class="font-semibold"
+        >«Creado por la comunidad»</span
+      >. Regístralo solo si sabes que está recibiendo.
+    </p>
+  </div>
+
+  <button
+    type="submit"
+    class="w-full rounded-lg bg-red-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300"
+  >
+    Registrar punto
+  </button>
+</form>
+
+<style>
+  /* Sin texto no hay error que mostrar; el margen de uno invisible se ve igual. */
+  #centro-nombre-error:empty,
+  #centro-recibe-error:empty,
+  #centro-telefono-error:empty {
+    display: none;
+  }
+</style>

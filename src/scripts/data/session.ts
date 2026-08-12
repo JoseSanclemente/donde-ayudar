@@ -7,8 +7,14 @@ export function getUserId(): string | null {
   return userId;
 }
 
-/** Espejo de la policy de RLS: solo el autor puede borrar lo suyo. */
-export function isMine(row: { userId: string }): boolean {
+/**
+ * Espejo de la policy de RLS: solo el autor puede borrar lo suyo.
+ *
+ * El autor admite `null` por los puntos curados, que no lo tienen: los publica
+ * el editor de tablas y no una sesión, así que no son de nadie y la respuesta
+ * es que no.
+ */
+export function isMine(row: { userId: string | null }): boolean {
   return userId !== null && row.userId === userId;
 }
 
