@@ -10,11 +10,19 @@
  *
  * Los niveles 1 y 2 no tocan la red: leen los índices de `public/geo/`. Y son
  * de Cali nada más — el índice y la malla vial se construyen con los datos de
- * la ciudad. Fuera de Cali la cascada arranca directo en Nominatim, y si eso
- * tampoco encuentra la placa queda el clic en el mapa, que de todos modos es la
- * vía recomendada.
+ * la ciudad. Por eso, cuando la dirección nombra otro municipio
+ * (`namesAnotherCity`), la cascada se los salta: la nomenclatura de Yumbo
+ * parsea igual de bien que la de Cali y resolverla contra la malla de Cali no
+ * falla, devuelve un punto de Cali.
+ *
+ * El nivel 3 se pregunta dos veces, una sesgada a Cali y otra al país entero.
+ * Gana la primera que responda algo, y el orden lo decide esa misma cola de la
+ * dirección. Se pregunta dos veces porque un lugar escrito por nombre —"Lomitas,
+ * La Cumbre"— no deja cola que leer, y con "Cali" pegado detrás Nominatim
+ * devuelve cero: el cero es la señal. Si ninguna de las dos encuentra la placa
+ * queda el clic en el mapa, que de todos modos es la vía recomendada.
  */
-import { parseAddress, type CaliAddress } from "./address";
+import { namesAnotherCity, parseAddress, type CaliAddress } from "./address";
 import {
   addressKey,
   loadAddresses,
@@ -95,6 +103,10 @@ const REVERSE_ENDPOINT = "https://nominatim.openstreetmap.org/reverse";
 // preferencia y no un recorte: Nominatim pone primero lo que cae adentro y sigue
 // devolviendo el resto. Con `bounded=1` una dirección de Buga no aparecía, y la
 // ayuda ya se está coordinando con otros municipios.
+//
+// Y cuando quien escribe ya nombró el municipio, la preferencia se retira del
+// todo: pedir Palmira y que Cali siga pesando en el orden es empujar la
+// respuesta hacia donde nadie la pidió.
 const VIEWBOX = "-76.62,3.52,-76.44,3.32";
 
 // Nominatim usage policy: at most 1 request per second. El freno es uno solo
@@ -127,10 +139,16 @@ function shortLabel(item: NominatimItem): { label: string; detail: string } {
     address.road ||
     (item.display_name ?? "").split(",")[0];
 
+  // El municipio va en la lista salvo que sea Cali: una sugerencia de Palmira y
+  // una de Cali se leen idénticas, y es la única señal que tiene quien elige de
+  // dónde va a caer el punto.
+  const municipio = address.city || address.town || address.municipality;
+
   const context = [
     address.neighbourhood,
     address.suburb,
     address.city_district,
+    municipio && !/^(santiago de )?cali$/i.test(municipio) ? municipio : undefined,
     address.postcode,
   ].filter(Boolean) as string[];
 
@@ -147,7 +165,10 @@ async function throttle(): Promise<void> {
   lastRequestAt = Date.now();
 }
 
-async function query(q: string, signal?: AbortSignal): Promise<NominatimItem[]> {
+async function query(
+  q: string,
+  { preferCali, signal }: { preferCali: boolean; signal?: AbortSignal },
+): Promise<NominatimItem[]> {
   await throttle();
   if (signal?.aborted) return [];
 
@@ -156,8 +177,10 @@ async function query(q: string, signal?: AbortSignal): Promise<NominatimItem[]> 
   url.searchParams.set("format", "jsonv2");
   url.searchParams.set("addressdetails", "1");
   url.searchParams.set("limit", "8");
+  // El país sí se queda en los dos caminos: la ayuda se coordina por Colombia,
+  // no por el mundo.
   url.searchParams.set("countrycodes", "co");
-  url.searchParams.set("viewbox", VIEWBOX);
+  if (preferCali) url.searchParams.set("viewbox", VIEWBOX);
 
   const response = await fetch(url, {
     signal,
@@ -257,7 +280,9 @@ export async function geocode(
   if (input.trim().length < 3) return [];
 
   const address = parseAddress(input);
-  if (address) {
+  const otraCiudad = address ? namesAnotherCity(address) : false;
+
+  if (address && !otraCiudad) {
     try {
       const results = await fromIndexes(address);
       if (results.length > 0 || signal?.aborted) return results;
@@ -267,7 +292,23 @@ export async function geocode(
     }
   }
 
-  return toResults(await query(`${input}, Cali, Valle del Cauca, Colombia`, signal));
+  // Los dos intentos existen siempre; la cola de la dirección solo decide cuál
+  // va primero. Preguntar por "Lomitas, La Cumbre" con "Cali" pegado detrás
+  // devuelve cero —no un resultado malo, cero—, y esa es la señal que dispara
+  // el otro. Equivocarse en el orden cuesta una vuelta de red; no cuesta un
+  // punto en la ciudad equivocada, que es lo que costaba adivinar.
+  const cali = { q: `${input}, Cali, Valle del Cauca, Colombia`, preferCali: true };
+  const pais = { q: `${input}, Colombia`, preferCali: false };
+
+  for (const { q, preferCali } of otraCiudad ? [pais, cali] : [cali, pais]) {
+    // La segunda vuelta arranca un segundo más tarde por el freno de Nominatim,
+    // y en ese segundo quien escribe pudo haber seguido escribiendo.
+    if (signal?.aborted) return [];
+    const results = toResults(await query(q, { preferCali, signal }));
+    if (results.length > 0) return results;
+  }
+
+  return [];
 }
 
 export function debounce<A extends unknown[]>(

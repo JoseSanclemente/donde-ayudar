@@ -21,6 +21,11 @@ export type CaliAddress = {
   placa: number | null;
   /** Forma canónica para mostrar: "Calle 8B # 45-17". */
   label: string;
+  /**
+   * Lo que quedó sin leer después de la vía y la placa, ya normalizado. Casi
+   * siempre vacío; cuando trae algo suele ser el municipio ("…, Yumbo").
+   */
+  rest: string;
 };
 
 /**
@@ -180,7 +185,8 @@ const CORNER_PATTERN = new RegExp(
   `#\\s*(?:(?:${VIA_TYPES.join("|")})\\s*)?(\\d+)\\s*${LETTER}\\s*(bis)?\\s*${CARDINAL}`,
 );
 
-type Placa = { token: Token; metres: number };
+/** `end` es dónde termina la placa dentro del tramo, para poder cortar la cola. */
+type Placa = { token: Token; metres: number; end: number };
 
 function parsePlaca(rest: string): Placa | null {
   const full = PLACA_PATTERN.exec(rest);
@@ -189,6 +195,7 @@ function parsePlaca(rest: string): Placa | null {
     return {
       token: { number, letter: letter ?? "", bis: Boolean(bis), cardinal: cardinal ? CARDINALS[cardinal] : "" },
       metres: Number(metres),
+      end: full.index + full[0].length,
     };
   }
 
@@ -198,6 +205,7 @@ function parsePlaca(rest: string): Placa | null {
     return {
       token: { number, letter: letter ?? "", bis: false, cardinal: "" },
       metres: Number(metres),
+      end: bare.index + bare[0].length,
     };
   }
 
@@ -207,10 +215,52 @@ function parsePlaca(rest: string): Placa | null {
     return {
       token: { number, letter: letter ?? "", bis: Boolean(bis), cardinal: cardinal ? CARDINALS[cardinal] : "" },
       metres: 0,
+      end: corner.index + corner[0].length,
     };
   }
 
   return null;
+}
+
+/**
+ * Palabras que sobran sin nombrar un lugar: la forma larga de escribir una
+ * esquina —"Calle 5 con Carrera 100"— no lleva placa, así que el cruce entero
+ * cae en `rest` y hay que descontarlo antes de mirar si quedó un municipio.
+ */
+const CONNECTORS = /\b(con|esquina|esq|cruce|entre|y|sector|via|vía|frente|al?)\b/g;
+
+/**
+ * Una palabra de tres letras o más entre lo que sobró. El umbral es lo que
+ * separa un municipio de la basura que deja el recorte del ruido: "2do piso"
+ * pierde el "piso" con `NOISE` y deja un "2do" que no nombra a nadie.
+ */
+const CITY_WORD = /[a-záéíóúñü]{3,}/;
+
+/** Queda algo que nombre un lugar, descontadas las vías y los conectores. */
+function hasCityWord(leftovers: string): boolean {
+  const words = leftovers
+    .replace(new RegExp(`\\b(${VIA_TYPES.join("|")})\\b`, "g"), " ")
+    .replace(CONNECTORS, " ");
+  return CITY_WORD.test(words);
+}
+
+/**
+ * Si la dirección nombra un municipio que los índices locales no pueden servir.
+ * `NOISE` ya se comió "cali", "valle del cauca", "colombia" y los complementos
+ * ("barrio", "apto", "torre"), así que lo que sobra tras leer la nomenclatura
+ * es, en la práctica, otro municipio.
+ *
+ * No es una conjetura sobre comas: es lo que el parser no logró consumir de una
+ * dirección bien formada, y por eso "Calle 15 # 31-20 Yumbo" cuenta igual que
+ * "Calle 15 # 31-20, Yumbo".
+ *
+ * Hace falta porque los índices son de Cali y solo de Cali, y resolver la
+ * placa de Yumbo contra ellos no falla: devuelve un punto de Cali, con cara de
+ * exacto. Un lugar escrito por nombre —"Lomitas, La Cumbre"— no pasa por acá:
+ * ese no toca los índices y lo resuelve el segundo intento en `geocode()`.
+ */
+export function namesAnotherCity(address: CaliAddress): boolean {
+  return hasCityWord(address.rest);
 }
 
 export function parseAddress(input: string): CaliAddress | null {
@@ -224,18 +274,26 @@ export function parseAddress(input: string): CaliAddress | null {
   const viaCandidates = candidates([titleCase(type)], viaToken, "");
   const viaName = viaCandidates[0];
 
-  const placa = parsePlaca(value.slice(matched.length));
+  const tail = value.slice(matched.length);
+  const placa = parsePlaca(tail);
   if (!placa) {
-    return { via: viaCandidates, cross: [], placa: null, label: viaName };
+    return {
+      via: viaCandidates,
+      cross: [],
+      placa: null,
+      label: viaName,
+      rest: tail.replace(/^[\s,-]+/, "").trim(),
+    };
   }
 
   const crossTypes = CROSS_TYPES[type] ?? CROSS_TYPES.calle;
-  const { token, metres } = placa;
+  const { token, metres, end } = placa;
 
   return {
     via: viaCandidates,
     cross: candidates(crossTypes, token, cardinal),
     placa: metres,
     label: `${viaName} # ${token.number}${token.letter.toUpperCase()}-${metres}`,
+    rest: tail.slice(end).replace(/^[\s,-]+/, "").trim(),
   };
 }

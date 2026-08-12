@@ -234,6 +234,14 @@ import { SITE_NAME, SITE_TITLE } from "../consts";
       >
         <path d="M3 5h14M3 10h14M3 15h14"></path>
       </svg>
+      <!-- El mismo aviso ámbar de las pestañas: con el sheet cerrado el
+           encabezado no se ve, y este botón es lo único que queda para
+           enterarse. El ring lo separa del blanco del botón. -->
+      <span
+        id="menu-dot"
+        hidden
+        aria-hidden="true"
+        class="absolute right-1 top-1 h-2 w-2 rounded-full bg-amber-400 ring-2 ring-white"></span>
     </button>
 
     <!-- Después de mover el mapa, el único camino de vuelta al punto propio. En

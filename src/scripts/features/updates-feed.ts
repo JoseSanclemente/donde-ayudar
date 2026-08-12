@@ -3,7 +3,7 @@ import { getReports, onChange, reportLabel } from "../data/reports";
 import { isMine } from "../data/session";
 import { addUpdate, getUpdates, onUpdates, removeUpdate } from "../data/updates";
 import { flyTo } from "../map";
-import { closeSheet, isTabVisible, onTabChange } from "../sheet";
+import { closeSheet, isTabVisible, onTabChange, setTabDot } from "../sheet";
 import { $, clearError, maybe$, scheduleRender, showError } from "../ui/dom";
 import { paintTime } from "../ui/time";
 
@@ -25,10 +25,6 @@ export function initUpdatesFeed(): void {
   const empty = $<HTMLParagraphElement>("updates-empty");
   const total = $<HTMLSpanElement>("updates-count");
   const more = $<HTMLButtonElement>("updates-more");
-  // The unread dot rides on the mobile tab button, which desktop never renders:
-  // like the character counter, it must not take the boot down when absent.
-  const dot = maybe$<HTMLSpanElement>("novedades-dot");
-
   let limit = PAGE;
   /** Novedades que el lector ya tuvo a la vista: lo que no está acá enciende
    * el punto. La carga inicial la siembra, así que abrir la página nunca lo
@@ -77,11 +73,11 @@ export function initUpdatesFeed(): void {
     const updates = getUpdates();
     if (isTabVisible(TAB)) {
       for (const update of updates) seen.add(update.id);
-      if (dot) dot.hidden = true;
+      setTabDot(TAB, false);
       return;
     }
     const fresh = updates.some((update) => !seen.has(update.id) && !isMine(update));
-    if (dot && fresh) dot.hidden = false;
+    if (fresh) setTabDot(TAB, true);
   }
 
   function renderList() {

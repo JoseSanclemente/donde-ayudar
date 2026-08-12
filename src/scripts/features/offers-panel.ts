@@ -10,15 +10,18 @@ import { getReports, onChange, reportLabel } from "../data/reports";
 import { isMine } from "../data/session";
 import { flyTo } from "../map";
 import { categoryChip, categoryTitle } from "../resources";
-import { closeSheet } from "../sheet";
+import { closeSheet, setTabDot } from "../sheet";
 import { CHIP_SHAPE } from "../ui/chips";
 import { isValidPhone, telUrl, whatsappUrl } from "../ui/contact";
-import { $, clearError, maybe$, scheduleRender, showError } from "../ui/dom";
+import { $, clearError, scheduleRender, showError } from "../ui/dom";
 import { PHONE_ICON } from "../ui/html";
 import { paintTime } from "../ui/time";
 
 /** Cuántas ofertas se ven antes de «Ver más». */
 const PAGE = 10;
+
+/** Panel al que apunta el punto de «hay ayuda sin despachar». */
+const TAB = "ayuda";
 
 export function initOffersPanel(): void {
   const form = $<HTMLFormElement>("offer-form");
@@ -32,10 +35,6 @@ export function initOffersPanel(): void {
   const empty = $<HTMLParagraphElement>("offers-empty");
   const total = $<HTMLSpanElement>("offers-count");
   const more = $<HTMLButtonElement>("offers-more");
-  // The dot rides on the mobile tab button, which desktop never renders: it must
-  // not take the boot down when absent.
-  const dot = maybe$<HTMLSpanElement>("ayuda-dot");
-
   let limit = PAGE;
 
   more.addEventListener("click", () => {
@@ -89,7 +88,7 @@ export function initOffersPanel(): void {
     total.textContent = String(available);
     // Unlike the «Novedades» dot, this one is not an unread mark: it flags help
     // still waiting for a destination, so opening the tab does not clear it.
-    if (dot) dot.hidden = available === 0;
+    setTabDot(TAB, available > 0);
     empty.classList.toggle("hidden", offers.length > 0);
     more.classList.toggle("hidden", offers.length <= limit);
 

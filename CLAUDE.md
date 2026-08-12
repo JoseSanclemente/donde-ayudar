@@ -88,6 +88,16 @@ Two kinds of data, and they must not mix:
   - `address.ts`, `grid.ts`, `geo-index.ts`, `geocode.ts` — the Colombian address
     pipeline: parse the nomenclature, compute the point off the street grid, read the
     prebuilt indexes from `public/geo/`, and resolve through the four fallback levels.
+    The prebuilt indexes cover Cali and nothing else, and the nomenclature of every other
+    Colombian city parses just as well — so resolving a Yumbo address against them does
+    not fail, it returns a point in Cali. `namesAnotherCity()` in `address.ts` reads the
+    tail the parser could not consume; when it names a municipality, `geocode()` skips the
+    local levels. Nominatim is then asked twice — once suffixed «Cali, Valle del Cauca»
+    with the Cali viewbox, once for the country with neither — and the first non-empty
+    answer wins. The tail only chooses which goes first, so guessing wrong costs a round
+    trip and never a pin in the wrong city. The second attempt is what a place written by
+    name needs: «Lomitas, La Cumbre» leaves no tail to read and returns zero under the
+    Cali suffix, though it is perfectly mapped.
   - `geolocation.ts` — where the visitor is: the browser permission, wrapped so it never
     fails outward, and the cached last position the map opens on. No address, no city
     name — only the coordinates the initial `setView` needs. The map is nobody's to move

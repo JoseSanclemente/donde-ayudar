@@ -52,6 +52,27 @@ export function isTabVisible(tab: string): boolean {
   return !isMobile() || getState() !== "closed";
 }
 
+/** Pestañas con algo que mirar. The header dot is the panel's own mark; the
+ * badge over the menu button is the union of them all, because with the sheet
+ * closed the header is off screen and the button is the only thing left. */
+const flagged = new Set<string>();
+
+/**
+ * Enciende o apaga el aviso de una pestaña. Los puntos viven acá y no en cada
+ * feature: uno solo de ellos no sabe si otro panel también tiene algo, y el
+ * badge del menú es justamente esa suma.
+ */
+export function setTabDot(tab: string, on: boolean): void {
+  if (on) flagged.add(tab);
+  else flagged.delete(tab);
+  // Se buscan cada vez: los paneles pintan su punto desde la carga de datos, que
+  // puede llegar antes o después de `initSheet`.
+  const dot = document.getElementById(`${tab}-dot`);
+  if (dot) dot.hidden = !on;
+  const badge = document.getElementById("menu-dot");
+  if (badge) badge.hidden = flagged.size === 0;
+}
+
 export function onTabChange(fn: () => void): void {
   tabWatchers.add(fn);
 }
