@@ -27,12 +27,25 @@ export function initCentroForm(): void {
   // y lo que valida el CHECK `centros_recibe_ids`.
   const recibe = new Set<string>();
 
+  // Igual que en el formulario de necesidades: el formulario no se destruye al
+  // cerrarlo, así que las categorías conservan lo que se dejó abierto la vez
+  // pasada. Plegarlas no pierde nada — lo marcado sigue en `recibe` y el chip
+  // del encabezado lo dice sin desplegar.
+  function collapseCategories() {
+    recibeChips.querySelectorAll("details").forEach((panel) => {
+      panel.open = false;
+    });
+  }
+
   function syncChips() {
     recibeChips.querySelectorAll<HTMLButtonElement>("[data-recibe]").forEach((chip) => {
       const id = chip.dataset.recibe as string;
       const active = recibe.has(id);
       chip.className = active ? chipOnClass(id) : CHIP_OFF;
       chip.setAttribute("aria-pressed", String(active));
+      // El panel plegado esconde el detalle, así que la categoría marcada tiene
+      // que leerse en el encabezado.
+      chip.textContent = active ? "✓ Recibe" : "Recibir";
     });
     if (recibe.size > 0) clearError(recibeError);
   }
@@ -40,6 +53,10 @@ export function initCentroForm(): void {
   recibeChips.addEventListener("click", (event) => {
     const chip = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-recibe]");
     if (!chip) return;
+    // The button lives inside the `<summary>`, and opening the `<details>` is the
+    // default action of any click in there. Marking a category is not asking to
+    // see what is inside it.
+    event.preventDefault();
     const id = chip.dataset.recibe as string;
     if (recibe.has(id)) recibe.delete(id);
     else recibe.add(id);
@@ -112,6 +129,7 @@ export function initCentroForm(): void {
     form.reset();
     recibe.clear();
     syncChips();
+    collapseCategories();
     location.reset();
     clearError(nombreError);
     clearError(telefonoError);
@@ -124,10 +142,17 @@ export function initCentroForm(): void {
   // El pin y el modo de señalar son únicos en el mapa: solo puede tenerlos la
   // pestaña que se está viendo.
   onReportTabChange((tab) => {
-    if (tab === "acopio") location.resume();
-    else location.suspend();
+    if (tab === "acopio") {
+      location.resume();
+      // Quien abre el formulario busca la dirección primero, y siete categorías
+      // desplegadas empujan todo lo demás fuera de la pantalla.
+      collapseCategories();
+    } else {
+      location.suspend();
+    }
   });
 
   syncChips();
+  collapseCategories();
   if (currentReportTab() !== "acopio") location.suspend();
 }

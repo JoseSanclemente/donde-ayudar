@@ -106,11 +106,22 @@ export function initReportList(): void {
    * Va como `<select>` y no como cuatro chips porque la lista ya está llena de
    * chips que significan otra cosa (recursos), y porque en móvil el selector
    * nativo es una sola línea en vez de cuatro botones que empujan la tarjeta.
+   *
+   * El chip es el envase y no el `<select>`: la flecha nativa la pinta el
+   * navegador contra el borde del elemento, fuera del flujo, así que el `px-2`
+   * del chip no la corría y quedaba montada sobre la esquina redonda. Se apaga
+   * con `appearance-none` y se dibuja como un glifo más, que sí respeta el
+   * padding y hereda el color del estado. Mismo armado que `statusSelectHtml`.
    */
-  function buildStatusSelect(group: ReportGroup): HTMLSelectElement {
+  function buildStatusChip(group: ReportGroup): HTMLSpanElement {
     const info = statusInfo(group.status);
+    const chip = document.createElement("span");
+    chip.className = `inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold focus-within:ring-2 focus-within:ring-slate-400 ${info.chip}`;
+    chip.title = "Cómo está el punto ahora mismo";
+
     const select = document.createElement("select");
-    select.className = `rounded-full border-0 px-2 py-0.5 text-xs font-semibold ${info.chip}`;
+    select.className =
+      "appearance-none border-0 bg-transparent p-0 font-semibold text-inherit outline-none";
     select.setAttribute("aria-label", `Estado de ${group.lead.name}`);
     select.title = "Cómo está el punto ahora mismo";
 
@@ -131,7 +142,13 @@ export function initReportList(): void {
       setReportStatus(group.reportIds, next);
     });
 
-    return select;
+    const caret = document.createElement("span");
+    caret.className = "pointer-events-none text-[0.65rem] opacity-70";
+    caret.setAttribute("aria-hidden", "true");
+    caret.textContent = "▾";
+
+    chip.append(select, caret);
+    return chip;
   }
 
   /**
@@ -245,7 +262,7 @@ export function initReportList(): void {
     // title wrapped around it and the select ended up floating mid-card.
     const statusRow = document.createElement("div");
     statusRow.className = "flex justify-end";
-    statusRow.append(buildStatusSelect(group));
+    statusRow.append(buildStatusChip(group));
 
     const meta = document.createElement("div");
     meta.className = "mt-2 flex items-center justify-between gap-2";

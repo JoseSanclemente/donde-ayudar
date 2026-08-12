@@ -10,6 +10,7 @@ import {
   COVERED_CHIP,
   SANGRE_FILTER,
 } from "./resources";
+import { readCachedCoords } from "./geolocation";
 import { markerEstado, statusInfo } from "./status";
 import { isMobile, onBreakpointChange } from "./ui/breakpoint";
 import { chipLabel, chipStyle } from "./ui/chips";
@@ -18,7 +19,19 @@ import { directionsUrl, escapeHtml, NAV_ICON } from "./ui/html";
 import { statusSelectHtml } from "./ui/status-select";
 import { relativeTime } from "./ui/time";
 
+/** El respaldo: sin ubicación, el mapa abre donde empezó todo. */
 export const CALI_CENTER: [number, number] = [3.4516, -76.532];
+
+/** Zoom para la vista inicial sobre la persona: su ciudad entera, no su calle. */
+const USER_ZOOM = 14;
+
+/**
+ * Whether something already decided what the map is looking at — a gesture, a
+ * geocoded suggestion, a draft pin. From then on the initial view is nobody's
+ * to set: the permission prompt can answer half a minute later and must not
+ * pull the map away from what the person asked for.
+ */
+let viewClaimed = false;
 
 /** Group key -> its marker. One marker per point, never one per report. */
 const markers = new Map<string, L.Marker>();
@@ -56,7 +69,7 @@ export type MarkerExtra = {
 
 /** Bloque de contacto del popup: nombre en texto y, si hay número, CTA a WhatsApp. */
 function contactHtml(name: string, phone: string | null): string {
-  const who = `<p class="text-xs text-slate-600">Contacto: ${escapeHtml(name)}</p>`;
+  const who = `<p class="text-sm text-slate-600">Contacto: ${escapeHtml(name)}</p>`;
   if (!phone) return who;
   const wa = whatsappUrl(phone);
   return `
@@ -237,7 +250,13 @@ function syncPopupMode(): void {
 }
 
 export function initMap(containerId: string): L.Map {
-  map = L.map(containerId, { zoomControl: true }).setView(CALI_CENTER, 13);
+  // La visita anterior ya dijo dónde está: se arranca ahí de una, sin esperar a
+  // que el permiso conteste y sin el salto desde Cali a medio dibujar.
+  const cached = readCachedCoords();
+  map = L.map(containerId, { zoomControl: true }).setView(
+    cached ? [cached.lat, cached.lng] : CALI_CENTER,
+    cached ? USER_ZOOM : 13,
+  );
 
   // Positron: OSM data, minimal gray-on-white render — no POI icons, sparse
   // labels — so the red report markers are the only saturated thing on screen.
@@ -270,6 +289,14 @@ export function initMap(containerId: string): L.Map {
   map.on("movestart zoomstart", () => container.classList.add("is-moving"));
   map.on("moveend zoomend", () => container.classList.remove("is-moving"));
 
+  // Un gesto sobre el mapa vale más que cualquier vista automática: desde el
+  // primero, la vista inicial ya no se toca. No se escucha `movestart` porque
+  // ese lo dispara también el mapa solo.
+  const claim = () => claimView();
+  for (const event of ["pointerdown", "wheel", "keydown"] as const) {
+    container.addEventListener(event, claim, { once: true, passive: true });
+  }
+
   onBreakpointChange(syncPopupMode);
 
   return map;
@@ -278,6 +305,65 @@ export function initMap(containerId: string): L.Map {
 /** El contenedor cambia de tamaño al cruzar el breakpoint o al rotar. */
 export function refreshSize(): void {
   map?.invalidateSize();
+}
+
+/** Nadie más decide la vista inicial a partir de aquí. */
+function claimView(): void {
+  viewClaimed = true;
+}
+
+/**
+ * Centra el mapa en la persona, si todavía nadie pidió mirar otra cosa. Va con
+ * `setView` y no con `flyTo`: esto es de dónde arranca el mapa, y un vuelo de
+ * segundo y pico entre dos ciudades se ve como un mapa que se escapa.
+ */
+export function setInitialView(lat: number, lng: number): void {
+  if (viewClaimed) return;
+  claimView();
+  map.setView([lat, lng], USER_ZOOM);
+}
+
+/* ---- «Estás acá»: el punto de referencia para leer lo que hay alrededor ---- */
+
+// Azul: el único color que el vocabulario de marcadores no había gastado —rojo
+// reporte, índigo acopio, rosa sangre, ámbar albergue, gris pausado—, y el que
+// todo el mundo ya asocia con su propia posición. Sin animación: latir es lo que
+// distingue a un reporte vivo del resto del mapa.
+const meIcon = L.divIcon({
+  className: "me-marker",
+  html: '<span class="me-dot"></span>',
+  iconSize: [16, 16],
+  iconAnchor: [8, 8],
+});
+
+let meMarker: L.Marker | null = null;
+
+/**
+ * Dibuja dónde está la persona. No mueve la vista: pintar el punto no es pedir
+ * que se mire, y el permiso puede contestar cuando ya se está mirando otra cosa.
+ */
+export function setUserMarker(lat: number, lng: number): void {
+  if (meMarker) {
+    meMarker.setLatLng([lat, lng]);
+    return;
+  }
+  meMarker = L.marker([lat, lng], {
+    icon: meIcon,
+    // No tiene nada que decir y no puede robarse el clic de un reporte que le
+    // caiga encima: es referencia, no destino.
+    interactive: false,
+    keyboard: false,
+    zIndexOffset: -400,
+  }).addTo(map);
+}
+
+/** `false` si todavía no se sabe dónde está la persona. */
+export function flyToUser(): boolean {
+  if (!meMarker) return false;
+  const { lat, lng } = meMarker.getLatLng();
+  // A quien ya se acercó a su cuadra, volver a su punto no puede alejarlo.
+  void flyTo(lat, lng, Math.max(map.getZoom(), USER_ZOOM));
+  return true;
 }
 
 /* ---- Marcador provisional: se arrastra hasta el edificio exacto ---- */
@@ -297,6 +383,7 @@ export function showDraft(
   lng: number,
   onMove: (lat: number, lng: number) => void,
 ): void {
+  claimView();
   draftHandler = onMove;
   if (draftMarker) {
     draftMarker.setLatLng([lat, lng]);
@@ -414,6 +501,7 @@ export function getMarkerElement(id: string): HTMLElement | undefined {
 }
 
 export function flyTo(lat: number, lng: number, zoom = 17): Promise<void> {
+  claimView();
   return new Promise((resolve) => {
     let done = false;
     const finish = () => {
@@ -579,10 +667,10 @@ function centroPopupHtml(centro: Centro, mine: boolean): string {
   const pausa = enPausa(centro);
   const recibe = recibeHtml(centro, pausa);
   const telefono = centro.telefono
-    ? `<p class="text-xs text-slate-600">Tel. ${escapeHtml(centro.telefono)}</p>`
+    ? `<p class="text-sm text-slate-600">Tel. ${escapeHtml(centro.telefono)}</p>`
     : "";
   const notas = centro.notas
-    ? `<p class="text-xs text-slate-500">${escapeHtml(centro.notas)}</p>`
+    ? `<p class="text-sm text-slate-500">${escapeHtml(centro.notas)}</p>`
     : "";
   // El estado va en el kicker y no solo en el color del pin: quien abre el popup
   // tiene que leerlo antes que la dirección.
@@ -591,7 +679,7 @@ function centroPopupHtml(centro: Centro, mine: boolean): string {
     ? `<p class="text-xs font-semibold uppercase tracking-wide text-slate-500">${label} · No recibe por ahora</p>`
     : `<p class="text-xs font-semibold uppercase tracking-wide ${color}">${label}</p>`;
   const notaEstado = centro.nota_estado
-    ? `<p class="text-xs text-slate-600">${escapeHtml(centro.nota_estado)}</p>`
+    ? `<p class="text-sm text-slate-600">${escapeHtml(centro.nota_estado)}</p>`
     : "";
   // Un banco de sangre no recibe insumos sino donantes: decirle «donaciones» a
   // secas deja pensando si la puerta sigue abierta para donar sangre.
@@ -717,6 +805,7 @@ export function setCentrosVisible(visible: boolean): number {
 }
 
 export function startPicking(onPick: (latlng: L.LatLng) => void): void {
+  claimView();
   pickHandler = onPick;
   map.getContainer().classList.add("picking");
 }

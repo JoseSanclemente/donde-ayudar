@@ -13,6 +13,7 @@ import { initReportList } from "./features/report-list";
 import { initReportTabs } from "./features/report-tabs";
 import { initSyncBadge } from "./features/sync-badge";
 import { initUpdatesFeed } from "./features/updates-feed";
+import { initUserLocation } from "./features/user-location";
 import { loadAddresses, loadStreets } from "./geo-index";
 import { initMap } from "./map";
 import { initSheet } from "./sheet";
@@ -22,6 +23,8 @@ import { showToast } from "./ui/toast";
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 initMap("map");
+// Justo detrás del mapa: el permiso se pide cuanto antes y nadie lo espera.
+initUserLocation();
 initSheet();
 initMarkerSheet();
 initMarkerActions();

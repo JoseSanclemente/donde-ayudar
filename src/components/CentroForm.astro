@@ -49,17 +49,31 @@ import LocationField from "./LocationField.astro";
        del punto ya despliega debajo el detalle de cada una. -->
   <div>
     <span class="block text-sm font-medium text-slate-700">¿Qué está recibiendo?</span>
-    <div id="centro-recibe" class="mt-2 flex flex-wrap gap-2">
+    <div id="centro-recibe" class="mt-2 space-y-2">
       {
         CATEGORIES.map((category) => (
-          <button
-            type="button"
-            data-recibe={category.id}
-            aria-pressed="false"
-            class={CHIP_OFF}
+          <details
+            data-category={category.id}
+            class="overflow-hidden rounded-lg border border-slate-200"
           >
-            {category.label}
-          </button>
+            <summary
+              class={`flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-medium transition hover:brightness-95 ${category.chip}`}
+            >
+              <span class="caret opacity-60 transition-transform">▸</span>
+              <span class="flex-1">{category.label}</span>
+              <button
+                type="button"
+                data-recibe={category.id}
+                aria-pressed="false"
+                class={CHIP_OFF}
+              >
+                Recibir
+              </button>
+            </summary>
+            <div class="px-3 py-3 text-xs leading-relaxed text-slate-600">
+              {category.items.map((item) => item.trim()).join(" · ")}
+            </div>
+          </details>
         ))
       }
     </div>
@@ -135,6 +149,15 @@ import LocationField from "./LocationField.astro";
 </form>
 
 <style>
+  /* Safari sigue pintando el triángulo nativo aunque `list-none` esté puesto. */
+  summary::-webkit-details-marker {
+    display: none;
+  }
+
+  details[open] > summary .caret {
+    transform: rotate(90deg);
+  }
+
   /* Sin texto no hay error que mostrar; el margen de uno invisible se ve igual. */
   #centro-nombre-error:empty,
   #centro-recibe-error:empty,

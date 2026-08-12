@@ -22,7 +22,7 @@ import { SITE_NAME, SITE_TITLE } from "../consts";
         id="site-header"
         class="fixed inset-x-0 top-0 z-[900] border-b border-slate-200/60 bg-white/95 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] lg:static lg:z-auto lg:border-0 lg:bg-transparent lg:p-0"
       >
-        <h1 class="mt-2 text-lg font-bold tracking-tight text-slate-900 lg:mt-3 lg:text-2xl">
+        <h1 class="mt-2 text-2xl font-bold tracking-tight text-slate-900 lg:mt-3 lg:text-2xl">
           {SITE_NAME}
         </h1>
         <span
@@ -165,7 +165,7 @@ import { SITE_NAME, SITE_TITLE } from "../consts";
                la ✕ del encabezado del sheet es la única salida. En escritorio no
                existe — allá el detalle sigue siendo el popup de Leaflet. -->
           <div id="detail-card" data-tab-panel="detalle">
-            <div id="detail-body" class="flex flex-col gap-2"></div>
+            <div id="detail-body" class="space-y-2"></div>
           </div>
 
           <!-- «Puntos» es la lista de edificios. En escritorio el sheet es
@@ -223,6 +223,28 @@ import { SITE_NAME, SITE_TITLE } from "../consts";
         stroke-linecap="round"
       >
         <path d="M3 5h14M3 10h14M3 15h14"></path>
+      </svg>
+    </button>
+
+    <!-- Después de mover el mapa, el único camino de vuelta al punto propio. En
+         escritorio también existe: la ubicación no es cosa de móvil. -->
+    <button
+      type="button"
+      id="locate-me"
+      aria-label="Centrar el mapa en mi ubicación"
+      class="locate-me fixed right-4 z-[1050] inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-4 text-slate-700 shadow-lg transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 lg:right-8"
+    >
+      <svg
+        viewBox="0 0 20 20"
+        aria-hidden="true"
+        class="h-4 w-4"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+      >
+        <circle cx="10" cy="10" r="4"></circle>
+        <path d="M10 1v3M10 16v3M1 10h3M16 10h3"></path>
       </svg>
     </button>
   </div>

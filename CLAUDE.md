@@ -58,8 +58,8 @@ Two kinds of data, and they must not mix:
   loaders (`loadAddresses`, `loadStreets`).
 - **`features/`** — one UI piece per file, each with its `init…()`: `alert-banner`,
   `centros-layer`, `centro-form`, `location-picker`, `marker-sheet`, `offers-panel`,
-  `report-form`, `report-list`, `report-tabs`, `updates-feed`. They subscribe to the
-  stores; they never call Supabase directly. `location-picker` is the exception to "one
+  `report-form`, `report-list`, `report-tabs`, `updates-feed`, `user-location`. They
+  subscribe to the stores; they never call Supabase directly. `location-picker` is the exception to "one
   UI piece": it is a factory, and the two forms — a need and a collection point — each
   create one over their own copy of `LocationField.astro`, keyed by an id prefix. The
   draft pin and the click-to-pick mode are single, so `report-tabs` hands them over
@@ -83,6 +83,12 @@ Two kinds of data, and they must not mix:
   - `address.ts`, `grid.ts`, `geo-index.ts`, `geocode.ts` — the Colombian address
     pipeline: parse the nomenclature, compute the point off the street grid, read the
     prebuilt indexes from `public/geo/`, and resolve through the four fallback levels.
+  - `geolocation.ts` — where the visitor is: the browser permission, wrapped so it never
+    fails outward, and the cached last position the map opens on. No address, no city
+    name — only the coordinates the initial `setView` needs. The map is nobody's to move
+    once a gesture, a geocoded suggestion or a draft pin has claimed the view. The «you
+    are here» dot and the recenter button are drawn only from a live answer, never from
+    the cache: centering on a weeks-old position is harmless, a dot claiming it is not.
   - `sheet.ts` — the mobile bottom sheet (`display: contents` at >=1024px, so desktop is
     untouched).
   - `supabase.ts` — the client; `null` when the env vars are missing.

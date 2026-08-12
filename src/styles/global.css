@@ -361,6 +361,22 @@ body {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
+/* ---- «Estás acá» ---- */
+
+/* El halo es una sombra y no una animación: solo los reportes laten, y esa
+   diferencia es lo que hace que un punto rojo se lea como «acá pasa algo». */
+.me-marker .me-dot {
+  display: block;
+  width: 16px;
+  height: 16px;
+  border-radius: 9999px;
+  background: #2563eb;
+  border: 3px solid #ffffff;
+  box-shadow:
+    0 0 0 4px rgba(37, 99, 235, 0.22),
+    0 1px 4px rgba(15, 23, 42, 0.45);
+}
+
 /* ---- Mapa ---- */
 
 /* Leaflet ships its own `font-family` on the container, and it wins over the
@@ -430,12 +446,13 @@ body {
   gap: 0.25rem;
 }
 
-/* ---- Botones flotantes: «Ver panel» y «Realizar reporte» ----
+/* ---- Botones flotantes: «Realizar reporte», «Ver panel» y «Centrar en mí» ----
    El desplazamiento vertical vive acá y no en clases de Tailwind porque necesita
    `env(safe-area-inset-bottom)`. Van apilados en la esquina inferior derecha: el
-   FAB abajo y el menú justo encima (2.75rem de alto del FAB + 0.75rem de aire).
-   Con el sheet cerrado el mapa queda libre, así que ya no hay peek que esquivar.
-   En escritorio el FAB va sobre la atribución de CARTO y el menú no existe. */
+   FAB abajo y los otros dos encima, un escalón de 3.5rem cada uno (2.75rem de
+   alto del botón + 0.75rem de aire). Con el sheet cerrado el mapa queda libre,
+   así que ya no hay peek que esquivar. En escritorio el FAB va sobre la
+   atribución de CARTO y el menú no existe, así que la pila es de dos. */
 
 .fab-report {
   bottom: calc(1rem + env(safe-area-inset-bottom));
@@ -445,14 +462,36 @@ body {
   bottom: calc(4.5rem + env(safe-area-inset-bottom));
 }
 
-/* Sin el FAB (formulario abierto) el menú baja a su lugar: dejar el hueco haría
-   ver un botón flotando sin razón. */
-#fab-report[hidden] ~ .sheet-toggle {
+.locate-me {
+  bottom: calc(8rem + env(safe-area-inset-bottom));
+}
+
+/* Cada botón que se va deja bajar un escalón a los de arriba: dejar el hueco
+   haría ver un botón flotando sin razón. */
+#fab-report[hidden] ~ .sheet-toggle,
+#fab-report[hidden] ~ .locate-me,
+#sheet-toggle[hidden] ~ .locate-me {
+  bottom: calc(4.5rem + env(safe-area-inset-bottom));
+}
+
+#fab-report[hidden] ~ .sheet-toggle,
+#fab-report[hidden] ~ #sheet-toggle[hidden] ~ .locate-me {
   bottom: calc(1rem + env(safe-area-inset-bottom));
 }
 
 @media (min-width: 1024px) {
   .fab-report {
+    bottom: 2.5rem;
+  }
+
+  /* El menú no existe acá: la pila baja un escalón entero. */
+  .locate-me,
+  #sheet-toggle[hidden] ~ .locate-me {
+    bottom: 6rem;
+  }
+
+  #fab-report[hidden] ~ .locate-me,
+  #fab-report[hidden] ~ #sheet-toggle[hidden] ~ .locate-me {
     bottom: 2.5rem;
   }
 }
