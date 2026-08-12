@@ -18,6 +18,8 @@ export type StatusInfo = {
   aviso: string;
   chip: string;
   chipOn: string;
+  /** Borde y fondo de la tarjeta en la lista: el estado se ve sin leer el chip. */
+  card: string;
   /**
    * `true` = no te desplaces sin confirmar. Es lo que arma el banner y lo que
    * apaga el marcador: un punto saturado sigue en el mapa, pero deja de pedir
@@ -33,6 +35,7 @@ export const STATUSES: StatusInfo[] = [
     aviso: "Recibiendo ayuda",
     chip: "bg-slate-100 text-slate-700",
     chipOn: "border-slate-600 bg-slate-600 text-white",
+    card: "border-slate-200 bg-white",
     bloqueado: false,
   },
   {
@@ -41,6 +44,7 @@ export const STATUSES: StatusInfo[] = [
     aviso: "Necesita ayuda con urgencia",
     chip: "bg-red-50 text-red-700",
     chipOn: "border-red-600 bg-red-600 text-white",
+    card: "border-red-200 bg-red-50",
     bloqueado: false,
   },
   {
@@ -49,6 +53,7 @@ export const STATUSES: StatusInfo[] = [
     aviso: "Lleno — confirma antes de ir",
     chip: "bg-amber-50 text-amber-800",
     chipOn: "border-amber-600 bg-amber-600 text-white",
+    card: "border-amber-200 bg-amber-50",
     bloqueado: true,
   },
   {
@@ -57,6 +62,7 @@ export const STATUSES: StatusInfo[] = [
     aviso: "Ya no reciben — no te desplaces",
     chip: "bg-slate-200 text-slate-600",
     chipOn: "border-slate-700 bg-slate-700 text-white",
+    card: "border-slate-300 bg-slate-100",
     bloqueado: true,
   },
 ];

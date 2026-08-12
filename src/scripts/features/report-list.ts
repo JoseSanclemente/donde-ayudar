@@ -7,7 +7,6 @@ import {
   removeReport,
   setReportStatus,
   setResourceCovered,
-  type Report,
   type StoreState,
 } from "../data/reports";
 import { isMine } from "../data/session";
@@ -27,10 +26,9 @@ import { telUrl, whatsappUrl } from "../ui/contact";
 import { $, scheduleRender } from "../ui/dom";
 import { isStale, newestIso, paintTime } from "../ui/time";
 
-const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
-/** Claves de los grupos desplegados — sobreviven al re-render completo. */
-const expanded = new Set<string>();
+const reduceMotion = window.matchMedia(
+  "(prefers-reduced-motion: reduce)",
+).matches;
 
 /** Grupos del último render: quién comparte punto con quién, al borrar. */
 let lastGroups: ReportGroup[] = [];
@@ -55,12 +53,15 @@ function groupFreshAt(group: ReportGroup): string {
 }
 
 /** La novedad más reciente de la zona, sin importar de qué reporte cuelgue. */
-function groupLastUpdate(group: ReportGroup): { body: string; createdAt: string } | null {
+function groupLastUpdate(
+  group: ReportGroup,
+): { body: string; createdAt: string } | null {
   let best: { body: string; createdAt: string } | null = null;
   for (const id of group.reportIds) {
     const update = latestUpdateFor(id);
     if (!update) continue;
-    if (!best || Date.parse(update.createdAt) > Date.parse(best.createdAt)) best = update;
+    if (!best || Date.parse(update.createdAt) > Date.parse(best.createdAt))
+      best = update;
   }
   return best;
 }
@@ -88,7 +89,11 @@ export function initReportList(): void {
       chip.title = action;
       chip.setAttribute("aria-label", action);
       chip.addEventListener("click", () =>
-        setResourceCovered(resource.reportIds, resource.name, !resource.covered),
+        setResourceCovered(
+          resource.reportIds,
+          resource.name,
+          !resource.covered,
+        ),
       );
       chips.append(chip);
     }
@@ -187,51 +192,14 @@ export function initReportList(): void {
     return box;
   }
 
-  /** Chips de un reporte suelto: solo lectura, la acción vive a nivel de zona. */
-  function buildReportChips(report: Report): HTMLDivElement {
-    const chips = document.createElement("div");
-    chips.className = "mt-2 flex flex-wrap gap-1";
-    const covered = new Set(report.covered);
-    const ordered = [
-      ...report.resources.filter((r) => !covered.has(r)),
-      ...report.resources.filter((r) => covered.has(r)),
-    ];
-    for (const resource of ordered) {
-      const chip = document.createElement("span");
-      chip.className = chipStyle(resource, covered.has(resource));
-      chip.textContent = chipLabel(resource, covered.has(resource));
-      chips.append(chip);
-    }
-    return chips;
-  }
-
   function buildDeleteButton(id: string): HTMLButtonElement {
     const del = document.createElement("button");
     del.type = "button";
-    del.className = "text-xs font-medium text-slate-400 transition hover:text-red-600";
+    del.className =
+      "text-xs font-medium text-slate-400 transition hover:text-red-600";
     del.textContent = "Eliminar";
     del.addEventListener("click", () => deleteReport(id));
     return del;
-  }
-
-  function buildMemberItem(report: Report): HTMLLIElement {
-    const item = document.createElement("li");
-    item.dataset.id = report.id;
-    item.className = "rounded-lg border border-slate-200 bg-slate-50 p-2";
-
-    const meta = document.createElement("div");
-    meta.className = "flex items-center justify-between gap-2";
-
-    const time = document.createElement("span");
-    time.className = "text-xs text-slate-400";
-    paintTime(time, report.createdAt);
-
-    // Solo el autor puede borrar (policy de RLS): mostrarle el botón a los demás
-    // sería ofrecer una acción que el servidor va a rechazar.
-    meta.append(time);
-    if (isMine(report)) meta.append(buildDeleteButton(report.id));
-    item.append(buildReportChips(report), meta);
-    return item;
   }
 
   function buildGroupItem(group: ReportGroup): HTMLLIElement {
@@ -240,19 +208,17 @@ export function initReportList(): void {
     item.dataset.groupKey = group.key;
     item.dataset.leadId = group.lead.id;
     const resolved = group.pending === 0;
-    const blocked = isBlocked(group.status);
-    // Un punto bloqueado se apaga: sigue en la lista, pero deja de invitar.
-    item.className = blocked
-      ? "rounded-xl border border-slate-200 bg-slate-50 p-3"
-      : resolved
-        ? "rounded-xl border border-emerald-200 bg-emerald-50/40 p-3"
-        : "rounded-xl border border-slate-200 p-3";
+    // Un punto cubierto se pinta verde pase lo que pase — que ya no falta nada
+    // pesa más que cómo esté el sitio. Si falta algo, el color lo pone el estado.
+    item.className = resolved
+      ? "rounded-xl flex flex-col gap-3 border border-emerald-200 bg-emerald-50/40 px-3 py-4"
+      : `rounded-xl flex flex-col gap-3 border px-3 py-4 ${statusInfo(group.status).card}`;
 
     const head = document.createElement("div");
     head.className = "flex items-start justify-between gap-2";
 
     const title = document.createElement("p");
-    title.className = "text-sm font-semibold text-slate-900";
+    title.className = "text-base font-semibold text-slate-900";
     title.textContent = group.lead.name;
     head.append(title);
 
@@ -261,7 +227,8 @@ export function initReportList(): void {
 
     if (count > 1) {
       const badge = document.createElement("span");
-      badge.className = "rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700";
+      badge.className =
+        "rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700";
       badge.textContent = `${count} reportes`;
       badges.append(badge);
     }
@@ -274,8 +241,13 @@ export function initReportList(): void {
       badges.append(badge);
     }
 
-    badges.append(buildStatusSelect(group));
     head.append(badges);
+
+    // The status select gets its own row above the title: on a long address the
+    // title wrapped around it and the select ended up floating mid-card.
+    const statusRow = document.createElement("div");
+    statusRow.className = "flex justify-end";
+    statusRow.append(buildStatusSelect(group));
 
     const meta = document.createElement("div");
     meta.className = "mt-2 flex items-center justify-between gap-2";
@@ -283,16 +255,20 @@ export function initReportList(): void {
     const freshAt = groupFreshAt(group);
     const stale = isStale(freshAt);
     const time = document.createElement("span");
-    time.className = stale ? "text-xs font-medium text-amber-700" : "text-xs text-slate-400";
+    time.className = stale
+      ? "text-xs font-medium text-amber-700"
+      : "text-xs text-slate-400";
     paintTime(time, freshAt, "Actualizado ");
-    if (stale) time.title = "Nadie lo confirma hace horas: verifica antes de ir.";
+    if (stale)
+      time.title = "Nadie lo confirma hace horas: verifica antes de ir.";
 
     const actions = document.createElement("div");
     actions.className = "flex gap-2";
 
     const view = document.createElement("button");
     view.type = "button";
-    view.className = "text-xs font-medium text-slate-600 transition hover:text-red-600";
+    view.className =
+      "text-xs font-medium text-slate-600 transition hover:text-red-600 underline";
     view.textContent = "Ver en el mapa";
     view.addEventListener("click", () => {
       closeSheet();
@@ -300,14 +276,15 @@ export function initReportList(): void {
     });
     actions.append(view);
 
-    item.append(head, buildGroupChips(group));
+    item.append(statusRow, head, buildGroupChips(group));
 
     // La última novedad va antes que la nota del reporte: es lo que alguien vio
     // en la calle más recientemente, y suele contradecir lo de arriba.
     const last = groupLastUpdate(group);
     if (last) {
       const line = document.createElement("p");
-      line.className = "mt-2 rounded-lg bg-slate-50 px-2 py-1 text-xs leading-snug text-slate-700";
+      line.className =
+        "mt-2 rounded-lg bg-slate-50 px-2 py-1 text-xs leading-snug text-slate-700";
       line.textContent = last.body;
       item.append(line);
     }
@@ -318,68 +295,19 @@ export function initReportList(): void {
     if (contacts) item.append(contacts);
     item.append(meta);
 
-    if (count === 1) {
-      // sin sublista: la fila del grupo es la del reporte, así deleteReport la anima
-      item.dataset.id = group.lead.id;
-      if (isMine(group.lead)) actions.append(buildDeleteButton(group.lead.id));
-      meta.append(time, actions);
-      return item;
+    // La tarjeta del grupo es la fila del reporte principal, así deleteReport la
+    // anima; los demás reportes del punto ya no tienen fila propia.
+    item.dataset.id = group.lead.id;
+
+    // Sin sublista, este es el único sitio donde alguien puede borrar lo suyo, y
+    // en un punto compartido lo suyo no tiene por qué ser el reporte principal.
+    // Solo el autor puede borrar (policy de RLS): mostrarle el botón a los demás
+    // sería ofrecer una acción que el servidor va a rechazar.
+    for (const report of group.reports) {
+      if (isMine(report)) actions.append(buildDeleteButton(report.id));
     }
 
-    const members = document.createElement("ul");
-    members.id = `group-${group.key}`;
-    members.className = "mt-2 space-y-2";
-    for (const report of group.reports) members.append(buildMemberItem(report));
-
-    const isOpen = expanded.has(group.key);
-    members.classList.toggle("hidden", !isOpen);
-
-    const toggle = document.createElement("button");
-    toggle.type = "button";
-    toggle.className = "text-xs font-medium text-slate-600 transition hover:text-red-600";
-    toggle.setAttribute("aria-controls", members.id);
-    const syncToggle = (open: boolean) => {
-      toggle.setAttribute("aria-expanded", String(open));
-      toggle.textContent = open ? "Ocultar" : `Ver los ${count} reportes`;
-    };
-    syncToggle(isOpen);
-
-    toggle.addEventListener("click", () => {
-      const open = !expanded.has(group.key);
-      if (open) expanded.add(group.key);
-      else expanded.delete(group.key);
-      syncToggle(open);
-
-      if (reduceMotion) {
-        members.classList.toggle("hidden", !open);
-        return;
-      }
-      if (open) {
-        members.classList.remove("hidden");
-        gsap.from(members, {
-          height: 0,
-          opacity: 0,
-          marginTop: 0,
-          duration: 0.3,
-          ease: "power3.out",
-        });
-      } else {
-        gsap.to(members, {
-          height: 0,
-          opacity: 0,
-          marginTop: 0,
-          duration: 0.25,
-          onComplete: () => {
-            gsap.set(members, { clearProps: "all" });
-            members.classList.add("hidden");
-          },
-        });
-      }
-    });
-
-    actions.append(toggle);
     meta.append(time, actions);
-    item.append(members);
     return item;
   }
 
@@ -409,7 +337,8 @@ export function initReportList(): void {
     }
     emptyState.classList.remove("hidden");
     if (storeState === "error") {
-      emptyState.textContent = storeMessage ?? "No se pudieron cargar los reportes.";
+      emptyState.textContent =
+        storeMessage ?? "No se pudieron cargar los reportes.";
       emptyState.className = "mt-3 text-sm text-red-600";
       return;
     }
@@ -420,7 +349,9 @@ export function initReportList(): void {
     }
     // Con el filtro puesto, «no hay reportes» sería falso: los hay, pero otros.
     emptyState.textContent =
-      total > 0 ? "Ningún punto coincide con ese filtro." : "Aún no hay reportes.";
+      total > 0
+        ? "Ningún punto coincide con ese filtro."
+        : "Aún no hay reportes.";
   }
 
   function deleteReport(id: string) {
@@ -442,10 +373,18 @@ export function initReportList(): void {
 
     const timeline = gsap.timeline({ onComplete: finish });
     if (markerEl) {
-      timeline.to(markerEl, { scale: 0, opacity: 0, duration: 0.3, ease: "back.in(2)" }, 0);
+      timeline.to(
+        markerEl,
+        { scale: 0, opacity: 0, duration: 0.3, ease: "back.in(2)" },
+        0,
+      );
     }
     if (item) {
-      timeline.to(item, { opacity: 0, height: 0, margin: 0, padding: 0, duration: 0.3 }, 0);
+      timeline.to(
+        item,
+        { opacity: 0, height: 0, margin: 0, padding: 0, duration: 0.3 },
+        0,
+      );
     }
   }
 
@@ -456,7 +395,9 @@ export function initReportList(): void {
   }
 
   function paintFilterChips() {
-    for (const chip of filterRow.querySelectorAll<HTMLButtonElement>("[data-list-filter]")) {
+    for (const chip of filterRow.querySelectorAll<HTMLButtonElement>(
+      "[data-list-filter]",
+    )) {
       const on = (chip.dataset.listFilter ?? "") === (listFilter ?? "");
       chip.setAttribute("aria-pressed", String(on));
       chip.className = on ? chipOnClass(undefined) : CHIP_OFF;
@@ -464,7 +405,9 @@ export function initReportList(): void {
   }
 
   filterRow.addEventListener("click", (event) => {
-    const chip = (event.target as HTMLElement).closest<HTMLButtonElement>("[data-list-filter]");
+    const chip = (event.target as HTMLElement).closest<HTMLButtonElement>(
+      "[data-list-filter]",
+    );
     if (!chip) return;
     listFilter = chip.dataset.listFilter || null;
     paintFilterChips();
@@ -475,8 +418,6 @@ export function initReportList(): void {
     const reports = getReports();
     const groups = groupReports(reports);
     lastGroups = groups;
-    const keys = new Set(groups.map((g) => g.key));
-    for (const key of expanded) if (!keys.has(key)) expanded.delete(key);
 
     const shown = groups.filter(matchesFilter);
     reportList.replaceChildren(...shown.map(buildGroupItem));
@@ -491,7 +432,9 @@ export function initReportList(): void {
     const partes = [
       `${groups.length} ${groups.length === 1 ? "punto" : "puntos"}`,
       urgentes > 0 ? `${urgentes} urgente${urgentes === 1 ? "" : "s"}` : null,
-      bloqueados > 0 ? `${bloqueados} sin recibir` : null,
+      bloqueados > 0
+        ? `${bloqueados} saturado${bloqueados === 1 ? "" : "s"}`
+        : null,
     ].filter(Boolean);
     reportSummary.textContent = groups.length > 0 ? partes.join(" · ") : "";
 

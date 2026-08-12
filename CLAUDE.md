@@ -1,3 +1,14 @@
+## Language
+
+Write in **English**: conversation, code, identifiers, comments, commit messages and
+documentation. There is no exception for "small" comments.
+
+Write in **Spanish** anything a visitor reads on screen: UI strings, the YAML content in
+`src/content/centros/`, error and toast messages. The site serves Cali.
+
+Existing Spanish comments stay as they are. Rewrite one only when the change makes it
+wrong — no drive-by translation passes.
+
 ## Development
 
 When starting the dev server, use background mode:
@@ -31,24 +42,38 @@ Two kinds of data, and they must not mix:
 
 ## Client layout
 
-`src/scripts/` está partido en tres capas, y la dirección de los imports es de arriba
-hacia abajo — nunca al revés:
+`src/scripts/` is split into layers, and imports only ever flow downward — never back up:
 
-- **`data/`** — todo lo que habla con Supabase. Un store por tabla (`reports.ts`,
-  `updates.ts`), cada uno con su `emitter.ts` para avisar cambios y su `bindTable()` en
-  `live.ts`, que junta todas las tablas en un solo canal de realtime. `boot.ts` corre una
-  vez: sesión anónima, carga inicial, y recién ahí abre el canal. `errors.ts` es el bus de
-  errores que el toast consume.
-- **`features/`** — una pieza de UI por archivo (`report-form`, `report-list`,
-  `centros-panel`, `alert-banner`, `updates-feed`, `offers-panel`), cada una con su
-  `init…()`. Se suscriben
-  a los stores; no llaman a Supabase directo.
-- **`ui/`** — helpers sin estado de dominio (`dom`, `html`, `chips`, `contact`, `time`,
-  `toast`). No conocen ni los stores ni las features.
+- **`app.ts`** — boot only: it calls each `init…()`, `initData()`, and the geo index
+  loaders (`loadAddresses`, `loadStreets`).
+- **`features/`** — one UI piece per file, each with its `init…()`: `alert-banner`,
+  `centros-layer`, `marker-sheet`, `offers-panel`, `report-form`, `report-list`,
+  `updates-feed`. They subscribe to the stores; they never call Supabase directly.
+- **`data/`** — everything that talks to Supabase. One store per table (`reports.ts`,
+  `updates.ts`, `offers.ts`), each with its `emitter.ts` to announce changes and its
+  `bindTable()` in `live.ts`, which merges every table into a single realtime channel.
+  `boot.ts` runs once: anonymous session, initial load, and only then the channel.
+  `session.ts` holds the current user id and `isMine()`, mirroring the RLS delete policy.
+  `errors.ts` is the error bus the toast consumes.
+- **Domain modules at the root of `src/scripts/`** — no Supabase, no DOM wiring:
+  - `map.ts` — the Leaflet map, its markers and popups.
+  - `cluster.ts` — merges nearby reports into groups.
+  - `centros.ts` — reads the curated points that `index.astro` serializes into a
+    `<script type="application/json">`; the site is static, so there is nothing to fetch.
+  - `resources.ts` / `status.ts` — the catalogs (resource categories and chips, point
+    statuses). Tailwind classes are spelled out literally here: the scanner reads these
+    files as plain text, so an interpolated class name never gets compiled.
+  - `address.ts`, `grid.ts`, `geo-index.ts`, `geocode.ts` — the Colombian address
+    pipeline: parse the nomenclature, compute the point off the street grid, read the
+    prebuilt indexes from `public/geo/`, and resolve through the four fallback levels.
+  - `sheet.ts` — the mobile bottom sheet (`display: contents` at >=1024px, so desktop is
+    untouched).
+  - `supabase.ts` — the client; `null` when the env vars are missing.
+- **`ui/`** — stateless helpers with no domain knowledge (`dom`, `html`, `chips`,
+  `contact`, `time`, `toast`, `breakpoint`). They know neither the stores nor the features.
 
-`app.ts` es solo el arranque: llama a cada `init…()` y a `initData()`. Al agregar algo,
-respeta la capa — una feature que consulta Supabase por su cuenta, o un helper de `ui/`
-que importa un store, rompe el esquema.
+When adding something, respect the layer — a feature that queries Supabase on its own, or
+a `ui/` helper that imports a store, breaks the scheme.
 
 ## Documentation
 

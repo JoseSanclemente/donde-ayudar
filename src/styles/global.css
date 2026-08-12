@@ -1,5 +1,15 @@
 @import "leaflet/dist/leaflet.css";
+@import "@fontsource-variable/figtree";
 @import "tailwindcss";
+
+/* Figtree is the whole site's typeface: overriding the `--font-sans` theme
+   variable makes every Tailwind default (and `font-sans`) pick it up, so no
+   element needs its own font rule. */
+@theme {
+  --font-sans:
+    "Figtree Variable", ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, "Helvetica Neue", Arial, sans-serif;
+}
 
 :root {
   color-scheme: light;
@@ -122,13 +132,13 @@ body {
   display: none;
 }
 
-/* Saturado: cuadrado gris con dos barras — el signo de pausa. Hay gente, pero
-   ya no cabe más. */
+/* Saturado: círculo gris con dos barras — el signo de pausa. Hay gente, pero
+   ya no cabe más. Sigue siendo redondo a propósito: el cuadrado es del centro
+   de acopio, y un reporte no cambia de forma al cambiar de estado. */
 .pulse-marker[data-estado="saturado"] .pulse-dot {
   width: 16px;
   height: 16px;
   margin: -8px 0 0 -8px;
-  border-radius: 3px;
   background: #475569;
   box-shadow: 0 1px 4px rgba(15, 23, 42, 0.45);
 }
@@ -204,7 +214,9 @@ body {
 }
 
 /* Acopio en pausa: el mismo cuadrado, gris y con las dos barras de pausa — se
-   lee como "detenido" también sin color, igual que un reporte saturado. El
+   lee como "detenido" también sin color. Las barras son el glifo compartido de
+   estado; la forma sigue diciendo de qué se trata: cuadrado = acopio, círculo =
+   reporte. Por eso un acopio en pausa y un reporte saturado no se confunden. El
    punto no se borra del mapa: quien ya lo vio necesita saber por qué no ir. */
 .centro-marker .centro-pin[data-pausa] {
   position: relative;
@@ -331,6 +343,12 @@ body {
 
 /* ---- Mapa ---- */
 
+/* Leaflet ships its own `font-family` on the container, and it wins over the
+   inherited one — popups and the attribution would be the only Helvetica left. */
+.leaflet-container {
+  font-family: inherit;
+}
+
 .leaflet-container.picking {
   cursor: crosshair;
 }
@@ -439,6 +457,17 @@ body {
   #sheet[data-tab="ayuda"] [data-tab-panel="ayuda"],
   #sheet[data-tab="novedades"] [data-tab-panel="novedades"] {
     display: block;
+  }
+
+  /* The three tabs of the tablist share one height, the one «Puntos» reaches
+     with the list full. Letting each panel size the sheet made it jump — the
+     tabs move under the thumb between «Novedades» and «Ayuda». `reportar` and
+     `detalle` stay out: they are not in the tablist and a form as tall as the
+     screen only adds empty space. */
+  #sheet[data-tab="puntos"],
+  #sheet[data-tab="novedades"],
+  #sheet[data-tab="ayuda"] {
+    height: 86svh;
   }
 
   #sheet-grab [data-tab-btn] {

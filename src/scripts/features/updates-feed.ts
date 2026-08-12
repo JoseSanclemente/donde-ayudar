@@ -4,7 +4,7 @@ import { isMine } from "../data/session";
 import { addUpdate, getUpdates, onUpdates, removeUpdate } from "../data/updates";
 import { flyTo } from "../map";
 import { closeSheet } from "../sheet";
-import { $, clearError, scheduleRender, showError } from "../ui/dom";
+import { $, clearError, maybe$, scheduleRender, showError } from "../ui/dom";
 import { paintTime } from "../ui/time";
 
 /** Cuántas novedades se ven antes de «Ver más». */
@@ -13,7 +13,9 @@ const PAGE = 20;
 export function initUpdatesFeed(): void {
   const form = $<HTMLFormElement>("update-form");
   const body = $<HTMLTextAreaElement>("update-body");
-  const count = $<HTMLSpanElement>("update-count");
+  // The character counter is decorative: `maxlength` is what actually caps the
+  // body, so a layout without it must not take the whole boot down with it.
+  const count = maybe$<HTMLSpanElement>("update-count");
   const select = $<HTMLSelectElement>("update-report");
   const error = $<HTMLParagraphElement>("update-error");
   const list = $<HTMLUListElement>("updates-list");
@@ -24,7 +26,7 @@ export function initUpdatesFeed(): void {
   let limit = PAGE;
 
   body.addEventListener("input", () => {
-    count.textContent = String(body.value.length);
+    if (count) count.textContent = String(body.value.length);
     if (body.value.trim().length >= 3) clearError(error);
   });
 
@@ -121,7 +123,7 @@ export function initUpdatesFeed(): void {
 
     addUpdate({ body: text, reportId: select.value || null });
     body.value = "";
-    count.textContent = "0";
+    if (count) count.textContent = "0";
   });
 
   const scheduledList = scheduleRender(renderList);

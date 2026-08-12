@@ -2,7 +2,7 @@ import gsap from "gsap";
 import { initData } from "./data/boot";
 import { onError } from "./data/errors";
 import { initAlertBanner } from "./features/alert-banner";
-import { initCentrosPanel } from "./features/centros-panel";
+import { initCentrosLayer } from "./features/centros-layer";
 import { initMarkerSheet } from "./features/marker-sheet";
 import { initOffersPanel } from "./features/offers-panel";
 import { initReportForm } from "./features/report-form";
@@ -11,7 +11,6 @@ import { initUpdatesFeed } from "./features/updates-feed";
 import { loadAddresses, loadStreets } from "./geo-index";
 import { initMap } from "./map";
 import { initSheet } from "./sheet";
-import { maybe$ } from "./ui/dom";
 import { startTimeTicker } from "./ui/time";
 import { showToast } from "./ui/toast";
 
@@ -20,7 +19,7 @@ const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").match
 initMap("map");
 initSheet();
 initMarkerSheet();
-initCentrosPanel();
+initCentrosLayer();
 initAlertBanner();
 initReportForm();
 initReportList();
@@ -42,9 +41,7 @@ if (!reduceMotion) {
   // `#form-card` arranca oculto detrás del FAB: animarlo dejaría un hueco. El FAB
   // se queda fuera de la entrada a propósito: es el único acceso al formulario y
   // no puede depender de que una animación termine bien para existir.
-  const intro = ["#site-header", "#list-card"];
-  if (maybe$("centros-card")) intro.splice(1, 0, "#centros-card");
-  gsap.from(intro, {
+  gsap.from(["#site-header", "#list-card"], {
     opacity: 0,
     y: 20,
     duration: 0.6,

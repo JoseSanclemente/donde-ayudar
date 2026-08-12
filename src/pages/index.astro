@@ -2,7 +2,6 @@
 import { getCollection } from "astro:content";
 import Base from "../layouts/Base.astro";
 import AlertBanner from "../components/AlertBanner.astro";
-import CentroFilter from "../components/CentroFilter.astro";
 import ReportForm from "../components/ReportForm.astro";
 import ReportList from "../components/ReportList.astro";
 import OffersPanel from "../components/OffersPanel.astro";
@@ -14,16 +13,6 @@ import { SITE_NAME, SITE_TITLE } from "../consts";
 const centros = (await getCollection("centros", ({ data }) => data.activo)).map(
   ({ id, data }) => ({ id, ...data }),
 );
-// Un conteo por tipo, cada uno con su filtro: restar del total metía los
-// albergues en la cuenta de bancos de sangre.
-const acopio = centros.filter((centro) => centro.tipo === "acopio").length;
-const sangre = centros.filter((centro) => centro.tipo === "sangre").length;
-const albergues = centros.filter((centro) => centro.tipo === "albergue").length;
-// Un punto en pausa sigue contando en su tipo: está abierto, solo que hoy no
-// recibe. El conteo aparte evita que el estado solo se descubra al abrir un pin.
-const pausados = centros.filter(
-  (centro) => centro.tipo !== "sangre" && !centro.recibiendo,
-).length;
 ---
 
 <Base title={SITE_TITLE}>
@@ -73,40 +62,16 @@ const pausados = centros.filter(
         data-tab="puntos"
         class="fixed inset-x-0 bottom-0 z-[1000] flex max-h-[86svh] flex-col rounded-t-2xl border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] lg:contents"
       >
-        <div id="sheet-grab" class="shrink-0 select-none px-4 pb-2 pt-2.5 lg:hidden">
+        <div id="sheet-grab" class="shrink-0 select-none px-4 pb-4 pt-2.5 lg:hidden">
           <span class="mx-auto block h-1.5 w-10 rounded-full bg-slate-300"></span>
-          <div class="mt-2.5 flex items-center gap-1.5">
-            <div class="flex min-w-0 flex-1 gap-1.5" role="tablist">
-              <button
-                type="button"
-                role="tab"
-                data-tab-btn="puntos"
-                class="flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition"
-              >
-                Puntos
-              </button>
-              <button
-                type="button"
-                role="tab"
-                data-tab-btn="novedades"
-                class="flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition"
-              >
-                Novedades
-              </button>
-              <button
-                type="button"
-                role="tab"
-                data-tab-btn="ayuda"
-                class="flex-1 rounded-lg px-2 py-1.5 text-xs font-semibold transition"
-              >
-                Ayuda
-              </button>
-            </div>
+          <!-- Its own row between the pill and the tabs, so the three tabs keep
+               the full width. -->
+          <div class="mt-1.5 flex justify-end">
             <button
               type="button"
               id="sheet-close"
               aria-label="Cerrar el panel"
-              class="shrink-0 rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
+              class="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700"
             >
               <svg
                 viewBox="0 0 20 20"
@@ -120,6 +85,75 @@ const pausados = centros.filter(
                 <path d="M5 5l10 10M15 5L5 15"></path>
               </svg>
             </button>
+          </div>
+          <div class="mt-2.5 flex items-center gap-1.5">
+            <div class="flex min-w-0 flex-1 gap-1.5" role="tablist">
+              <button
+                type="button"
+                role="tab"
+                data-tab-btn="puntos"
+                class="flex flex-1 items-center justify-center gap-1 rounded-lg p-2 text-sm font-semibold transition"
+              >
+                <svg
+                  viewBox="0 0 20 20"
+                  aria-hidden="true"
+                  class="h-3.5 w-3.5 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M10 17.5c3.4-3.6 5.1-6.3 5.1-8.3a5.1 5.1 0 10-10.2 0c0 2 1.7 4.7 5.1 8.3z"
+                  ></path>
+                  <circle cx="10" cy="9" r="1.8"></circle>
+                </svg>
+                Puntos
+              </button>
+              <button
+                type="button"
+                role="tab"
+                data-tab-btn="novedades"
+                class="flex flex-1 items-center justify-center gap-1 rounded-lg p-2 text-sm font-semibold transition"
+              >
+                <svg
+                  viewBox="0 0 20 20"
+                  aria-hidden="true"
+                  class="h-3.5 w-3.5 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M10 3.2A4.3 4.3 0 005.7 7.5c0 3.6-1.4 4.8-1.4 4.8h11.4s-1.4-1.2-1.4-4.8A4.3 4.3 0 0010 3.2z"
+                  ></path>
+                  <path d="M8.6 15a1.6 1.6 0 002.8 0"></path>
+                </svg>
+                Novedades
+              </button>
+              <button
+                type="button"
+                role="tab"
+                data-tab-btn="ayuda"
+                class="flex flex-1 items-center justify-center gap-1 rounded-lg p-2 text-sm font-semibold transition"
+              >
+                <svg
+                  viewBox="0 0 20 20"
+                  aria-hidden="true"
+                  class="h-3.5 w-3.5 shrink-0"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.6"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                >
+                  <path d="M10 16.6c-4.3-2.8-6.4-5.3-6.4-7.7A3.3 3.3 0 0110 6.3a3.3 3.3 0 016.4 2.6c0 2.4-2.1 4.9-6.4 7.7z"
+                  ></path>
+                </svg>
+                Ayuda
+              </button>
+            </div>
           </div>
         </div>
 
@@ -145,30 +179,16 @@ const pausados = centros.filter(
             <div id="detail-body" class="space-y-2"></div>
           </div>
 
-          <!-- «Puntos» es un panel con dos tarjetas: la lista de edificios y
-               dónde donar. En escritorio el sheet es `display: contents`, así
-               que el `contents` de acá deja que las dos tarjetas se apilen
-               igual que antes en la barra lateral. -->
+          <!-- «Puntos» es la lista de edificios. En escritorio el sheet es
+               `display: contents`, y el `contents` de acá deja que la tarjeta
+               caiga igual que antes en la barra lateral. -->
           <div id="list-card" data-tab-panel="puntos" class="space-y-5 lg:contents">
             <ReportList />
-            <CentroFilter
-              acopio={acopio}
-              sangre={sangre}
-              albergues={albergues}
-              pausados={pausados}
-            />
           </div>
 
           <div data-tab-panel="novedades"><UpdatesFeed /></div>
 
           <div id="offers-card" data-tab-panel="ayuda"><OffersPanel /></div>
-
-          <p class="pb-2 text-xs text-slate-400">
-            Los reportes son públicos: los ve todo el mundo y solo quien los creó puede
-            borrarlos. Los centros de acopio, los bancos de sangre y los albergues son
-            una lista verificada por el equipo. Datos de mapa &copy;
-            colaboradores de OpenStreetMap, teselas &copy; CARTO.
-          </p>
         </div>
       </div>
     </div>
@@ -202,7 +222,7 @@ const pausados = centros.filter(
       hidden
       aria-label="Abrir el panel de puntos y novedades"
       aria-controls="sheet"
-      class="sheet-toggle fixed right-4 z-[1050] inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-700 shadow-lg transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 lg:hidden"
+      class="sheet-toggle fixed right-4 z-[1050] inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-4 text-sm font-semibold text-slate-700 shadow-lg transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 lg:hidden"
     >
       <svg
         viewBox="0 0 20 20"
@@ -215,7 +235,6 @@ const pausados = centros.filter(
       >
         <path d="M3 5h14M3 10h14M3 15h14"></path>
       </svg>
-      Ver panel
     </button>
   </div>
 </Base>
