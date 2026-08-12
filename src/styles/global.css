@@ -53,13 +53,23 @@ body {
     0 1px 4px rgba(0, 0, 0, 0.35);
 }
 
+/* Sin `will-change`: acá hay un anillo por marcador, y prometerle al navegador
+   que todos van a cambiar lo obliga a darle capa propia a cada uno. Con cien
+   puntos en pantalla eso es memoria de GPU a cambio de nada — una animación de
+   `transform`/`opacity` ya se promueve sola mientras corre. */
 .pulse-marker .pulse-ring {
   width: 18px;
   height: 18px;
   margin: -9px 0 0 -9px;
   border: 2px solid #ef4444;
   animation: marker-pulse 2s ease-out infinite;
-  will-change: transform, opacity;
+}
+
+/* Mientras el mapa se mueve, el gesto manda: los anillos se pausan para que el
+   frame se gaste en las teselas nuevas y no en repintar N animaciones que nadie
+   está mirando. Al soltar vuelven solos, en el punto en que iban. */
+.leaflet-container.is-moving .pulse-marker .pulse-ring {
+  animation-play-state: paused;
 }
 
 /* El segundo anillo solo existe para «urgente»; en los demás estados estorba. */
@@ -399,6 +409,19 @@ body {
 }
 
 @media (max-width: 1023px) {
+  /* Safari en iOS hace zoom al enfocar un campo con letra menor a 16px, y ese
+     zoom no se deshace al salir: el mapa queda corrido y el sheet a medias. Se
+     arregla subiendo el tamaño real del control, no con `maximum-scale=1` en el
+     viewport — eso le quitaría el pellizco a quien necesita agrandar para leer.
+     Va sin capa, así que le gana al `text-sm` de Tailwind, que sí está en
+     `@layer utilities`. Los `select` quedan fuera a propósito: no disparan el
+     zoom (abren el picker nativo) y uno de ellos es el chip de estado de la
+     lista, que a 16px no cabe. */
+  input:not([type="checkbox"]):not([type="radio"]),
+  textarea {
+    font-size: 16px;
+  }
+
   /* El handle arrastra: el navegador no debe interpretar el gesto como scroll. */
   #sheet-grab {
     touch-action: none;

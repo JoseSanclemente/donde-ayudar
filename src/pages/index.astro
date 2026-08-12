@@ -32,9 +32,13 @@ const pausados = centros.filter(
     <div
       class="lg:flex lg:h-screen lg:w-[26rem] lg:shrink-0 lg:flex-col lg:gap-5 lg:overflow-y-auto lg:p-5"
     >
+      <!-- Sin `backdrop-blur`: en móvil este header está fijo encima del mapa,
+           así que cada frame de un arrastre obliga a desenfocar de nuevo la
+           franja entera. El blanco casi opaco separa igual del mapa y el
+           desenfoque solo existía en móvil, que es donde más caro sale. -->
       <header
         id="site-header"
-        class="fixed inset-x-0 top-0 z-[900] border-b border-slate-200/60 bg-white/80 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur lg:static lg:z-auto lg:border-0 lg:bg-transparent lg:p-0 lg:backdrop-blur-none"
+        class="fixed inset-x-0 top-0 z-[900] border-b border-slate-200/60 bg-white/95 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] lg:static lg:z-auto lg:border-0 lg:bg-transparent lg:p-0"
       >
         <p
           class="inline-flex items-center gap-2 rounded-full bg-red-50 px-3 py-1 text-xs font-semibold text-red-700"

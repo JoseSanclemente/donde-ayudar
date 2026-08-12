@@ -191,6 +191,10 @@ export function clearSelection(): void {
  * el popup y cerrarlo a mano dejaría un parpadeo en cada toque.
  */
 function attachPopup(marker: L.Marker, html: string): void {
+  // Cada emisión del store repinta todos los marcadores, y casi siempre con el
+  // mismo HTML: sin esta salida, un popup abierto se reparsea entero en cada
+  // tick de realtime aunque no haya cambiado una letra.
+  if (popupHtml.get(marker) === html) return;
   popupHtml.set(marker, html);
   if (isMobile()) marker.unbindPopup();
   else if (marker.getPopup()) marker.setPopupContent(html);
@@ -225,6 +229,9 @@ export function initMap(containerId: string): L.Map {
   L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
     maxZoom: 20,
     subdomains: "abcd",
+    // Durante la animación de zoom el nivel intermedio no se ve casi: pedir y
+    // pintar esas teselas es trabajo que cae justo en los frames del gesto.
+    updateWhenZooming: false,
     attribution:
       '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
   }).addTo(map);
@@ -237,6 +244,13 @@ export function initMap(containerId: string): L.Map {
     stopPicking();
     handler(event.latlng);
   });
+
+  // Mientras dura el gesto los anillos se pausan (regla `.is-moving` en
+  // global.css). No se pierde información: el punto sigue ahí y del mismo color,
+  // solo deja de latir el rato que el mapa está en movimiento.
+  const container = map.getContainer();
+  map.on("movestart zoomstart", () => container.classList.add("is-moving"));
+  map.on("moveend zoomend", () => container.classList.remove("is-moving"));
 
   onBreakpointChange(syncPopupMode);
 
@@ -299,7 +313,11 @@ function paintEstado(marker: L.Marker, group: ReportGroup, extra: MarkerExtra): 
   const el = marker.getElement();
   if (!el) return;
   const covered = group.resources.length > 0 && group.pending === 0;
-  el.dataset.estado = markerEstado(group.status, covered);
+  const estado = markerEstado(group.status, covered);
+  // Escribir el mismo valor igual invalida el estilo del subárbol, y acá eso son
+  // N marcadores recalculados en cada emisión del store. `classList.toggle` no
+  // hace falta protegerlo: si el estado no cambia, no toca el DOM.
+  if (el.dataset.estado !== estado) el.dataset.estado = estado;
   el.classList.toggle("is-stale", extra.stale);
 }
 
