@@ -380,7 +380,16 @@ export function initSheet(): void {
   body?.addEventListener("pointerdown", raiseFromPeek);
   body?.addEventListener("focusin", raiseFromPeek);
 
-  menu?.addEventListener("click", openSheet);
+  // El botón flotante promete la lista —«Abrir el panel de puntos y novedades»—,
+  // así que nunca vuelve al formulario ni al detalle: cerrar el sheet deja la
+  // pestaña donde estaba, y sin esto reabrir por acá traía de vuelta lo que se
+  // acababa de cerrar. Al formulario se vuelve por el FAB, que para eso sigue
+  // a la vista.
+  menu?.addEventListener("click", () => {
+    const tab = sheet.dataset.tab;
+    if (tab === "reportar" || tab === "detalle") showTab("puntos");
+    else openSheet();
+  });
   scrim?.addEventListener("click", closeSheet);
   document.getElementById("sheet-close")?.addEventListener("click", closeSheet);
 

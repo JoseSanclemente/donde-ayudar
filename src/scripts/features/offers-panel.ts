@@ -1,5 +1,11 @@
 ﻿import { groupReports } from "../cluster";
-import { addOffer, assignOffer, getOffers, onOffers, removeOffer } from "../data/offers";
+import {
+  addOffer,
+  assignOffer,
+  getOffers,
+  onOffers,
+  removeOffer,
+} from "../data/offers";
 import { getReports, onChange } from "../data/reports";
 import { isMine } from "../data/session";
 import { flyTo } from "../map";
@@ -8,6 +14,7 @@ import { closeSheet } from "../sheet";
 import { CHIP_SHAPE } from "../ui/chips";
 import { isValidPhone, telUrl, whatsappUrl } from "../ui/contact";
 import { $, clearError, maybe$, scheduleRender, showError } from "../ui/dom";
+import { PHONE_ICON } from "../ui/html";
 import { paintTime } from "../ui/time";
 
 /** Cuántas ofertas se ven antes de «Ver más». */
@@ -48,14 +55,18 @@ export function initOffersPanel(): void {
    * Selector de destino de una oferta. Va por RPC, así que cualquiera puede
    * despacharla: quien coordina en la calle no es quien publicó la máquina.
    */
-  function assignSelect(offerId: string, current: string | null): HTMLSelectElement {
+  function assignSelect(
+    offerId: string,
+    current: string | null,
+  ): HTMLSelectElement {
     const select = document.createElement("select");
     select.className =
-      "min-w-0 flex-1 rounded-lg border border-slate-300 px-2 py-1 text-xs text-slate-700 shadow-sm outline-none focus:border-slate-400";
+      "min-w-0 flex-1 rounded-lg border border-slate-300 px-2 py-1 text-sm text-slate-700 shadow-sm outline-none focus:border-slate-400";
     select.setAttribute("aria-label", "Punto al que se despacha esta ayuda");
 
     const options = [new Option("Sin asignar", "")];
-    for (const point of points()) options.push(new Option(point.name, point.id));
+    for (const point of points())
+      options.push(new Option(point.name, point.id));
     // El punto ya no está en el mapa (lo borraron) pero la oferta lo apunta: se
     // agrega a mano para no cambiarle el destino en silencio a nadie.
     if (current && !options.some((o) => o.value === current)) {
@@ -82,13 +93,17 @@ export function initOffersPanel(): void {
     empty.classList.toggle("hidden", offers.length > 0);
     more.classList.toggle("hidden", offers.length <= limit);
 
-    const names = new Map(getReports().map((report) => [report.id, report.name]));
+    const names = new Map(
+      getReports().map((report) => [report.id, report.name]),
+    );
 
     list.replaceChildren(
       ...offers.slice(0, limit).map((offer) => {
         const item = document.createElement("li");
-        item.className = `rounded-lg border p-3 ${
-          offer.reportId ? "border-slate-200 bg-slate-50" : "border-slate-200 bg-white"
+        item.className = `rounded-lg border p-3 space-y-3 ${
+          offer.reportId
+            ? "border-slate-200 bg-slate-50"
+            : "border-slate-200 bg-white"
         }`;
 
         const head = document.createElement("div");
@@ -137,24 +152,33 @@ export function initOffersPanel(): void {
         const wa = whatsappUrl(offer.contactPhone);
         const call = document.createElement("a");
         call.className =
-          "mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white no-underline shadow-sm transition hover:bg-emerald-700";
+          "mt-2 flex w-full text-center items-center justify-center gap-1.5 rounded-lg bg-emerald-600 p-3 text-sm font-semibold text-white no-underline shadow-sm transition hover:bg-emerald-700";
         call.href = wa ?? telUrl(offer.contactPhone);
         if (wa) {
           call.target = "_blank";
           call.rel = "noopener noreferrer";
         }
-        call.textContent = `${offer.contactName} — ${offer.contactPhone}`;
+        const icon = document.createElement("span");
+        icon.className = "contents";
+        icon.innerHTML = PHONE_ICON;
+
+        const who = document.createElement("span");
+        who.textContent = `${offer.contactName} - ${offer.contactPhone}`;
+        call.append(icon, who);
         item.append(call);
 
         const row = document.createElement("div");
         row.className = "mt-2 flex items-center gap-2";
         row.append(assignSelect(offer.id, offer.reportId));
 
-        const pointName = offer.reportId ? names.get(offer.reportId) : undefined;
+        const pointName = offer.reportId
+          ? names.get(offer.reportId)
+          : undefined;
         if (pointName) {
           const link = document.createElement("button");
           link.type = "button";
-          link.className = "shrink-0 text-xs font-medium text-slate-500 hover:text-red-600";
+          link.className =
+            "shrink-0 text-xs font-medium text-slate-500 hover:text-red-600";
           link.textContent = "↦ Ver punto";
           link.addEventListener("click", () => {
             const report = getReports().find((r) => r.id === offer.reportId);
@@ -185,11 +209,17 @@ export function initOffersPanel(): void {
     const who = contactName.value.trim();
     const phone = contactPhone.value.trim();
     if (who.length < 2) {
-      showError(error, "Escribe tu nombre: sin él nadie sabe por quién preguntar.");
+      showError(
+        error,
+        "Escribe tu nombre: sin él nadie sabe por quién preguntar.",
+      );
       return;
     }
     if (!isValidPhone(phone)) {
-      showError(error, "Escribe un teléfono válido, con indicativo si es fijo.");
+      showError(
+        error,
+        "Escribe un teléfono válido, con indicativo si es fijo.",
+      );
       return;
     }
     clearError(error);

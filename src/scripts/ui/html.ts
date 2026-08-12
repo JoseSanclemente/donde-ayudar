@@ -25,6 +25,10 @@ export const NAV_ICON = `<svg class="h-3.5 w-3.5 shrink-0" viewBox="0 0 24 24" f
 // lado que le dé tamaño.
 export const SHARE_ICON = `<svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.6 13.5l6.8 4M15.4 6.5l-6.8 4"/></svg>`;
 
+// Un auricular, no el globo de WhatsApp: el mismo CTA cae a `tel:` cuando el
+// número no arma un chat, y el icono no puede prometer una app que no se abre.
+export const PHONE_ICON = `<svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.24 11.4 11.4 0 0 0 3.6.58 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.46.58 3.6a1 1 0 0 1-.25 1l-2.23 2.2Z"/></svg>`;
+
 /**
  * Ruta en Google Maps hasta el punto exacto. Va por coordenadas y no por nombre
  * porque varias direcciones curadas son aproximadas ("Torre 2 piso 4") y una
