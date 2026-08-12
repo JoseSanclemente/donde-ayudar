@@ -8,11 +8,12 @@ import {
   SANGRE_FILTER,
 } from "./resources";
 import { readCachedCoords } from "./geolocation";
-import { markerEstado, statusInfo } from "./status";
+import type { ShareCard } from "./share-card";
+import { markerEstado, statusInfo, type ReportStatus } from "./status";
 import { isMobile, onBreakpointChange } from "./ui/breakpoint";
 import { chipLabel, chipStyle } from "./ui/chips";
 import { telUrl, whatsappUrl } from "./ui/contact";
-import { directionsUrl, escapeHtml, NAV_ICON } from "./ui/html";
+import { directionsUrl, escapeHtml, NAV_ICON, SHARE_ICON } from "./ui/html";
 import { statusSelectHtml } from "./ui/status-select";
 import { relativeTime } from "./ui/time";
 
@@ -63,6 +64,53 @@ export type MarkerExtra = {
   lastUpdate?: string;
   stale: boolean;
 };
+
+/* ---- Compartir: la ficha que dibuja `share-card.ts` para la imagen ---- */
+
+/**
+ * Lo que hay que saber de un punto para dibujar su imagen, listo desde que se
+ * arma el popup. Va en un registro y no en atributos `data-` del botón porque
+ * habría que serializar los chips y escapar el HTML dos veces; acá el objeto ya
+ * está armado y `features/share.ts` lo pide por llave.
+ *
+ * Las llaves llevan prefijo —`r:` un grupo de reportes, `c:` un punto— porque
+ * los dos registros se repintan por su cuenta y cada uno solo puede borrar lo
+ * suyo.
+ */
+const shareCards = new Map<string, ShareCard>();
+
+export function getShareCard(key: string): ShareCard | null {
+  return shareCards.get(key) ?? null;
+}
+
+function dropShareCards(prefix: string): void {
+  for (const key of [...shareCards.keys()])
+    if (key.startsWith(prefix)) shareCards.delete(key);
+}
+
+/** El color del estado en hexadecimal: el canvas no entiende clases de Tailwind. */
+const STATUS_ACCENT: Record<ReportStatus, string> = {
+  activo: "#ef4444",
+  urgente: "#b91c1c",
+  saturado: "#b45309",
+  cerrado: "#64748b",
+};
+
+/**
+ * El botón de compartir. Es un icono y no un botón con texto porque va al lado
+ * de «Cómo llegar», que es a lo que viene todo el mundo y se queda con todo el
+ * peso; en el popup de un reporte —donde no hay CTA— va solo, alineado a la
+ * derecha, con las mismas clases para que se reconozca como el mismo control.
+ */
+function shareButtonHtml(key: string): string {
+  return `<button
+        type="button"
+        data-share="${escapeHtml(key)}"
+        aria-label="Compartir este punto"
+        title="Compartir"
+        class="flex shrink-0 items-center justify-center rounded-lg border border-slate-300 bg-white p-2.5 text-slate-600 transition hover:bg-slate-50 hover:text-slate-900 disabled:opacity-60"
+      >${SHARE_ICON}</button>`;
+}
 
 /** Bloque de contacto del popup: nombre en texto y, si hay número, CTA a WhatsApp. */
 function contactHtml(name: string, phone: string | null): string {
@@ -159,6 +207,31 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
     .map((r) => contactHtml(r.contactName as string, r.contactPhone))
     .join("");
 
+  // La misma información del popup, en el orden en que se lee, para la imagen
+  // que sale del botón de compartir. Los recursos cubiertos van en gris, igual
+  // que sus chips acá.
+  const shareKey = `r:${group.key}`;
+  shareCards.set(shareKey, {
+    kicker: statusInfo(group.status).label,
+    accent: STATUS_ACCENT[group.status] ?? STATUS_ACCENT.activo,
+    name: lead.name,
+    address: null,
+    lines: [
+      count > 1 ? `${count} reportes en este punto` : "",
+      statusInfo(group.status).aviso,
+      `Actualizado ${relativeTime(extra.freshAt)}`,
+    ].filter(Boolean),
+    chipsTitle: "Necesita",
+    chips: group.resources.map((resource) => ({
+      label: resource.name,
+      category: categoryIdOf(resource.name) ?? null,
+      muted: resource.covered,
+    })),
+    marker: "pulse",
+    lat: group.lat,
+    lng: group.lng,
+  });
+
   return `
     <div class="space-y-2">
       ${kicker}
@@ -170,7 +243,10 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
       ${lastUpdate}
       ${fresh}
       ${contacto}
-      <p class="text-xs text-slate-400">Reportado el ${escapeHtml(date)}</p>
+      <div class="flex items-center justify-between gap-2">
+        <p class="text-xs text-slate-400">Reportado el ${escapeHtml(date)}</p>
+        ${shareButtonHtml(shareKey)}
+      </div>
     </div>`;
 }
 
@@ -444,6 +520,8 @@ export type MarkerEntry = { group: ReportGroup; extra: MarkerExtra };
  */
 export function syncReportMarkers(entries: MarkerEntry[]): void {
   keyByReport.clear();
+  // Las fichas para compartir se rehacen con los popups, una por grupo vivo.
+  dropShareCards("r:");
 
   for (const { group, extra } of entries) {
     for (const id of group.reportIds) keyByReport.set(id, group.key);
@@ -615,11 +693,18 @@ const ORIGEN: Record<Centro["origen"], string> = {
   comunidad: "Creado por la comunidad",
 };
 
-/** Etiqueta y color del kicker por tipo. Un cuarto tipo es una entrada más. */
-const KICKER: Record<Centro["tipo"], { label: string; color: string }> = {
-  acopio: { label: "Centro de acopio", color: "text-indigo-700" },
-  sangre: { label: "Banco de sangre", color: "text-rose-700" },
-  albergue: { label: "Albergue", color: "text-amber-700" },
+/**
+ * Etiqueta y color del kicker por tipo. Un cuarto tipo es una entrada más.
+ * `accent` es el mismo color de `color` en hexadecimal: la imagen para compartir
+ * se dibuja en un canvas y ahí una clase de Tailwind no significa nada.
+ */
+const KICKER: Record<
+  Centro["tipo"],
+  { label: string; color: string; accent: string }
+> = {
+  acopio: { label: "Centro de acopio", color: "text-indigo-700", accent: "#4338ca" },
+  sangre: { label: "Banco de sangre", color: "text-rose-700", accent: "#be123c" },
+  albergue: { label: "Albergue", color: "text-amber-700", accent: "#b45309" },
 };
 
 /**
@@ -673,7 +758,7 @@ function centroPopupHtml(centro: Centro, mine: boolean): string {
     : "";
   // El estado va en el kicker y no solo en el color del pin: quien abre el popup
   // tiene que leerlo antes que la dirección.
-  const { label, color } = KICKER[centro.tipo];
+  const { label, color, accent } = KICKER[centro.tipo];
   const kicker = pausa
     ? `<p class="text-xs font-semibold uppercase tracking-wide text-slate-500">${label} · No recibe por ahora</p>`
     : `<p class="text-xs font-semibold uppercase tracking-wide ${color}">${label}</p>`;
@@ -692,9 +777,12 @@ function centroPopupHtml(centro: Centro, mine: boolean): string {
     : "";
   // En pausa el CTA deja de ser el azul sólido: sigue disponible para quien
   // quiera ubicarlo, pero no invita al viaje.
+  //
+  // Sin `w-full` ni `mt-1`: el CTA comparte fila con el botón de compartir, así
+  // que el ancho lo reparte el `flex-1` y el margen vive en el contenedor.
   const ctaClass = pausa
-    ? "centro-cta centro-cta-quiet mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-md font-semibold no-underline transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300"
-    : "centro-cta mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-md font-semibold no-underline shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300";
+    ? "centro-cta centro-cta-quiet flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-md font-semibold no-underline transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300"
+    : "centro-cta flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-md font-semibold no-underline shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300";
   const origen = `<p class="text-sm text-slate-500">${ORIGEN[centro.origen]}</p>`;
   // Las dos condiciones de la policy de delete, y por eso las dos acá: ofrecer
   // el botón sobre un punto curado sería ofrecer algo que el servidor rechaza.
@@ -709,6 +797,33 @@ function centroPopupHtml(centro: Centro, mine: boolean): string {
         class="mt-1 w-full text-xs font-medium text-slate-400 transition hover:text-red-600"
       >Eliminar este punto</button>`
       : "";
+  // Un banco de sangre no lista insumos: sin chips, el bloque no se dibuja y el
+  // título tampoco.
+  const shareKey = `c:${centro.id}`;
+  shareCards.set(shareKey, {
+    kicker: pausa ? `${label} · No recibe por ahora` : label,
+    accent: pausa ? "#64748b" : accent,
+    name: centro.name,
+    address: centro.direccion,
+    lines: [
+      centro.horario,
+      pausa ? avisoLabel : "",
+      centro.telefono ? `Tel. ${centro.telefono}` : "",
+      ORIGEN[centro.origen],
+    ].filter(Boolean),
+    chipsTitle: "Recibe",
+    chips: recibeInsumos(centro)
+      ? centro.recibe.map((item) => ({
+          label: item,
+          category: categoryIdOf(item) ?? null,
+          muted: pausa,
+        }))
+      : [],
+    marker: "square",
+    lat: centro.lat,
+    lng: centro.lng,
+  });
+
   // Nombre, quién lo publicó y dónde queda son la misma respuesta —«qué es esto
   // y dónde está»—, así que van pegados en un bloque y el resto respira aparte.
   return `
@@ -724,12 +839,15 @@ function centroPopupHtml(centro: Centro, mine: boolean): string {
       ${recibe}
       ${telefono}
       ${notas}
-      <a
-        class="${ctaClass}"
-        href="${directionsUrl(centro.lat, centro.lng)}"
-        target="_blank"
-        rel="noopener noreferrer"
-      >${NAV_ICON}Cómo llegar</a>
+      <div class="mt-1 flex items-stretch gap-2">
+        <a
+          class="${ctaClass}"
+          href="${directionsUrl(centro.lat, centro.lng)}"
+          target="_blank"
+          rel="noopener noreferrer"
+        >${NAV_ICON}Cómo llegar</a>
+        ${shareButtonHtml(shareKey)}
+      </div>
       ${borrar}
     </div>`;
 }
@@ -772,6 +890,7 @@ export function setCentros(entries: CentroEntry[]): number {
   // un punto recién borrado, sin que el borrado tenga que saber del panel.
   if (selected && centros.some(({ marker }) => marker === selected)) emit(null);
   centros.length = 0;
+  dropShareCards("c:");
   for (const { data, mine } of entries) {
     // The icon is picked here and never repainted afterwards, unlike
     // `paintEstado` for reports. It does not have to be: pausing a point in

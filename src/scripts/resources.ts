@@ -99,6 +99,8 @@ export const CATEGORIES: ResourceCategory[] = [
     id: "salud",
     label: "Primeros auxilios y aseo",
     items: [
+      "Médicos y auxiliares de enfermería",
+      "Ambulancia",
       "Gasas",
       "Alcohol",
       "Jabón de cuerpo",

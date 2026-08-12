@@ -11,6 +11,7 @@ import { initCentroForm } from "./features/centro-form";
 import { initReportForm } from "./features/report-form";
 import { initReportList } from "./features/report-list";
 import { initReportTabs } from "./features/report-tabs";
+import { initShare } from "./features/share";
 import { initSyncBadge } from "./features/sync-badge";
 import { initUpdatesFeed } from "./features/updates-feed";
 import { initUserLocation } from "./features/user-location";
@@ -28,6 +29,7 @@ initUserLocation();
 initSheet();
 initMarkerSheet();
 initMarkerActions();
+initShare();
 initCentrosLayer();
 // Antes del aviso: la primera vez que aparece ya cambia la altura del header.
 initHeaderOffset();

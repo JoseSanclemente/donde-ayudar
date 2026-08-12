@@ -60,7 +60,7 @@ Two kinds of data, and they must not mix:
   loaders (`loadAddresses`, `loadStreets`).
 - **`features/`** — one UI piece per file, each with its `init…()`: `alert-banner`,
   `centros-layer`, `centro-form`, `location-picker`, `marker-sheet`, `offers-panel`,
-  `report-form`, `report-list`, `report-tabs`, `resource-picker`, `updates-feed`,
+  `report-form`, `report-list`, `report-tabs`, `resource-picker`, `share`, `updates-feed`,
   `user-location`. They
   subscribe to the stores; they never call Supabase directly. `location-picker` and
   `resource-picker` are the exception to "one
@@ -96,6 +96,19 @@ Two kinds of data, and they must not mix:
     the cache: centering on a weeks-old position is harmless, a dot claiming it is not.
   - `sheet.ts` — the mobile bottom sheet (`display: contents` at >=1024px, so desktop is
     untouched).
+  - `share-card.ts` — the 1080×1920 PNG behind the share button — story format, full
+    screen on a phone — drawn on a canvas: a CARTO tile crop of the point, then its name,
+    address and chips. The card is measured before anything is drawn and the map crop
+    takes whatever height is left over, down to a floor; chips shrink through a size
+    ladder rather than being cut, because the list of what a point needs is the whole
+    point of the image. Client-side because
+    the site is static — there is no server to render an `og:image` on and no per-point
+    URL to hand a crawler, so what travels is the file, not a link preview. It takes a
+    `ShareCard` and returns a `Blob`; `map.ts` builds the descriptor while it builds the
+    popup and keeps it in a registry (`getShareCard`), and `features/share.ts` hands the
+    blob to `navigator.share`, or downloads it where sharing files is not supported. The
+    chip colours are spelled out in hex here — the canvas twin of the Tailwind classes in
+    `resources.ts`, and a new category has to be added to both.
   - `supabase.ts` — the client; `null` when the env vars are missing.
 - **`ui/`** — stateless helpers with no domain knowledge (`dom`, `html`, `chips`,
   `contact`, `time`, `toast`, `breakpoint`). They know neither the stores nor the features.
