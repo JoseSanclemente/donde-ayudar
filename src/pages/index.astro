@@ -10,7 +10,7 @@ import { SITE_NAME, SITE_TITLE } from "../consts";
 ---
 
 <Base title={SITE_TITLE}>
-  <div class="mx-auto max-w-[1600px] lg:flex lg:h-screen lg:overflow-hidden">
+  <div class="mx-auto max-w-[1920px] lg:relative lg:flex lg:h-screen lg:overflow-hidden">
     <!-- Panel lateral (en móvil: header flotante + bottom sheet) -->
     <div
       class="lg:flex lg:h-screen lg:w-[26rem] lg:shrink-0 lg:flex-col lg:gap-5 lg:overflow-y-auto lg:p-5"
@@ -183,8 +183,9 @@ import { SITE_NAME, SITE_TITLE } from "../consts";
           </div>
 
           <!-- On desktop this card does not stay in the sidebar: the stylesheet
-               floats it over the map's top-right corner. It stays here in the
-               markup because on mobile it is one more tab of the sheet. -->
+               lifts it out to be the third column, to the right of the map. It
+               stays here in the markup because on mobile it is one more tab of
+               the sheet. -->
           <div id="updates-card" data-tab-panel="novedades"><UpdatesFeed /></div>
 
           <div id="offers-card" data-tab-panel="ayuda"><OffersPanel /></div>
@@ -193,7 +194,7 @@ import { SITE_NAME, SITE_TITLE } from "../consts";
     </div>
 
     <!-- Mapa -->
-    <main class="fixed inset-0 z-0 lg:static lg:h-screen lg:flex-1 lg:p-5">
+    <main class="fixed inset-0 z-0 lg:static lg:h-screen lg:flex-1 lg:p-5 lg:pr-[var(--right-column)]">
       <div
         id="map"
         class="h-full w-full lg:overflow-hidden lg:rounded-2xl lg:border lg:border-slate-200 lg:shadow-sm"
@@ -207,7 +208,7 @@ import { SITE_NAME, SITE_TITLE } from "../consts";
     <button
       type="button"
       id="fab-report"
-      class="fab-report fixed right-4 z-[1050] inline-flex items-center gap-2 rounded-full bg-red-600 px-4 py-3 text-sm font-semibold text-white shadow-lg transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300 lg:right-8"
+      class="fab-report fixed right-4 z-[1050] inline-flex items-center gap-2 rounded-full bg-red-600 px-4 py-3 text-sm font-semibold text-white shadow-lg transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300 lg:absolute lg:right-[calc(var(--right-column)+1.5rem)]"
     >
       <span aria-hidden="true" class="text-base leading-none">+</span>
       Realizar reporte
@@ -250,7 +251,7 @@ import { SITE_NAME, SITE_TITLE } from "../consts";
       type="button"
       id="locate-me"
       aria-label="Centrar el mapa en mi ubicación"
-      class="locate-me fixed right-4 z-[1050] inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-4 text-slate-700 shadow-lg transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 lg:right-8"
+      class="locate-me fixed right-4 z-[1050] inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-4 text-slate-700 shadow-lg transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 lg:absolute lg:right-[calc(var(--right-column)+1.5rem)]"
     >
       <svg
         viewBox="0 0 20 20"

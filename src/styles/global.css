@@ -467,13 +467,26 @@ option {
   gap: 0.25rem;
 }
 
+/* Lo que la columna de la derecha le quita a la fila del mapa: su ancho más el
+   aire a cada lado. `<main>` lo reserva como relleno y los botones flotantes lo
+   esquivan, así que el número vive acá una sola vez. */
+@media (min-width: 1024px) {
+  :root {
+    --right-column: 24.5rem;
+  }
+}
+
 /* ---- Botones flotantes: «Realizar reporte», «Ver panel» y «Centrar en mí» ----
    El desplazamiento vertical vive acá y no en clases de Tailwind porque necesita
    `env(safe-area-inset-bottom)`. Van apilados en la esquina inferior derecha: el
    FAB abajo y los otros dos encima, un escalón de 3.5rem cada uno (2.75rem de
    alto del botón + 0.75rem de aire). Con el sheet cerrado el mapa queda libre,
    así que ya no hay peek que esquivar. En escritorio el FAB va sobre la
-   atribución de CARTO y el menú no existe, así que la pila es de dos. */
+   atribución de CARTO y el menú no existe, así que la pila es de dos.
+
+   En escritorio el mapa es la columna del medio, no la pantalla: los botones
+   pasan a `absolute` contra el contenedor de la página (`lg:absolute` en el
+   marcado) y el `bottom` de acá los deja adentro del marco redondeado. */
 
 .fab-report {
   bottom: calc(1rem + env(safe-area-inset-bottom));
@@ -502,13 +515,13 @@ option {
 
 @media (min-width: 1024px) {
   .fab-report {
-    bottom: 2.5rem;
+    bottom: 3.5rem;
   }
 
   /* El menú no existe acá: la pila baja un escalón entero. */
   .locate-me,
   #sheet-toggle[hidden] ~ .locate-me {
-    bottom: 6rem;
+    bottom: 7rem;
   }
 
   #fab-report[hidden] ~ .locate-me,
@@ -546,21 +559,24 @@ option {
     display: none;
   }
 
-  /* The city log is not one more card at the bottom of a 26rem column: it
-     floats over the map's top-right corner, where it is read without
-     scrolling. `right` follows the 1600px cap of the page container — a plain
-     1.25rem would drift off the map's edge on a wide screen. The 1.25rem
+  /* The city log is not one more card at the bottom of a 26rem column: it is the
+     third column, to the right of the map. It cannot be a third flex child of
+     the page container — on mobile it is a tab of the sheet, so it has to stay
+     inside `#sheet-body` — so it is lifted out of the stack here instead.
+     `absolute` and not `fixed`: the offset is then the page container's own
+     right edge, and the max width of the site stays written in one place. The
+     space is not taken from the map, it is reserved by the `lg:pr-*` of
+     `<main>`; changing this width means changing that padding. The 1.25rem
      matches the `lg:p-5` of `<main>`, so the card lines up with the rounded
      frame of the map. */
   #updates-card {
-    position: fixed;
+    position: absolute;
     top: 1.25rem;
-    right: max(1.25rem, calc(50vw - 800px + 1.25rem));
-    /* Above Leaflet's popup pane (700), below the floating buttons (1050).
-       Nothing else lives in that corner: the zoom control is top-left. */
+    right: 1.25rem;
+    bottom: 1.25rem;
+    /* Above Leaflet's popup pane (700), below the floating buttons (1050). */
     z-index: 900;
-    width: 21rem;
-    max-height: calc(100vh - 2.5rem);
+    width: 22rem;
     overflow-y: auto;
     overscroll-behavior: contain;
     padding: 0 1rem 0.5rem;
