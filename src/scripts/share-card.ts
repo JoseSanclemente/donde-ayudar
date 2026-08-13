@@ -113,18 +113,45 @@ const CHIP_MUTED = { bg: "#f1f5f9", fg: "#64748b" };
 
 /* --------------------------------- Teselas -------------------------------- */
 
-/** Calle, no barrio: a este zoom se reconoce la cuadra en la que queda el punto. */
-const TILE_ZOOM = 17;
-const TILE_SIZE = 256;
-/** El mismo `light_all` del mapa, en @2x: al reducirlo el texto sale nítido. */
+/**
+ * Calle, no barrio: al tamaño con que se dibujan, a este zoom se reconoce la
+ * cuadra en la que queda el punto. Zoom 16 y no 17 por el peso: el mismo
+ * recorte son unas nueve teselas en vez de treinta, y treinta teselas @2x son
+ * más de un mega que una conexión lenta no baja dentro de `MAP_TIMEOUT_MS`.
+ */
+const TILE_ZOOM = 16;
+/**
+ * Lo que mide una tesela en el lienzo. Una @2x son 512 píxeles reales, así que
+ * dibujarla a 512 es dibujarla 1:1 — sin reescalar, que es donde el texto de un
+ * mapa se ensucia. El encuadre no cambia: 1080 píxeles cubren 2,1 teselas de
+ * zoom 16 a 512, el mismo trozo de ciudad que cubrían 4,2 de zoom 17 a 256.
+ *
+ * Es también la unidad de `worldPixel()`, y por eso el píxel del mundo y el
+ * píxel del lienzo son el mismo número en todo el módulo.
+ */
+const TILE_DRAW = 512;
+/** El mismo `light_all` del mapa, en @2x. */
 const TILE_URL = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png";
 const SUBDOMAINS = ["a", "b", "c", "d"];
 /** Una tesela colgada no puede dejar el botón girando para siempre. */
 const TILE_TIMEOUT_MS = 6000;
+/**
+ * El tope del recorte entero, y no la suma de los topes de cada tesela: se
+ * bajan en paralelo, así que veinte teselas lentas esperan veinte veces lo
+ * mismo.
+ *
+ * Ocho segundos y no cuatro, a sabiendas de que Chrome solo le da cinco al
+ * gesto del visitante: en una conexión lenta el mapa tarda más que eso y sigue
+ * llegando, y quedarse sin recorte —que es lo que la imagen viene a mostrar—
+ * es peor que caer en la descarga. Pasados los cinco, `navigator.share()`
+ * rechaza y `features/share.ts` entrega el PNG por descarga; el mapa se pierde
+ * solo cuando de verdad no llegó.
+ */
+const MAP_TIMEOUT_MS = 8000;
 
-/** Punto del mundo en píxeles de tesela, en el zoom fijo de la imagen. */
+/** Punto del mundo en píxeles del lienzo, en el zoom fijo de la imagen. */
 function worldPixel(lat: number, lng: number): { x: number; y: number } {
-  const scale = TILE_SIZE * 2 ** TILE_ZOOM;
+  const scale = TILE_DRAW * 2 ** TILE_ZOOM;
   const sin = Math.sin((lat * Math.PI) / 180);
   return {
     x: ((lng + 180) / 360) * scale,
@@ -152,26 +179,22 @@ function loadTile(url: string): Promise<HTMLImageElement> {
   });
 }
 
-/**
- * Pinta el recorte del mapa centrado en el punto. Lanza si alguna tesela no
- * llega: quien llama decide qué dibujar en su lugar.
- */
-async function drawMap(
-  ctx: CanvasRenderingContext2D,
+/** Las teselas que cubren el recorte, con su posición en la malla. */
+function tileJobs(
   lat: number,
   lng: number,
   mapHeight: number,
-): Promise<void> {
+): { left: number; top: number; jobs: { x: number; y: number; url: string }[] } {
   const center = worldPixel(lat, lng);
   const left = center.x - WIDTH / 2;
   const top = center.y - mapHeight / 2;
 
-  const firstX = Math.floor(left / TILE_SIZE);
-  const lastX = Math.floor((left + WIDTH) / TILE_SIZE);
-  const firstY = Math.floor(top / TILE_SIZE);
-  const lastY = Math.floor((top + mapHeight) / TILE_SIZE);
+  const firstX = Math.floor(left / TILE_DRAW);
+  const lastX = Math.floor((left + WIDTH) / TILE_DRAW);
+  const firstY = Math.floor(top / TILE_DRAW);
+  const lastY = Math.floor((top + mapHeight) / TILE_DRAW);
 
-  const jobs: { x: number; y: number; image: Promise<HTMLImageElement> }[] = [];
+  const jobs: { x: number; y: number; url: string }[] = [];
   let n = 0;
   for (let x = firstX; x <= lastX; x += 1) {
     for (let y = firstY; y <= lastY; y += 1) {
@@ -180,22 +203,65 @@ async function drawMap(
         .replace("{x}", String(x))
         .replace("{y}", String(y));
       n += 1;
-      jobs.push({ x, y, image: loadTile(url) });
+      jobs.push({ x, y, url });
     }
   }
+  return { left, top, jobs };
+}
 
-  const images = await Promise.all(jobs.map((job) => job.image));
+/**
+ * Pide las teselas del recorte sin dibujarlas y sin esperar por ellas, para que
+ * estén en la caché del navegador cuando alguien toque el botón. Los fallos no
+ * importan acá: el dibujo de verdad las vuelve a pedir.
+ */
+export function prefetchShareTiles(card: ShareCard): void {
+  const { jobs } = tileJobs(card.lat, card.lng, MAP_MAX);
+  for (const job of jobs) void loadTile(job.url).catch(() => {});
+}
+
+/**
+ * Pinta el recorte del mapa centrado en el punto, con las teselas que hayan
+ * llegado: una que falte deja un cuadro gris, no tumba la imagen entera —en una
+ * conexión lenta, un recorte incompleto dice mucho más que ningún recorte.
+ *
+ * La excepción es la tesela del centro, donde va el marcador: sin ella el
+ * marcador flota sobre un vacío y señala un lugar que la imagen no muestra. Ahí
+ * sí lanza, y quien llama decide qué dibujar en su lugar.
+ */
+async function drawMap(
+  ctx: CanvasRenderingContext2D,
+  lat: number,
+  lng: number,
+  mapHeight: number,
+): Promise<void> {
+  const { left, top, jobs } = tileJobs(lat, lng, mapHeight);
+  const centerX = Math.floor((left + WIDTH / 2) / TILE_DRAW);
+  const centerY = Math.floor((top + mapHeight / 2) / TILE_DRAW);
+
+  const results = await Promise.allSettled(jobs.map((job) => loadTile(job.url)));
+
+  const missingCenter = jobs.some(
+    (job, i) => job.x === centerX && job.y === centerY && results[i]?.status !== "fulfilled",
+  );
+  if (missingCenter) throw new Error("center tile missing");
+
   ctx.save();
   ctx.beginPath();
   ctx.rect(0, 0, WIDTH, mapHeight);
   ctx.clip();
+  // El hueco de una tesela que no llegó tiene que leerse como un cuadro vacío y
+  // no como un agujero al blanco de la ficha.
+  ctx.fillStyle = SLATE_200;
+  ctx.fillRect(0, 0, WIDTH, mapHeight);
   jobs.forEach((job, i) => {
+    const result = results[i];
+    if (result?.status !== "fulfilled") return;
     ctx.drawImage(
-      images[i] as HTMLImageElement,
-      job.x * TILE_SIZE - left,
-      job.y * TILE_SIZE - top,
-      TILE_SIZE,
-      TILE_SIZE,
+      result.value,
+      job.x * TILE_DRAW - left,
+      job.y * TILE_DRAW - top,
+      TILE_DRAW,
+      TILE_DRAW,
     );
   });
   ctx.restore();
@@ -586,7 +652,18 @@ function drawCard(
 
   ctx.font = `700 40px ${FONT}`;
   ctx.fillStyle = SLATE_900;
-  ctx.fillText(DOMAIN, PAD, HEIGHT - 56);
+  ctx.textAlign = "right";
+  ctx.fillText(DOMAIN, WIDTH - PAD, HEIGHT - 56);
+  ctx.textAlign = "left";
+}
+
+function newCanvas(): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
+  const canvas = document.createElement("canvas");
+  canvas.width = WIDTH;
+  canvas.height = HEIGHT;
+  const ctx = canvas.getContext("2d");
+  if (!ctx) throw new Error("no 2d context");
+  return { canvas, ctx };
 }
 
 function toBlob(canvas: HTMLCanvasElement): Promise<Blob> {
@@ -614,21 +691,26 @@ export async function renderShareCard(card: ShareCard): Promise<Blob> {
     // Sin Figtree se dibuja igual, con la de respaldo del sistema.
   }
 
-  const canvas = document.createElement("canvas");
-  canvas.width = WIDTH;
-  canvas.height = HEIGHT;
-  const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("no 2d context");
+  const { canvas, ctx } = newCanvas();
 
   const layout = measure(ctx, card);
 
   try {
-    await drawMap(ctx, card.lat, card.lng, layout.mapHeight);
+    await Promise.race([
+      drawMap(ctx, card.lat, card.lng, layout.mapHeight),
+      new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error("map timeout")), MAP_TIMEOUT_MS),
+      ),
+    ]);
     drawCard(ctx, card, layout, true);
     return await toBlob(canvas);
   } catch {
-    ctx.clearRect(0, 0, WIDTH, HEIGHT);
-    drawCard(ctx, card, layout, false);
-    return toBlob(canvas);
+    // Un canvas nuevo, no el de arriba limpiado: si lo que falló fue `toBlob`
+    // porque una tesela llegó sin cabecera CORS, el canvas quedó contaminado
+    // para siempre —`clearRect` no lo descontamina— y volver a dibujar sobre él
+    // lanzaría el mismo SecurityError, justo en el rescate que existe para eso.
+    const fallback = newCanvas();
+    drawCard(fallback.ctx, card, layout, false);
+    return toBlob(fallback.canvas);
   }
 }
