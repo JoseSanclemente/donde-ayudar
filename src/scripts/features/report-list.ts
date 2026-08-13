@@ -28,9 +28,8 @@ import {
   type ReportStatus,
 } from "../status";
 import { chipLabel, chipStyle } from "../ui/chips";
-import { telUrl, whatsappUrl } from "../ui/contact";
+import { buildContactCta } from "../ui/contact";
 import { $, scheduleRender } from "../ui/dom";
-import { PHONE_ICON } from "../ui/html";
 import { buildCaret, SELECT_CHIP } from "../ui/select";
 import { confirmClose } from "../ui/status-select";
 import { isStale, newestIso, paintTime } from "../ui/time";
@@ -217,25 +216,8 @@ export function initReportList(): void {
         continue;
       }
 
-      const wa = whatsappUrl(report.contactPhone);
-      const call = document.createElement("a");
-      call.className =
-        "flex w-full text-center items-center justify-center gap-1.5 rounded-lg bg-emerald-600 p-3 text-sm font-semibold text-white no-underline shadow-sm transition hover:bg-emerald-700";
-      call.href = wa ?? telUrl(report.contactPhone);
-      if (wa) {
-        call.target = "_blank";
-        call.rel = "noopener noreferrer";
-      }
-
-      const icon = document.createElement("span");
-      icon.className = "contents";
-      icon.innerHTML = PHONE_ICON;
-
-      const who = document.createElement("span");
-      who.textContent = `${name} - ${report.contactPhone}`;
-
-      call.append(icon, who);
-      box.append(call);
+      // El aire entre CTAs lo pone el `gap` del contenedor: acá no va margen.
+      box.append(buildContactCta(name, report.contactPhone));
     }
     return box;
   }

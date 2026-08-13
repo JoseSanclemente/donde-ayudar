@@ -12,9 +12,8 @@ import { flyTo } from "../map";
 import { categoryChip, categoryTitle } from "../resources";
 import { closeSheet, setTabDot } from "../sheet";
 import { CHIP_SHAPE } from "../ui/chips";
-import { isValidPhone, telUrl, whatsappUrl } from "../ui/contact";
+import { buildContactCta, isValidPhone } from "../ui/contact";
 import { $, clearError, scheduleRender, showError } from "../ui/dom";
-import { PHONE_ICON } from "../ui/html";
 import { buildCaret, SELECT_FIELD, SELECT_FIELD_WRAP } from "../ui/select";
 import { paintTime } from "../ui/time";
 
@@ -153,22 +152,8 @@ export function initOffersPanel(): void {
         }
 
         // El contacto es obligatorio en esta tabla, así que el CTA siempre va.
-        const wa = whatsappUrl(offer.contactPhone);
-        const call = document.createElement("a");
-        call.className =
-          "mt-2 flex w-full text-center items-center justify-center gap-1.5 rounded-lg bg-emerald-600 p-3 text-sm font-semibold text-white no-underline shadow-sm transition hover:bg-emerald-700";
-        call.href = wa ?? telUrl(offer.contactPhone);
-        if (wa) {
-          call.target = "_blank";
-          call.rel = "noopener noreferrer";
-        }
-        const icon = document.createElement("span");
-        icon.className = "contents";
-        icon.innerHTML = PHONE_ICON;
-
-        const who = document.createElement("span");
-        who.textContent = `${offer.contactName} - ${offer.contactPhone}`;
-        call.append(icon, who);
+        const call = buildContactCta(offer.contactName, offer.contactPhone);
+        call.classList.add("mt-2");
         item.append(call);
 
         const row = document.createElement("div");

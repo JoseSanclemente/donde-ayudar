@@ -12,7 +12,7 @@ import type { ShareCard } from "./share-card";
 import { markerEstado, statusInfo, type ReportStatus } from "./status";
 import { isMobile, onBreakpointChange } from "./ui/breakpoint";
 import { chipLabel, chipStyle } from "./ui/chips";
-import { telUrl, whatsappUrl } from "./ui/contact";
+import { contactCtaHtml } from "./ui/contact";
 import {
   directionsUrl,
   escapeHtml,
@@ -119,18 +119,14 @@ function shareButtonHtml(key: string): string {
       >${SHARE_ICON}</button>`;
 }
 
-/** Bloque de contacto del popup: nombre en texto y, si hay número, CTA a WhatsApp. */
+/**
+ * Bloque de contacto del popup: sin número, el nombre en texto; con número, el
+ * mismo CTA que las listas, que lo arma `ui/contact`.
+ */
 function contactHtml(name: string, phone: string | null): string {
-  const who = `<p class="text-sm text-slate-600">Contacto: ${escapeHtml(name)}</p>`;
-  if (!phone) return who;
-  const wa = whatsappUrl(phone);
-  return `
-    ${who}
-    <a
-      class="centro-cta flex w-full items-center justify-center gap-1.5 rounded-lg bg-emerald-600 px-4 py-2 text-xs font-semibold no-underline shadow-sm transition hover:bg-emerald-700"
-      href="${escapeHtml(wa ?? telUrl(phone))}"
-      ${wa ? 'target="_blank" rel="noopener noreferrer"' : ""}
-    >${escapeHtml(phone)} — confirma antes de ir</a>`;
+  if (!phone)
+    return `<p class="text-sm text-slate-600">Contacto: ${escapeHtml(name)}</p>`;
+  return contactCtaHtml(name, phone, "mt-2");
 }
 
 /**
