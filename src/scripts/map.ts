@@ -9,12 +9,7 @@ import {
 } from "./resources";
 import { readCachedCoords } from "./geolocation";
 import type { ShareCard } from "./share-card";
-import {
-  isBlocked,
-  markerEstado,
-  statusInfo,
-  type ReportStatus,
-} from "./status";
+import { markerEstado, statusInfo, type ReportStatus } from "./status";
 import { isMobile, onBreakpointChange } from "./ui/breakpoint";
 import { chipLabel, chipStyle } from "./ui/chips";
 import { telUrl, whatsappUrl } from "./ui/contact";
@@ -182,18 +177,18 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
       ? `<p class="text-xs text-slate-500">${count} reportes en este punto</p>`
       : "";
 
+  // Una hora fresca respalda el dato; una vieja advierte que ya no lo hace.
+  const fresh = `<p class="text-xs ${extra.stale ? "font-medium text-amber-700" : "text-slate-500"}">Actualizado ${escapeHtml(relativeTime(extra.freshAt))}${extra.stale ? " — confirma antes de ir" : ""}</p>`;
+
   // El estado encabeza el popup: antes de saber qué falta hay que saber si se
   // puede llegar. Va como selector y no como chip de lectura porque cambiarlo es
   // comunitario, y quien está parado frente al punto es quien lo sabe — el chip
-  // solo le dejaba la opción de ir a buscar la fila en la lista. El aviso
-  // («no te desplaces») queda debajo: la etiqueta del `<option>` nombra el
-  // estado, no dice qué hacer con él.
+  // solo le dejaba la opción de ir a buscar la fila en la lista. La hora viaja
+  // pegada al selector porque un estado viejo no es un estado: enterarse abajo
+  // del todo de que nadie lo confirma desde ayer llega tarde.
   const kicker = `
       ${statusSelectHtml(group.status, group.reportIds, lead.name)}
-      <p class="text-xs text-slate-500">${escapeHtml(statusInfo(group.status).aviso)}</p>`;
-
-  // Una hora fresca respalda el dato; una vieja advierte que ya no lo hace.
-  const fresh = `<p class="text-xs ${extra.stale ? "font-medium text-amber-700" : "text-slate-500"}">Actualizado ${escapeHtml(relativeTime(extra.freshAt))}${extra.stale ? " — confirma antes de ir" : ""}</p>`;
+      ${fresh}`;
 
   // Encima de la dirección y más pequeño: es el nombre que se dice por teléfono,
   // pero el que lleva hasta el punto sigue siendo el de abajo.
@@ -240,12 +235,8 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
     // gana una tercera medida de texto.
     address: lead.placeName,
     updated: `Actualizado ${relativeTime(extra.freshAt)}`,
-    // El aviso solo entra cuando dice algo que el kicker no dijo: «URGENTE» ya
-    // es «necesita ayuda con urgencia», pero «Cerrado» no es «no te desplaces».
-    lines: [
-      count > 1 ? `${count} reportes en este punto` : "",
-      isBlocked(group.status) ? statusInfo(group.status).aviso : "",
-    ].filter(Boolean),
+    // El estado ya lo dice el kicker; acá solo va lo que él no cabe a decir.
+    lines: [count > 1 ? `${count} reportes en este punto` : ""].filter(Boolean),
     notes: noteList,
     chipsTitle: "Necesita",
     chips: group.resources.map((resource) => ({
@@ -270,7 +261,6 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
       ${resolved}
       ${notes}
       ${lastUpdate}
-      ${fresh}
       ${contacto}
       <div class="flex items-center justify-between gap-2">
         <p class="text-xs text-slate-400">Reportado el ${escapeHtml(date)}</p>

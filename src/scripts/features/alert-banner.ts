@@ -3,7 +3,7 @@ import { getReports, onChange } from "../data/reports";
 import { onUpdates } from "../data/updates";
 import { flyTo } from "../map";
 import { closeSheet } from "../sheet";
-import { isBlocked, statusInfo } from "../status";
+import { isBlocked } from "../status";
 import { $, scheduleRender } from "../ui/dom";
 import { relativeTime } from "../ui/time";
 
@@ -73,7 +73,9 @@ export function initAlertBanner(): void {
 
         const detail = document.createElement("span");
         detail.className = "text-amber-800";
-        detail.textContent = ` — ${statusInfo(group.status).aviso} · ${relativeTime(group.latestAt)}`;
+        // El encabezado del banner ya dijo qué son estos puntos y qué hacer con
+        // ellos; la fila solo aporta cuál y desde cuándo.
+        detail.textContent = ` · ${relativeTime(group.latestAt)}`;
 
         button.append(name, detail);
         item.append(button);

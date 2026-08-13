@@ -622,6 +622,18 @@ body {
     color: #b91c1c;
   }
 
+  /* The icons are drawn stroke-only; filling the outer shape is what marks the
+     selected tab. The pin's inner `circle` is its hole, so it takes the pill's
+     background instead of the colour — swapping the pin for an icon whose hole
+     is not a direct-child `circle` needs this rule revisited. */
+  #sheet-grab [data-tab-btn][aria-selected="true"] svg > :not(circle) {
+    fill: currentColor;
+  }
+
+  #sheet-grab [data-tab-btn][aria-selected="true"] svg > circle {
+    fill: #fef2f2;
+  }
+
   /* Cerrado el sheet está fuera de la pantalla: no debe atrapar ni el scroll ni
      los toques que van al mapa. */
   #sheet[data-state="closed"] {

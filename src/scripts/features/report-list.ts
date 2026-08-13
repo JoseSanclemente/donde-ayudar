@@ -20,10 +20,17 @@ import {
 } from "../map";
 import { CHIP_OFF, chipOnClass } from "../resources";
 import { closeSheet } from "../sheet";
-import { isBlocked, statusInfo, STATUSES, type ReportStatus } from "../status";
+import {
+  DEFAULT_LIST_FILTER,
+  isBlocked,
+  statusInfo,
+  STATUSES,
+  type ReportStatus,
+} from "../status";
 import { chipLabel, chipStyle } from "../ui/chips";
 import { telUrl, whatsappUrl } from "../ui/contact";
 import { $, scheduleRender } from "../ui/dom";
+import { PHONE_ICON } from "../ui/html";
 import { confirmClose } from "../ui/status-select";
 import { isStale, newestIso, paintTime } from "../ui/time";
 
@@ -38,7 +45,10 @@ let storeState: StoreState = "loading";
 let storeMessage: string | null = null;
 
 /** `null` = todos; `"urgente"` = solo urgentes; `"abiertos"` = sin llenos ni cerrados. */
-let listFilter: string | null = null;
+let listFilter: string | null = DEFAULT_LIST_FILTER;
+
+/** Whether the visitor picked a filter: the fallback below never overrides one. */
+let filterChosen = false;
 
 /**
  * Lo más reciente que se sabe de un punto: se creó, le tocaron el estado o
@@ -190,30 +200,50 @@ export function initReportList(): void {
     return box;
   }
 
-  /** Contactos publicados por quien reportó. Públicos y opcionales. */
+  /**
+   * Contactos publicados por quien reportó. Públicos y opcionales.
+   *
+   * Con teléfono va el mismo CTA verde de la ayuda disponible: confirmar antes
+   * de desplazarse es el consejo que repite toda la página, y el número escrito
+   * en texto chiquito lo deja en manos de quien sepa copiarlo. Sin teléfono
+   * queda el nombre suelto — no hay nada que tocar.
+   */
   function buildGroupContacts(group: ReportGroup): HTMLDivElement | null {
     const contacts = group.reports.filter((r) => r.contactName).slice(0, 2);
     if (contacts.length === 0) return null;
 
     const box = document.createElement("div");
-    box.className = "mt-2 flex flex-wrap items-center gap-x-3 gap-y-1";
+    box.className = "mt-2 flex flex-col gap-2";
     for (const report of contacts) {
-      const line = document.createElement("span");
-      line.className = "text-xs text-slate-600";
-      line.textContent = report.contactName as string;
-      box.append(line);
+      const name = report.contactName as string;
 
-      if (!report.contactPhone) continue;
-      const wa = whatsappUrl(report.contactPhone);
-      const link = document.createElement("a");
-      link.className = "text-xs font-semibold text-emerald-700 hover:underline";
-      link.href = wa ?? telUrl(report.contactPhone);
-      if (wa) {
-        link.target = "_blank";
-        link.rel = "noopener noreferrer";
+      if (!report.contactPhone) {
+        const line = document.createElement("span");
+        line.className = "text-xs text-slate-600";
+        line.textContent = name;
+        box.append(line);
+        continue;
       }
-      link.textContent = report.contactPhone;
-      box.append(link);
+
+      const wa = whatsappUrl(report.contactPhone);
+      const call = document.createElement("a");
+      call.className =
+        "flex w-full text-center items-center justify-center gap-1.5 rounded-lg bg-emerald-600 p-3 text-sm font-semibold text-white no-underline shadow-sm transition hover:bg-emerald-700";
+      call.href = wa ?? telUrl(report.contactPhone);
+      if (wa) {
+        call.target = "_blank";
+        call.rel = "noopener noreferrer";
+      }
+
+      const icon = document.createElement("span");
+      icon.className = "contents";
+      icon.innerHTML = PHONE_ICON;
+
+      const who = document.createElement("span");
+      who.textContent = `${name} - ${report.contactPhone}`;
+
+      call.append(icon, who);
+      box.append(call);
     }
     return box;
   }
@@ -456,6 +486,7 @@ export function initReportList(): void {
     );
     if (!chip) return;
     listFilter = chip.dataset.listFilter || null;
+    filterChosen = true;
     paintFilterChips();
     render();
   });
@@ -464,6 +495,19 @@ export function initReportList(): void {
     const reports = getReports();
     const groups = groupReports(reports);
     lastGroups = groups;
+
+    // La lista abre en «Urgentes», pero un filtro que no deja nada a la vista
+    // esconde la ciudad entera: sin urgentes, cae a «Todos». Sólo mientras
+    // nadie haya tocado los chips —después, el filtro es de quien lo eligió.
+    if (
+      !filterChosen &&
+      listFilter === DEFAULT_LIST_FILTER &&
+      groups.length > 0 &&
+      !groups.some(matchesFilter)
+    ) {
+      listFilter = null;
+      paintFilterChips();
+    }
 
     const shown = groups.filter(matchesFilter);
     reportList.replaceChildren(...shown.map(buildGroupItem));

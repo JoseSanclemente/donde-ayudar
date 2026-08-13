@@ -60,7 +60,7 @@ export function initOffersPanel(): void {
   ): HTMLSelectElement {
     const select = document.createElement("select");
     select.className =
-      "min-w-0 flex-1 rounded-lg border border-slate-300 px-2 py-1 text-sm text-slate-700 shadow-sm outline-none focus:border-slate-400";
+      "min-w-0 flex-1 rounded-lg border border-slate-300 px-2 py-1 text-base text-slate-700 shadow-sm outline-none focus:border-slate-400";
     select.setAttribute("aria-label", "Punto al que se despacha esta ayuda");
 
     const options = [new Option("Sin asignar", "")];
@@ -99,7 +99,7 @@ export function initOffersPanel(): void {
     list.replaceChildren(
       ...offers.slice(0, limit).map((offer) => {
         const item = document.createElement("li");
-        item.className = `rounded-lg border p-3 space-y-3 ${
+        item.className = `rounded-lg border px-3 py-5 space-y-5 ${
           offer.reportId
             ? "border-slate-200 bg-slate-50"
             : "border-slate-200 bg-white"

@@ -16,8 +16,6 @@ export type StatusInfo = {
   id: ReportStatus;
   /** Etiqueta del chip y del filtro. */
   label: string;
-  /** Frase del banner y del popup — dice qué hacer, no solo cómo se llama. */
-  aviso: string;
   chip: string;
   chipOn: string;
   /** Borde y fondo de la tarjeta en la lista: el estado se ve sin leer el chip. */
@@ -34,7 +32,6 @@ export const STATUSES: StatusInfo[] = [
   {
     id: "activo",
     label: "Activo",
-    aviso: "Recibiendo ayuda",
     chip: "bg-slate-100 text-slate-700",
     chipOn: "border-slate-600 bg-slate-600 text-white",
     card: "border-slate-200 bg-white",
@@ -43,7 +40,6 @@ export const STATUSES: StatusInfo[] = [
   {
     id: "urgente",
     label: "Urgente",
-    aviso: "Necesita ayuda con urgencia",
     chip: "bg-red-50 text-red-700",
     chipOn: "border-red-600 bg-red-600 text-white",
     card: "border-red-200 bg-red-50",
@@ -52,7 +48,6 @@ export const STATUSES: StatusInfo[] = [
   {
     id: "saturado",
     label: "Saturado",
-    aviso: "Saturado",
     chip: "bg-amber-50 text-amber-800",
     chipOn: "border-amber-600 bg-amber-600 text-white",
     card: "border-amber-200 bg-amber-50",
@@ -61,7 +56,6 @@ export const STATUSES: StatusInfo[] = [
   {
     id: "cerrado",
     label: "Cerrado",
-    aviso: "Ya no reciben — no te desplaces",
     chip: "bg-slate-200 text-slate-600",
     chipOn: "border-slate-700 bg-slate-700 text-white",
     card: "border-slate-300 bg-slate-100",
@@ -135,3 +129,7 @@ export const LIST_FILTERS = [
   { id: "urgente" as const, label: "Urgentes" },
   { id: "abiertos" as const, label: "Abiertos" },
 ];
+
+// The list opens on what needs attention first. Anything else buries the
+// urgent zones under the ones already being handled.
+export const DEFAULT_LIST_FILTER: string | null = "urgente";

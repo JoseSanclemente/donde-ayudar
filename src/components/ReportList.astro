@@ -1,5 +1,5 @@
 ---
-import { LIST_FILTERS } from "../scripts/status";
+import { DEFAULT_LIST_FILTER, LIST_FILTERS } from "../scripts/status";
 import { CHIP_OFF, chipOnClass } from "../scripts/resources";
 ---
 
@@ -32,12 +32,14 @@ import { CHIP_OFF, chipOnClass } from "../scripts/resources";
   <div id="report-card-body">
     <div id="report-filter" class="mt-3 flex flex-wrap gap-1.5">
       {
-        LIST_FILTERS.map((filter, index) => (
+        LIST_FILTERS.map((filter) => (
           <button
             type="button"
             data-list-filter={filter.id ?? ""}
-            aria-pressed={index === 0 ? "true" : "false"}
-            class={index === 0 ? chipOnClass(undefined) : CHIP_OFF}
+            aria-pressed={filter.id === DEFAULT_LIST_FILTER ? "true" : "false"}
+            class={
+              filter.id === DEFAULT_LIST_FILTER ? chipOnClass(undefined) : CHIP_OFF
+            }
           >
             {filter.label}
           </button>

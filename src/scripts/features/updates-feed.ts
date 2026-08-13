@@ -101,7 +101,8 @@ export function initUpdatesFeed(): void {
     list.replaceChildren(
       ...updates.slice(0, limit).map((update) => {
         const item = document.createElement("li");
-        item.className = "border-l-2 border-slate-200 pl-3 space-y-3";
+        item.className =
+          "border-l-2 border-slate-200 pl-3 bg-slate-100 py-2 space-y-3";
 
         const meta = document.createElement("div");
         meta.className = "flex items-center justify-between gap-2";

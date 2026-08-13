@@ -130,6 +130,8 @@ export const CATEGORIES: ResourceCategory[] = [
     label: "Insumos médicos y medicamentos",
     emoji: "💊",
     items: [
+      "Pañales para adultos",
+      "Pastas para la diarrea",
       "Acetaminofén",
       "Diclofenaco",
       "Meloxicam",
