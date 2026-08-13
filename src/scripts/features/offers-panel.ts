@@ -50,6 +50,8 @@ export function initOffersPanel(): void {
     }));
   }
 
+  const SHOW_ASSIGN: boolean = false;
+
   /**
    * Selector de destino de una oferta. Va por RPC, así que cualquiera puede
    * despacharla: quien coordina en la calle no es quien publicó la máquina.
@@ -158,7 +160,7 @@ export function initOffersPanel(): void {
 
         const row = document.createElement("div");
         row.className = "mt-2 flex items-center gap-2";
-        row.append(assignSelect(offer.id, offer.reportId));
+        if (SHOW_ASSIGN) row.append(assignSelect(offer.id, offer.reportId));
 
         const pointName = offer.reportId
           ? names.get(offer.reportId)
@@ -178,7 +180,7 @@ export function initOffersPanel(): void {
           row.append(link);
         }
 
-        item.append(row);
+        if (row.childElementCount > 0) item.append(row);
         return item;
       }),
     );
