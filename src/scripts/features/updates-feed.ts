@@ -10,7 +10,8 @@ import {
 import { flyTo } from "../map";
 import { closeSheet, isTabVisible, onTabChange, setTabDot } from "../sheet";
 import { $, clearError, maybe$, scheduleRender, showError } from "../ui/dom";
-import { paintTime } from "../ui/time";
+import { buildNewDot } from "../ui/dot";
+import { isFresh, paintTime } from "../ui/time";
 
 /** Cuántas novedades se ven antes de «Ver más». */
 const PAGE = 20;
@@ -107,10 +108,21 @@ export function initUpdatesFeed(): void {
         const meta = document.createElement("div");
         meta.className = "flex items-center justify-between gap-2";
 
+        const when = document.createElement("span");
+        when.className = "flex items-center gap-1.5";
+
+        // El punto va marcado con la fecha, no con su estado: el ticker de
+        // `time.ts` lo apaga a la hora sin que la lista se vuelva a armar.
+        const dot = buildNewDot("", "Nueva");
+        dot.dataset.fresh = update.createdAt;
+        dot.hidden = !isFresh(update.createdAt);
+
         const time = document.createElement("span");
         time.className = "text-xs text-slate-400";
         paintTime(time, update.createdAt);
-        meta.append(time);
+
+        when.append(dot, time);
+        meta.append(when);
 
         if (isMine(update)) {
           const del = document.createElement("button");

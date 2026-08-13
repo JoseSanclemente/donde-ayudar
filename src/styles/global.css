@@ -98,6 +98,27 @@ body {
   }
 }
 
+/* El aviso ámbar de «hay algo nuevo» (ui/dot.ts). El latido es una `box-shadow`
+   y no un anillo aparte: el punto se pinta en el medio de una fila de texto y
+   en un botón, y un hermano posicionado ahí empujaría el renglón. Por eso quien
+   lo use no puede traer su propia `box-shadow` — el `ring-2` del botón del
+   sheet es ahora un `border-2`. */
+.new-dot {
+  animation: new-dot-pulse 2s ease-out infinite;
+}
+
+@keyframes new-dot-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 6px rgba(251, 191, 36, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(251, 191, 36, 0);
+  }
+}
+
 /* ---- Estado del punto ----
    Un solo atributo, `data-estado`, con la precedencia ya resuelta en TS
    (status.ts). La forma carga el significado: el rojo late, lo que no se debe
@@ -764,6 +785,11 @@ option {
 
   #site-header,
   #list-card {
+    animation: none;
+  }
+
+  /* El punto sigue ahí: lo que sobra es el movimiento, no el aviso. */
+  .new-dot {
     animation: none;
   }
 }

@@ -6,6 +6,7 @@ import ReportTabs from "../components/ReportTabs.astro";
 import ReportList from "../components/ReportList.astro";
 import OffersPanel from "../components/OffersPanel.astro";
 import UpdatesFeed from "../components/UpdatesFeed.astro";
+import NewDot from "../components/NewDot.astro";
 import { SITE_NAME, SITE_TITLE } from "../consts";
 ---
 
@@ -125,11 +126,7 @@ import { SITE_NAME, SITE_TITLE } from "../consts";
                   <path d="M8.6 15a1.6 1.6 0 002.8 0"></path>
                 </svg>
                 Novedades
-                <span
-                  id="novedades-dot"
-                  hidden
-                  aria-hidden="true"
-                  class="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400"></span>
+                <NewDot id="novedades-dot" hidden />
               </button>
               <button
                 type="button"
@@ -151,11 +148,7 @@ import { SITE_NAME, SITE_TITLE } from "../consts";
                   ></path>
                 </svg>
                 Ayuda
-                <span
-                  id="ayuda-dot"
-                  hidden
-                  aria-hidden="true"
-                  class="h-1.5 w-1.5 shrink-0 rounded-full bg-amber-400"></span>
+                <NewDot id="ayuda-dot" hidden />
               </button>
             </div>
           </div>
@@ -237,12 +230,14 @@ import { SITE_NAME, SITE_TITLE } from "../consts";
       </svg>
       <!-- El mismo aviso ámbar de las pestañas: con el sheet cerrado el
            encabezado no se ve, y este botón es lo único que queda para
-           enterarse. El ring lo separa del blanco del botón. -->
-      <span
+           enterarse. El borde lo separa del blanco del botón; es un borde y no
+           un `ring` porque el `ring` de Tailwind es una `box-shadow`, y esa la
+           usa el latido. -->
+      <NewDot
         id="menu-dot"
         hidden
-        aria-hidden="true"
-        class="absolute right-1 top-1 h-2 w-2 rounded-full bg-amber-400 ring-2 ring-white"></span>
+        class="absolute right-1 top-1 h-2.5 w-2.5 border-2 border-white"
+      />
     </button>
 
     <!-- Después de mover el mapa, el único camino de vuelta al punto propio. En

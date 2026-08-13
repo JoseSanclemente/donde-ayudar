@@ -40,6 +40,16 @@ export function isStale(iso: string): boolean {
   return hoursSince(iso) >= STALE_HOURS;
 }
 
+/**
+ * Cuánto dura «recién llegado». Una hora es lo que separa lo que pasó mientras
+ * alguien tenía la página abierta de lo que ya estaba cuando llegó.
+ */
+export const FRESH_HOURS = 1;
+
+export function isFresh(iso: string): boolean {
+  return hoursSince(iso) < FRESH_HOURS;
+}
+
 /** La más reciente de varias fechas ISO. Ignora las vacías. */
 export function newestIso(...dates: Array<string | null | undefined>): string {
   let best = "";
@@ -54,6 +64,10 @@ export function newestIso(...dates: Array<string | null | undefined>): string {
  * Repinta los `[data-time]` cada minuto sin rearmar la lista. Un «hace 2
  * minutos» que se queda congelado media hora es peor que no mostrar nada: dice
  * que el dato está fresco cuando ya no lo está.
+ *
+ * En la misma pasada apaga los `[data-fresh]`, los avisos de «recién llegado»:
+ * son el mismo reloj, y sin esto un punto se quedaría encendido toda la tarde
+ * en una pestaña que nadie volvió a tocar.
  */
 export function startTimeTicker(): void {
   setInterval(() => {
@@ -62,6 +76,11 @@ export function startTimeTicker(): void {
       if (!iso) continue;
       const prefix = el.dataset.timePrefix ?? "";
       el.textContent = `${prefix}${relativeTime(iso)}`;
+    }
+    for (const el of document.querySelectorAll<HTMLElement>("[data-fresh]")) {
+      const iso = el.dataset.fresh;
+      if (!iso) continue;
+      el.hidden = !isFresh(iso);
     }
   }, 60_000);
 }
