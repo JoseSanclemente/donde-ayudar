@@ -55,6 +55,22 @@ function headersFile(supabaseUrl) {
   X-Frame-Options: DENY
   Referrer-Policy: strict-origin-when-cross-origin
   Permissions-Policy: geolocation=(self), camera=(), microphone=(), payment=(), usb=()
+
+# El nombre de cada archivo de \`/_astro/\` lleva el hash de su contenido: cambiar
+# el bundle cambia la URL, así que la vieja no puede quedar obsoleta y no hay
+# nada que revalidar. Sin esta regla Netlify sirve todo con
+# \`max-age=0, must-revalidate\` y cada visita paga una ida y vuelta por el JS, el
+# CSS y las dos fuentes antes de poder usar lo que ya tenía en disco.
+/_astro/*
+  Cache-Control: public, max-age=31536000, immutable
+
+# Los índices de \`/geo/\` no llevan hash —los nombra \`scripts/build-geo-index.mjs\`
+# y los lee \`geo-index.ts\` por ruta fija—, así que no pueden ser inmutables: un
+# día es el techo, y son datos que cambian con un rebuild, no entre visitas. Lo
+# que se evita es que la malla vial vuelva a bajarse entera en cada visita que
+# abre el formulario: son dos megas.
+/geo/*
+  Cache-Control: public, max-age=86400
 `;
 }
 

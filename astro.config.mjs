@@ -30,12 +30,13 @@ export default defineConfig({
     plugins: [tailwindcss()],
 
     build: {
-      // El aviso por defecto son 500 kB y este bundle no baja de ahí: Leaflet,
-      // supabase-js y GSAP son 123 kB comprimidos de los 149 kB del total, y los
-      // tres hacen falta en el arranque —el mapa, los datos y el sheet—. Partir
-      // el chunk no quitaría un solo byte de la primera pantalla. El umbral se
-      // sube para que el aviso vuelva a significar algo: que entró una
-      // dependencia nueva y grande.
+      // Leaflet y supabase-js sí hacen falta en el arranque —el mapa y los datos
+      // son la primera pantalla—, así que el chunk de entrada no baja del aviso
+      // por defecto de 500 kB. Lo que no hacía falta ya salió por `import()`: el
+      // dibujante de la tarjeta para compartir y el geocoder, que solo existen
+      // cuando alguien toca un botón o abre un formulario. El umbral queda
+      // arriba para que volver a cruzarlo signifique algo: que entró una
+      // dependencia nueva y grande en el camino crítico.
       chunkSizeWarningLimit: 600,
     },
   },

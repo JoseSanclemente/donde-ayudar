@@ -656,9 +656,18 @@ option {
   }
 
   /* Cerrado el sheet está fuera de la pantalla: no debe atrapar ni el scroll ni
-     los toques que van al mapa. */
+     los toques que van al mapa.
+
+     The transform is what puts it out there before any JS runs. Closed used to
+     be a state with no position of its own: the markup is `fixed bottom-0` and
+     86svh tall, so until `initSheet()` got to its first `gsap.set` the first
+     paint on a phone was a full white panel — open-looking, empty, and inert.
+     `moveTo()` writes an inline transform that beats this rule, so from
+     `initSheet()` onward nothing changes: JS still owns the movement. The extra
+     offset covers the shadow, same as `closedY` in `sheet.ts`. */
   #sheet[data-state="closed"] {
     pointer-events: none;
+    transform: translateY(calc(100% + 24px));
   }
 
   #sheet[data-state="closed"] #sheet-body {
@@ -700,9 +709,45 @@ option {
   }
 }
 
+/* ---- Entrada del header y la lista ---- */
+
+/* La hacía GSAP desde `app.ts`, y por eso se veía al revés: el bundle corre
+   después del primer pintado, así que los dos elementos aparecían opacos, GSAP
+   los ponía en `opacity: 0` y recién ahí entraban. En CSS la entrada empieza en
+   el primer frame, no espera a los 152 kB del bundle y no puede quedarse a
+   medias si el script no llega — que en este sitio importa: el header es el
+   acceso a todo. `#form-card` sigue fuera a propósito: arranca oculto detrás del
+   FAB y animarlo dejaría un hueco. */
+@keyframes enter-up {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+}
+
+/* `backwards` y no `both`: el relleno hacia atrás es lo que hace falta —el
+   retraso de la lista tiene que verse desde el estado inicial y no desde el
+   final—, y hacia adelante dejaría a los dos elementos sosteniendo un
+   `transform` para siempre. En `#site-header` eso importa: dentro vive el aviso
+   de «Ubicar en el mapa», que es `fixed`, y un ancestro transformado le cambia
+   el marco de referencia. */
+#site-header,
+#list-card {
+  animation: enter-up 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+
+#list-card {
+  animation-delay: 0.12s;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .pulse-marker .pulse-ring {
     animation: none;
     opacity: 0.5;
+  }
+
+  #site-header,
+  #list-card {
+    animation: none;
   }
 }

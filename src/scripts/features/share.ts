@@ -1,7 +1,15 @@
 import { SITE_URL } from "../../consts";
 import { getShareCard } from "../map";
-import { renderShareCard } from "../share-card";
 import { showToast } from "../ui/toast";
+
+/**
+ * El dibujante de la tarjeta se pide al primer toque de «Compartir», no en el
+ * arranque: es un renderizador de canvas de 20 kB que la primera pantalla no
+ * usa. El `import()` se resuelve una sola vez —el módulo queda en la caché de
+ * módulos— y no cambia la forma de la operación: entre el clic y la hoja nativa
+ * ya se esperaba a que se bajaran las teselas del recorte.
+ */
+const loadRenderer = () => import("../share-card");
 
 /**
  * El botón de compartir del detalle de un marcador: dibuja la imagen del punto
@@ -25,7 +33,10 @@ export function initShare(): void {
     const card = getShareCard(key);
     if (!card) return;
 
-    void share(button, card.name, () => renderShareCard(card));
+    void share(button, card.name, async () => {
+      const { renderShareCard } = await loadRenderer();
+      return renderShareCard(card);
+    });
   });
 }
 

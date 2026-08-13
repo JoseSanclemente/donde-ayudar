@@ -14,6 +14,15 @@ interface Props {
 
 const { title, description = SITE_DESCRIPTION } = Astro.props;
 
+// El `<script>` del sitio va en el `head` y no al final del `body`. Es un
+// módulo: sigue siendo diferido y no bloquea el parseo, pero el navegador no
+// puede empezar a bajarlo hasta que el parser lo encuentra, y al final del
+// documento eso son 100 kB de HTML después — los formularios ocupan setenta.
+// Declarado arriba, los 150 kB del bundle bajan a la par de la página en vez de
+// detrás. Vive en el layout y no en la página porque es estar en el `head` lo
+// que adelanta el descubrimiento, y `index.astro` es la única página. La
+// explicación va acá y no en un comentario HTML: ese viajaría en cada respuesta.
+
 // Open Graph exige URLs absolutas: una ruta relativa la ignoran WhatsApp, X y
 // Facebook por igual. `Astro.site` sale de `site` en `astro.config.mjs`.
 const canonical = new URL(Astro.url.pathname, Astro.site);
@@ -61,6 +70,10 @@ const ogImage = new URL(OG_IMAGE, Astro.site);
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
+
+    <script>
+      import "../scripts/app";
+    </script>
   </head>
   <body class="min-h-screen overflow-hidden overscroll-none lg:overflow-auto lg:overscroll-auto">
     <slot />

@@ -30,6 +30,24 @@ export function clearError(el: HTMLElement): void {
 }
 
 /**
+ * Espacia las llamadas de una ráfaga: solo corre la última, y `ms` después de
+ * que la ráfaga paró. Vivía en `geocode.ts` —su único uso es espaciar las
+ * búsquedas mientras alguien escribe—, pero de ahí obligaba a `location-picker`
+ * a importar el geocoder entero en el arranque solo por esta función, y el
+ * geocoder no hace falta hasta que hay un formulario abierto.
+ */
+export function debounce<A extends unknown[]>(
+  fn: (...args: A) => void,
+  ms: number,
+): (...args: A) => void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  return (...args: A) => {
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => fn(...args), ms);
+  };
+}
+
+/**
  * Envuelve un render para que una ráfaga de cambios pinte una sola vez. Cada
  * store emite por su cuenta y realtime los dispara casi a la vez: sin esto, un
  * insert que toca dos tablas rearma la lista dos veces en el mismo frame.

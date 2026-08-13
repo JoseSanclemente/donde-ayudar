@@ -1,10 +1,10 @@
 import type { LatLng } from "leaflet";
-import { debounce, geocode, reverseGeocode, type GeocodeResult } from "../geocode";
+import type { GeocodeResult } from "../geocode";
 import { loadStreets } from "../geo-index";
 import { locateUser } from "../geolocation";
 import { flyTo, hideDraft, isPicking, showDraft, startPicking, stopPicking } from "../map";
 import { closeSheet, getSheetCover, openSheet, peekSheet } from "../sheet";
-import { $, clearError, showError } from "../ui/dom";
+import { $, clearError, debounce, showError } from "../ui/dom";
 import { hidePickHint, showPickHint } from "../ui/pick-hint";
 import { showToast } from "../ui/toast";
 
@@ -32,6 +32,15 @@ const BADGES: Partial<Record<GeocodeResult["precision"], string>> = {
   calculada: "calculada — desde la esquina",
   aproximada: "aproximada — vía sin numeración",
 };
+
+/**
+ * El geocoder —y con él el parser de la nomenclatura y la malla— se pide cuando
+ * hay un formulario en uso, no en el arranque: la primera pantalla es el mapa y
+ * la lista, y ahí no se resuelve ninguna dirección. La importación se resuelve
+ * una sola vez, y arranca en el mismo foco que ya pedía `loadStreets()`, así que
+ * para cuando alguien escribió tres letras el módulo ya está.
+ */
+const loadGeocoder = () => import("../geocode");
 
 export type Coords = { lat: number; lng: number };
 
@@ -216,6 +225,7 @@ export function createLocationPicker(prefix: string): LocationPicker {
     geocodeAbort = new AbortController();
     const signal = geocodeAbort.signal;
     try {
+      const { geocode } = await loadGeocoder();
       const results = await geocode(query, signal);
       if (signal.aborted) return;
       if (results.length === 0) {
@@ -238,7 +248,14 @@ export function createLocationPicker(prefix: string): LocationPicker {
   // es el primer aviso de que va a hacer falta, y sale con ventaja — el geocoder
   // no arranca hasta la tercera letra. `loadStreets` se memoiza, así que los dos
   // formularios pueden pedirla sin coordinarse.
-  nameInput.addEventListener("focus", () => void loadStreets(), { once: true });
+  nameInput.addEventListener(
+    "focus",
+    () => {
+      void loadStreets();
+      void loadGeocoder();
+    },
+    { once: true },
+  );
 
   nameInput.addEventListener("input", () => {
     clearError(nameError);
@@ -295,6 +312,7 @@ export function createLocationPicker(prefix: string): LocationPicker {
       // reverso no sabe la dirección, el punto ya está fijado igual — solo
       // queda escribirla.
       if (nameInput.value.trim()) return;
+      const { reverseGeocode } = await loadGeocoder();
       const address = await reverseGeocode(at);
       if (!address) return;
       nameInput.value = address;

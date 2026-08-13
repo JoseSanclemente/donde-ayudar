@@ -1,4 +1,3 @@
-import gsap from "gsap";
 import { initData } from "./data/boot";
 import { onError } from "./data/errors";
 import { initAlertBanner } from "./features/alert-banner";
@@ -15,13 +14,11 @@ import { initShare } from "./features/share";
 import { initSyncBadge } from "./features/sync-badge";
 import { initUpdatesFeed } from "./features/updates-feed";
 import { initUserLocation } from "./features/user-location";
-import { loadAddresses, loadStreets } from "./geo-index";
+import { loadAddresses } from "./geo-index";
 import { initMap } from "./map";
 import { initSheet } from "./sheet";
 import { startTimeTicker } from "./ui/time";
 import { showToast } from "./ui/toast";
-
-const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
 initMap("map");
 // Justo detrás del mapa: el permiso se pide cuanto antes y nadie lo espera.
@@ -47,30 +44,14 @@ initSyncBadge();
 startTimeTicker();
 
 // El índice de direcciones se pide ya: son 56 KB y llegan mientras la persona
-// escribe. La malla vial son dos megas y no la pide nadie hasta que se toca el
-// campo de dirección — de eso se encarga `location-picker`. Acá solo se recoge
-// al que nunca abre el formulario, y con el hilo ya libre.
+// escribe. La malla vial son dos megas —medio mega comprimido, más un `JSON.parse`
+// y una reproyección entera en el hilo principal— y acá no se pide: la trae
+// `location-picker` al primer foco del campo de dirección, que es cuando hace
+// falta. Se calentaba desde acá para el que nunca abre el formulario, y eso es
+// justo al revés: la mayoría de las visitas nunca lo abren y estaban pagando el
+// archivo completo.
 void loadAddresses();
-
-const warmStreets = () => void loadStreets();
-if ("requestIdleCallback" in window) requestIdleCallback(warmStreets, { timeout: 10_000 });
-// Safari no tiene `requestIdleCallback`: el temporizador la deja igual de lejos
-// del primer pintado, que es lo único que se le pedía.
-else setTimeout(warmStreets, 5_000);
 
 onError(showToast);
 
 void initData();
-
-if (!reduceMotion) {
-  // `#form-card` arranca oculto detrás del FAB: animarlo dejaría un hueco. El FAB
-  // se queda fuera de la entrada a propósito: es el único acceso al formulario y
-  // no puede depender de que una animación termine bien para existir.
-  gsap.from(["#site-header", "#list-card"], {
-    opacity: 0,
-    y: 20,
-    duration: 0.6,
-    stagger: 0.12,
-    ease: "power3.out",
-  });
-}

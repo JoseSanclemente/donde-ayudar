@@ -18,8 +18,11 @@ import type { Centro } from "../centros";
  */
 function paint(list: Centro[]): void {
   // Sin volver a pintar cuando cambia la sesión: `data/boot.ts` espera a
-  // `initSession()` antes de `loadCentros()`, así que el `uid` ya está puesto en
-  // la primera emisión y un `addCentro` optimista es todavía más tarde.
+  // `restoreSession()` antes de `loadCentros()`, así que quien ya tenía sesión
+  // llega con el `uid` puesto a la primera emisión. Quien entra por primera vez
+  // la abre en paralelo con las consultas y todavía no tiene ningún punto
+  // propio, así que no hay nada que pintar mal; un `addCentro` optimista es
+  // todavía más tarde.
   setCentros(list.map((data) => ({ data, mine: isMine(data) })));
 }
 
