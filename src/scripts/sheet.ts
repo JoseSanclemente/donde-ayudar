@@ -29,7 +29,6 @@ let body: HTMLDivElement | null = null;
 let scrim: HTMLDivElement | null = null;
 let fab: HTMLButtonElement | null = null;
 let menu: HTMLButtonElement | null = null;
-let locate: HTMLButtonElement | null = null;
 let funnel: HTMLButtonElement | null = null;
 let tabs: HTMLButtonElement[] = [];
 /** Desplazamiento que deja el sheet completamente fuera de la pantalla. */
@@ -115,12 +114,14 @@ export function getSheetCover(): number {
 
 /**
  * Los botones flotantes viven con el sheet cerrado: abierto los taparía y el
- * sheet ya trae su propia ✕. Los tres se van juntos — el de centrar también:
- * con el mapa tapado no hay nada que centrar, y quedarse solo lo dejaba
- * flotando sobre el panel. El FAB además se esconde con el formulario ya
+ * sheet ya trae su propia ✕. El FAB además se esconde con el formulario ya
  * a la vista — sería un botón que no lleva a ningún lado. Pero solo a la
  * vista: cerrar el sheet con el formulario abierto lo deja en `reportar` sin
  * que se vea nada, y ahí el FAB es justo lo que hace falta para volver.
+ *
+ * El de centrar no está acá: vive arriba a la derecha, con el zoom, y el sheet
+ * no llega hasta allá. Esconderlo mientras los dos botones de encima se quedan
+ * quietos se vería como una falla.
  */
 function paintControls() {
   // También en `peek`: los botones flotantes viven abajo, justo donde el sheet
@@ -128,10 +129,8 @@ function paintControls() {
   const covered = isMobile() && getState() !== "closed";
   if (fab) fab.hidden = isTabVisible("reportar") || covered;
   if (menu) menu.hidden = !isMobile() || covered;
-  if (locate) locate.hidden = covered;
-  // El embudo se va con el de centrar y por lo mismo: con el mapa tapado no hay
-  // pines que filtrar. En escritorio nada tapa, así que el botón y su popover
-  // conviven.
+  // El embudo se va por lo mismo: con el mapa tapado no hay pines que filtrar.
+  // En escritorio nada tapa, así que el botón y su popover conviven.
   if (funnel) {
     funnel.hidden = covered;
     funnel.setAttribute("aria-expanded", String(isTabVisible("filtros")));
@@ -409,7 +408,6 @@ export function initSheet(): void {
   scrim = document.getElementById("sheet-scrim") as HTMLDivElement | null;
   fab = document.getElementById("fab-report") as HTMLButtonElement | null;
   menu = document.getElementById("sheet-toggle") as HTMLButtonElement | null;
-  locate = document.getElementById("locate-me") as HTMLButtonElement | null;
   funnel = document.getElementById("fab-filter") as HTMLButtonElement | null;
   tabs = [...grab.querySelectorAll<HTMLButtonElement>("[data-tab-btn]")];
 

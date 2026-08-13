@@ -1,5 +1,5 @@
 import { locateUser, writeCachedCoords, type Coords } from "../geolocation";
-import { flyToUser, setInitialView, setUserMarker } from "../map";
+import { flyToUser, mountControl, setInitialView, setUserMarker } from "../map";
 import { $ } from "../ui/dom";
 import { showToast } from "../ui/toast";
 
@@ -50,7 +50,12 @@ export function initUserLocation(): void {
     setInitialView(next.lat, next.lng);
   });
 
-  $("locate-me").addEventListener("click", () => {
+  const button = $("locate-me");
+  // Debajo del zoom, en la misma esquina y con la misma alineación: los tres
+  // botones son un solo grupo.
+  mountControl(button);
+
+  button.addEventListener("click", () => {
     // Sin posición todavía: el permiso pudo negarse, vencerse o seguir abierto.
     // Un navegador que ya lo tiene contesta de una; uno que lo negó, también.
     if (coords) flyToUser();

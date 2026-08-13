@@ -355,7 +355,7 @@ export function initMap(containerId: string): L.Map {
   // La visita anterior ya dijo dónde está: se arranca ahí de una, sin esperar a
   // que el permiso conteste y sin el salto desde Cali a medio dibujar.
   const cached = readCachedCoords();
-  map = L.map(containerId, { zoomControl: true }).setView(
+  map = L.map(containerId, { zoomControl: false }).setView(
     cached ? [cached.lat, cached.lng] : CALI_CENTER,
     cached ? USER_ZOOM : 13,
   );
@@ -374,6 +374,10 @@ export function initMap(containerId: string): L.Map {
         '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
     },
   ).addTo(map);
+
+  L.control
+    .zoom({ position: "topright", zoomInTitle: "Acercar", zoomOutTitle: "Alejar" })
+    .addTo(map);
 
   centersLayer.addTo(map);
   reportsLayer.addTo(map);
@@ -403,6 +407,28 @@ export function initMap(containerId: string): L.Map {
   onBreakpointChange(syncPopupMode);
 
   return map;
+}
+
+/**
+ * Mueve un elemento ya presente en la página a una esquina de Leaflet, para que
+ * quede alineado con los controles del mapa sin repetir a mano dónde termina el
+ * mapa: en móvil es la pantalla entera y en escritorio es la columna del medio.
+ *
+ * `disableClickPropagation` no es opcional: sin ella el clic sobre el botón le
+ * llega también al mapa, y con el modo de marcar activo eso suelta un pin.
+ */
+export function mountControl(
+  element: HTMLElement,
+  position: L.ControlPosition = "topright",
+): void {
+  const Mounted = L.Control.extend({
+    onAdd: () => {
+      L.DomEvent.disableClickPropagation(element);
+      L.DomEvent.disableScrollPropagation(element);
+      return element;
+    },
+  });
+  new Mounted({ position }).addTo(map);
 }
 
 /** El contenedor cambia de tamaño al cruzar el breakpoint o al rotar. */

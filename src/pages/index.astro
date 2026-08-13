@@ -208,7 +208,7 @@ import { SITE_NAME, SITE_TITLE } from "../consts";
     <button
       type="button"
       id="fab-report"
-      class="fab-report fixed right-4 z-[1050] inline-flex items-center gap-2 rounded-full bg-red-600 px-4 py-3 text-sm font-semibold text-white shadow-lg transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300 lg:absolute lg:right-[calc(var(--right-column)+1.5rem)]"
+      class="fab-report fixed right-4 z-1050 inline-flex items-center gap-2 rounded-full bg-red-600 px-4 py-3 text-base font-semibold text-white shadow-lg transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300 lg:absolute lg:right-[calc(var(--right-column)+1.5rem)]"
     >
       <span aria-hidden="true" class="text-base leading-none">+</span>
       Realizar reporte
@@ -274,12 +274,15 @@ import { SITE_NAME, SITE_TITLE } from "../consts";
     </button>
 
     <!-- Después de mover el mapa, el único camino de vuelta al punto propio. En
-         escritorio también existe: la ubicación no es cosa de móvil. -->
+         escritorio también existe: la ubicación no es cosa de móvil. No lleva
+         posición: `features/user-location.ts` lo monta en la esquina de arriba a
+         la derecha del mapa, debajo del zoom, y de ahí en adelante la alineación
+         la pone Leaflet. -->
     <button
       type="button"
       id="locate-me"
       aria-label="Centrar el mapa en mi ubicación"
-      class="locate-me fixed right-4 z-[1050] inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-4 text-slate-700 shadow-lg transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 lg:absolute lg:right-[calc(var(--right-column)+1.5rem)]"
+      class="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-4 text-slate-700 shadow-lg transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300"
     >
       <svg
         viewBox="0 0 20 20"
