@@ -2,6 +2,7 @@ import { initData } from "./data/boot";
 import { onError } from "./data/errors";
 import { initAlertBanner } from "./features/alert-banner";
 import { initCentersLayer } from "./features/centers-layer";
+import { initMapFilter } from "./features/map-filter";
 import { initHeaderOffset } from "./features/header-offset";
 import { initMarkerActions } from "./features/marker-actions";
 import { initMarkerSheet } from "./features/marker-sheet";
@@ -28,6 +29,9 @@ initMarkerSheet();
 initMarkerActions();
 initShare();
 initCentersLayer();
+// Antes de que llegue el primer dato: los valores por defecto tienen que estar
+// puestos en el mapa cuando aparezca el primer marcador.
+initMapFilter();
 // Antes del aviso: la primera vez que aparece ya cambia la altura del header.
 initHeaderOffset();
 initAlertBanner();

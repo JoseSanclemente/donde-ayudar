@@ -1,0 +1,59 @@
+---
+// Qué se ve en el mapa. Un solo ejemplar del marcado: en móvil es una pestaña
+// del sheet y en escritorio el stylesheet lo levanta como un popover sobre el
+// botón, igual que hace con `#updates-card`. Dos ejemplares serían dos copias
+// del estado de las casillas.
+import { KIND_CHIP_BASE, MARKER_KINDS } from "../scripts/map-filter";
+
+const ROW = "flex cursor-pointer items-center gap-3 py-1.5 text-sm text-slate-700";
+const BOX =
+  "h-4 w-4 shrink-0 rounded border-slate-300 text-red-600 accent-red-600 focus:ring-red-300";
+---
+
+<section class="pb-1 pt-3">
+  <div class="flex items-baseline justify-between gap-2">
+    <h2 class="text-lg font-semibold text-slate-900">Qué ver en el mapa</h2>
+    <button
+      type="button"
+      id="filters-reset"
+      class="text-xs font-medium text-slate-500 underline transition hover:text-red-600"
+    >
+      Restablecer
+    </button>
+  </div>
+
+  <!-- Chips y no casillas: cada uno lleva la figura de su marcador, así que la
+       fila es también la leyenda del mapa. El estado vive en `aria-pressed`,
+       como en los filtros de la lista. -->
+  <div class="mt-3 flex flex-wrap gap-2">
+    {
+      MARKER_KINDS.map((kind) => (
+        <button
+          type="button"
+          data-filter-kind={kind.id}
+          aria-pressed="true"
+          class={`${KIND_CHIP_BASE} ${kind.chipOn}`}
+        >
+          <span class:list={["filter-pin", kind.pin]} aria-hidden="true" />
+          {kind.label}
+        </button>
+      ))
+    }
+  </div>
+
+  <div class="mt-4 flex flex-col border-t border-slate-200 pt-3">
+    <label class={ROW}>
+      <input type="checkbox" data-filter-flag="onlyActiveCenters" checked class={BOX} />
+      Solo puntos activos
+    </label>
+    <label class={ROW}>
+      <input type="checkbox" data-filter-flag="onlyRecentReports" class={BOX} />
+      Solo reportes recientes
+    </label>
+  </div>
+
+  <p class="mt-2 text-xs text-slate-500">
+    Los puntos grises no reciben hoy; los reportes «recientes» son los que alguien
+    confirmó en las últimas horas.
+  </p>
+</section>

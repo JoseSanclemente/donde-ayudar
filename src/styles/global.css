@@ -382,6 +382,98 @@ body {
   box-shadow: 4px 0 0 #ffffff;
 }
 
+/* ---- Las mismas figuras, dentro de los chips del filtro ----
+   El chip no dice solo qué se esconde: dice qué es cada cosa en el mapa, así
+   que la fila de chips es también la leyenda. Son reglas aparte y no las del
+   marcador porque allá la posición la pone Leaflet —`absolute` contra el root
+   que él coloca— y acá la figura va en línea con el texto. Los colores están
+   repetidos a mano, como en `share-card.ts`: un tipo nuevo se agrega en los dos
+   lados. */
+
+.filter-pin {
+  position: relative;
+  display: block;
+  flex-shrink: 0;
+  width: 14px;
+  height: 14px;
+}
+
+/* Apagado el chip, la figura se va a gris de una sola regla: el color es lo que
+   el chip encendido aporta, y repetirlo apagado por cada tipo sería copiar
+   cinco veces la misma idea. */
+[aria-pressed="false"] .filter-pin {
+  filter: grayscale(1);
+  opacity: 0.5;
+}
+
+.filter-pin-reporte {
+  border-radius: 9999px;
+  background: #ef4444;
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.28);
+}
+
+.filter-pin-acopio {
+  border-radius: 4px;
+  border: 2px solid #ffffff;
+  background: #4f46e5;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.4);
+}
+
+/* La gota del banco de sangre: la punta sale de la esquina sin redondear, y la
+   rotación es lo que la vuelve gota. Igual que en el marcador. */
+.filter-pin-sangre {
+  border-radius: 9999px 9999px 9999px 0;
+  border: 2px solid #ffffff;
+  background: #e11d48;
+  transform: rotate(135deg);
+}
+
+.filter-pin-healthcare {
+  border-radius: 9999px;
+  border: 2px solid #ffffff;
+  background: #2563eb;
+}
+
+.filter-pin-healthcare::before,
+.filter-pin-healthcare::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  background: #ffffff;
+  border-radius: 1px;
+}
+
+.filter-pin-healthcare::before {
+  width: 6px;
+  height: 2px;
+  margin: -1px 0 0 -3px;
+}
+
+.filter-pin-healthcare::after {
+  width: 2px;
+  height: 6px;
+  margin: -3px 0 0 -1px;
+}
+
+/* La casita, en dos capas: el `span` es el contorno blanco y el `::before` el
+   relleno ámbar — `clip-path` corta el `border`. */
+.filter-pin-albergue {
+  width: 15px;
+  height: 15px;
+  background: #ffffff;
+  clip-path: polygon(50% 0, 100% 38%, 100% 100%, 0 100%, 0 38%);
+  filter: drop-shadow(0 1px 2px rgba(15, 23, 42, 0.4));
+}
+
+.filter-pin-albergue::before {
+  content: "";
+  position: absolute;
+  inset: 1.5px;
+  background: #d97706;
+  clip-path: polygon(50% 0, 100% 38%, 100% 100%, 0 100%, 0 38%);
+}
+
 /* ---- Marcador provisional (arrastrable) ---- */
 
 .draft-marker {
@@ -517,13 +609,14 @@ option {
   }
 }
 
-/* ---- Botones flotantes: «Realizar reporte», «Ver panel» y «Centrar en mí» ----
+/* ---- Botones flotantes: «Realizar reporte», «Ver panel», «Filtrar» y
+   «Centrar en mí» ----
    El desplazamiento vertical vive acá y no en clases de Tailwind porque necesita
    `env(safe-area-inset-bottom)`. Van apilados en la esquina inferior derecha: el
-   FAB abajo y los otros dos encima, un escalón de 3.5rem cada uno (2.75rem de
+   FAB abajo y los demás encima, un escalón de 3.5rem cada uno (2.75rem de
    alto del botón + 0.75rem de aire). Con el sheet cerrado el mapa queda libre,
    así que ya no hay peek que esquivar. En escritorio el FAB va sobre la
-   atribución de CARTO y el menú no existe, así que la pila es de dos.
+   atribución de CARTO y el menú no existe, así que la pila es de tres.
 
    En escritorio el mapa es la columna del medio, no la pantalla: los botones
    pasan a `absolute` contra el contenedor de la página (`lg:absolute` en el
@@ -537,21 +630,40 @@ option {
   bottom: calc(4.5rem + env(safe-area-inset-bottom));
 }
 
-.locate-me {
+.fab-filter {
   bottom: calc(8rem + env(safe-area-inset-bottom));
 }
 
+.locate-me {
+  bottom: calc(11.5rem + env(safe-area-inset-bottom));
+}
+
 /* Cada botón que se va deja bajar un escalón a los de arriba: dejar el hueco
-   haría ver un botón flotando sin razón. */
-#fab-report[hidden] ~ .sheet-toggle,
-#fab-report[hidden] ~ .locate-me,
-#sheet-toggle[hidden] ~ .locate-me {
+   haría ver un botón flotando sin razón. Las reglas van de menos a más
+   escalones perdidos, y las de abajo ganan por especificidad — son las mismas
+   cadenas con un `[hidden]` más. El embudo y el de centrar aparecen y
+   desaparecen juntos (`paintControls`), así que ninguno de los dos tiene que
+   contar al otro. */
+#fab-report[hidden] ~ .sheet-toggle {
+  bottom: calc(1rem + env(safe-area-inset-bottom));
+}
+
+#fab-report[hidden] ~ .fab-filter,
+#sheet-toggle[hidden] ~ .fab-filter {
   bottom: calc(4.5rem + env(safe-area-inset-bottom));
 }
 
-#fab-report[hidden] ~ .sheet-toggle,
-#fab-report[hidden] ~ #sheet-toggle[hidden] ~ .locate-me {
+#fab-report[hidden] ~ #sheet-toggle[hidden] ~ .fab-filter {
   bottom: calc(1rem + env(safe-area-inset-bottom));
+}
+
+#fab-report[hidden] ~ .locate-me,
+#sheet-toggle[hidden] ~ .locate-me {
+  bottom: calc(8rem + env(safe-area-inset-bottom));
+}
+
+#fab-report[hidden] ~ #sheet-toggle[hidden] ~ .locate-me {
+  bottom: calc(4.5rem + env(safe-area-inset-bottom));
 }
 
 @media (min-width: 1024px) {
@@ -560,14 +672,24 @@ option {
   }
 
   /* El menú no existe acá: la pila baja un escalón entero. */
+  .fab-filter,
+  #sheet-toggle[hidden] ~ .fab-filter {
+    bottom: 7rem;
+  }
+
   .locate-me,
   #sheet-toggle[hidden] ~ .locate-me {
-    bottom: 7rem;
+    bottom: 10.5rem;
+  }
+
+  #fab-report[hidden] ~ .fab-filter,
+  #fab-report[hidden] ~ #sheet-toggle[hidden] ~ .fab-filter {
+    bottom: 3.5rem;
   }
 
   #fab-report[hidden] ~ .locate-me,
   #fab-report[hidden] ~ #sheet-toggle[hidden] ~ .locate-me {
-    bottom: 2.5rem;
+    bottom: 7rem;
   }
 }
 
@@ -590,6 +712,33 @@ option {
      popup y la barra lateral no tiene por qué cambiar de contenido. */
   #detail-card {
     display: none;
+  }
+
+  /* Acá el filtro no es una tarjeta de la barra lateral sino un popover sobre
+     su propio botón: la pregunta es sobre el mapa y se contesta encima del
+     mapa. Como `#updates-card`, se levanta del sheet con `absolute` contra el
+     contenedor de la página, así que el borde derecho vuelve a ser el mismo
+     que esquivan los botones flotantes. El `bottom` lo deja encima de la pila
+     entera y no solo del embudo: a la altura del embudo taparía el botón de
+     centrar, que está justo arriba. */
+  #filters-card {
+    display: none;
+  }
+
+  #sheet[data-tab="filtros"] #filters-card {
+    display: block;
+    position: absolute;
+    right: calc(var(--right-column) + 1.5rem);
+    bottom: 14rem;
+    width: 17rem;
+    /* Sobre el popup de Leaflet (700) y sobre `#updates-card` (900), debajo de
+       los botones flotantes (1050) — que es lo que lo abre y lo cierra. */
+    z-index: 1040;
+    padding: 0 1rem 0.75rem;
+    border: 1px solid #e2e8f0;
+    border-radius: 1rem;
+    background: #fff;
+    box-shadow: 0 8px 30px rgb(0 0 0 / 0.12);
   }
 
   /* The list is an accordion here, and `features/report-list.ts` opens it
@@ -657,7 +806,8 @@ option {
      de los dos está en el tablist, así que ninguna se ve seleccionada y tocarlas
      sería salirse de lo que se estaba mirando. La ✕ del encabezado es la salida. */
   #sheet[data-tab="reportar"] #sheet-tabs,
-  #sheet[data-tab="detalle"] #sheet-tabs {
+  #sheet[data-tab="detalle"] #sheet-tabs,
+  #sheet[data-tab="filtros"] #sheet-tabs {
     display: none;
   }
 
@@ -673,6 +823,7 @@ option {
 
   #sheet[data-tab="reportar"] [data-tab-panel="reportar"],
   #sheet[data-tab="detalle"] [data-tab-panel="detalle"],
+  #sheet[data-tab="filtros"] [data-tab-panel="filtros"],
   #sheet[data-tab="puntos"] [data-tab-panel="puntos"],
   #sheet[data-tab="ayuda"] [data-tab-panel="ayuda"],
   #sheet[data-tab="novedades"] [data-tab-panel="novedades"] {
@@ -689,6 +840,14 @@ option {
   #sheet[data-tab="ayuda"],
   #sheet[data-tab="detalle"] {
     height: 86svh;
+  }
+
+  /* El filtro no llega a la altura de los demás —son cinco chips y dos
+     casillas— pero medido justo queda una franja tan baja que el sheet parece
+     asomado y no abierto, y los chips caen contra el borde de abajo. Un mínimo
+     y no una altura fija: si el panel crece, crece. */
+  #sheet[data-tab="filtros"] {
+    min-height: 52svh;
   }
 
   #sheet-grab [data-tab-btn] {

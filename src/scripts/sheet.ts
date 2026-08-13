@@ -30,6 +30,7 @@ let scrim: HTMLDivElement | null = null;
 let fab: HTMLButtonElement | null = null;
 let menu: HTMLButtonElement | null = null;
 let locate: HTMLButtonElement | null = null;
+let funnel: HTMLButtonElement | null = null;
 let tabs: HTMLButtonElement[] = [];
 /** Desplazamiento que deja el sheet completamente fuera de la pantalla. */
 let closedY = 0;
@@ -128,6 +129,13 @@ function paintControls() {
   if (fab) fab.hidden = isTabVisible("reportar") || covered;
   if (menu) menu.hidden = !isMobile() || covered;
   if (locate) locate.hidden = covered;
+  // El embudo se va con el de centrar y por lo mismo: con el mapa tapado no hay
+  // pines que filtrar. En escritorio nada tapa, así que el botón y su popover
+  // conviven.
+  if (funnel) {
+    funnel.hidden = covered;
+    funnel.setAttribute("aria-expanded", String(isTabVisible("filtros")));
+  }
 }
 
 function paintScrim(state: State, animate: boolean) {
@@ -284,6 +292,21 @@ export function closeDetailPanel(): void {
   showTab("puntos", false);
 }
 
+/**
+ * El filtro del mapa. Otra pestaña sin botón en el tablist: se llega por el
+ * embudo flotante y por nada más. En escritorio `showTab` no mueve el sheet —
+ * solo cambia `data-tab`, que es lo que el stylesheet lee para sacar el popover.
+ */
+export function openFilterPanel(): void {
+  showTab("filtros");
+}
+
+export function closeFilterPanel(): void {
+  if (sheet.dataset.tab !== "filtros") return;
+  // Sin abrir: cerrar el filtro no es pedir la lista, solo dejar de filtrar.
+  showTab("puntos", false);
+}
+
 function applyBreakpoint() {
   if (!isMobile()) {
     // En escritorio el transform sobraría: el sheet vuelve al flujo normal.
@@ -387,6 +410,7 @@ export function initSheet(): void {
   fab = document.getElementById("fab-report") as HTMLButtonElement | null;
   menu = document.getElementById("sheet-toggle") as HTMLButtonElement | null;
   locate = document.getElementById("locate-me") as HTMLButtonElement | null;
+  funnel = document.getElementById("fab-filter") as HTMLButtonElement | null;
   tabs = [...grab.querySelectorAll<HTMLButtonElement>("[data-tab-btn]")];
 
   for (const button of tabs) {
@@ -408,19 +432,43 @@ export function initSheet(): void {
   // a la vista.
   menu?.addEventListener("click", () => {
     const tab = sheet.dataset.tab;
-    if (tab === "reportar" || tab === "detalle") showTab("puntos");
+    if (tab === "reportar" || tab === "detalle" || tab === "filtros")
+      showTab("puntos");
     else openSheet();
   });
   scrim?.addEventListener("click", closeSheet);
   document.getElementById("sheet-close")?.addEventListener("click", closeSheet);
 
   fab?.addEventListener("click", openReportPanel);
+
+  // El embudo alterna: el popover de escritorio se cierra por donde se abrió, y
+  // en móvil vuelve a la lista sin tener que buscar la ✕. Se pregunta si el
+  // panel se está viendo y no qué pestaña está puesta: cerrar el sheet deja la
+  // pestaña donde estaba, así que mirar `data-tab` hacía que el primer toque se
+  // gastara «cerrando» algo que ya no se veía.
+  funnel?.addEventListener("click", () => {
+    if (isTabVisible("filtros")) closeFilterPanel();
+    else openFilterPanel();
+  });
+
+  // En escritorio el popover no tiene scrim: tocar afuera es lo que lo cierra.
+  // El propio botón queda por fuera de esta regla — su click ya alterna.
+  document.addEventListener("pointerdown", (event) => {
+    if (isMobile() || !isTabVisible("filtros")) return;
+    const target = event.target as HTMLElement;
+    if (target.closest("#filters-card") || target.closest("#fab-filter")) return;
+    closeFilterPanel();
+  });
+
   document.getElementById("close-report")?.addEventListener("click", closeReportPanel);
   document.addEventListener("keydown", (event) => {
     if (event.key !== "Escape") return;
     // El formulario primero: con él abierto, Escape cierra el formulario, no
     // todo el sheet de un golpe.
     if (sheet.dataset.tab === "reportar") closeReportPanel();
+    // El filtro igual: es un panel que se abre encima de lo que se estaba
+    // mirando, y Escape lo devuelve sin llevarse el sheet entero.
+    else if (isTabVisible("filtros")) closeFilterPanel();
     // El detalle no: su única salida visible es la ✕ del encabezado, así que
     // Escape hace lo mismo que ella y cierra el sheet — `closeSheet` ya suelta
     // el marcador de camino.

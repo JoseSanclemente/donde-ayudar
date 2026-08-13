@@ -3,8 +3,7 @@
 Write in **English**: conversation, code, identifiers, comments, commit messages and
 documentation. There is no exception for "small" comments.
 
-Existing Spanish comments stay as they are. Rewrite one only when the change makes it
-wrong — no drive-by translation passes.
+DELETE ANY COMMENT IN SPANISH.
 
 ## Development
 

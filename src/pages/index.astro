@@ -4,6 +4,7 @@ import AlertBanner from "../components/AlertBanner.astro";
 import PickHint from "../components/PickHint.astro";
 import ReportTabs from "../components/ReportTabs.astro";
 import ReportList from "../components/ReportList.astro";
+import MapFilters from "../components/MapFilters.astro";
 import OffersPanel from "../components/OffersPanel.astro";
 import UpdatesFeed from "../components/UpdatesFeed.astro";
 import NewDot from "../components/NewDot.astro";
@@ -168,6 +169,12 @@ import { SITE_NAME, SITE_TITLE } from "../consts";
             <div id="detail-body" class="space-y-2"></div>
           </div>
 
+          <!-- Como el detalle: una pestaña sin botón en el encabezado, a la que
+               solo se llega por el botón flotante del embudo. En escritorio el
+               stylesheet la saca del sheet y la vuelve un popover sobre ese
+               mismo botón, igual que con `#updates-card`. -->
+          <div id="filters-card" data-tab-panel="filtros"><MapFilters /></div>
+
           <!-- «Puntos» es la lista de edificios. En escritorio el sheet es
                `display: contents`, y el `contents` de acá deja que la tarjeta
                caiga igual que antes en la barra lateral. -->
@@ -238,6 +245,32 @@ import { SITE_NAME, SITE_TITLE } from "../consts";
         hidden
         class="absolute right-1 top-1 h-2.5 w-2.5 border-2 border-white"
       />
+    </button>
+
+    <!-- Con todo dibujado a la vez el mapa es ilegible: acá se decide qué pines
+         quedan. El orden en el marcado importa —las reglas que bajan la pila
+         cuando falta un botón son selectores `~` en `global.css`—, así que va
+         entre «Ver panel» y «Centrar en mí». -->
+    <button
+      type="button"
+      id="fab-filter"
+      aria-label="Filtrar qué se ve en el mapa"
+      aria-expanded="false"
+      aria-controls="filters-card"
+      class="fab-filter fixed right-4 z-[1050] inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-4 text-slate-700 shadow-lg transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 lg:absolute lg:right-[calc(var(--right-column)+1.5rem)]"
+    >
+      <svg
+        viewBox="0 0 20 20"
+        aria-hidden="true"
+        class="h-4 w-4"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M3 5h14l-5.5 6.2V16l-3 1.5v-6.3L3 5z"></path>
+      </svg>
     </button>
 
     <!-- Después de mover el mapa, el único camino de vuelta al punto propio. En

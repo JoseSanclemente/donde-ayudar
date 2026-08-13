@@ -1,12 +1,7 @@
 import L from "leaflet";
 import type { ReportGroup } from "./cluster";
-import { isCommunity, isExpired, type Center } from "./centers";
-import {
-  ALBERGUE_FILTER,
-  byCategory,
-  categoryIdOf,
-  SANGRE_FILTER,
-} from "./resources";
+import { isCommunity, isExpired, type Center, type CenterType } from "./centers";
+import { byCategory, categoryIdOf } from "./resources";
 import { readCachedCoords } from "./geolocation";
 import type { ShareCard } from "./share-card";
 import { markerEstado, statusInfo, type ReportStatus } from "./status";
@@ -38,8 +33,17 @@ const USER_ZOOM = 14;
  */
 let viewClaimed = false;
 
-/** Group key -> its marker. One marker per point, never one per report. */
-const markers = new Map<string, L.Marker>();
+/**
+ * Group key -> its marker and the data it was drawn from. One marker per point,
+ * never one per report. The group and its freshness are kept because the filter
+ * runs outside the emission that brought them: without them, changing a filter
+ * would only take effect on the next store tick, and a marker coming back into
+ * the layer would come back without its `data-estado`.
+ */
+const markers = new Map<
+  string,
+  { marker: L.Marker; group: ReportGroup; extra: MarkerExtra }
+>();
 /** Report id -> the key of the group it was merged into. */
 const keyByReport = new Map<string, string>();
 let map: L.Map;
@@ -332,7 +336,7 @@ function selectOnMobile(event: L.LeafletMouseEvent): void {
 /** Al cruzar el breakpoint hay que devolverle (o quitarle) el popup a cada marcador. */
 function syncPopupMode(): void {
   const all = [
-    ...markers.values(),
+    ...[...markers.values()].map((report) => report.marker),
     ...[...centers.values()].map((center) => center.marker),
   ];
   for (const marker of all) {
@@ -372,6 +376,7 @@ export function initMap(containerId: string): L.Map {
   ).addTo(map);
 
   centersLayer.addTo(map);
+  reportsLayer.addTo(map);
 
   map.on("click", (event: L.LeafletMouseEvent) => {
     if (!pickHandler) return;
@@ -551,17 +556,23 @@ export function syncReportMarkers(entries: MarkerEntry[]): void {
   for (const { group, extra } of entries) {
     for (const id of group.reportIds) keyByReport.set(id, group.key);
 
-    let marker = markers.get(group.key);
-    if (marker) {
+    const existing = markers.get(group.key);
+    let marker: L.Marker;
+    if (existing) {
+      marker = existing.marker;
+      existing.group = group;
+      existing.extra = extra;
       // The anchor is stable (see `groupReports`), so this only fires if the
       // group's oldest report was the one deleted.
       const at = marker.getLatLng();
       if (at.lat !== group.lat || at.lng !== group.lng)
         marker.setLatLng([group.lat, group.lng]);
     } else {
-      marker = L.marker([group.lat, group.lng], { icon: pulseIcon }).addTo(map);
+      // Sin `addTo(map)`: quién entra en el mapa lo decide `applyReports`, igual
+      // que con los puntos de acopio.
+      marker = L.marker([group.lat, group.lng], { icon: pulseIcon });
       marker.on("click", selectOnMobile);
-      markers.set(group.key, marker);
+      markers.set(group.key, { marker, group, extra });
     }
 
     attachPopup(marker, reportPopupHtml(group, extra));
@@ -573,16 +584,19 @@ export function syncReportMarkers(entries: MarkerEntry[]): void {
 
   const live = new Set(entries.map(({ group }) => group.key));
   for (const key of [...markers.keys()]) if (!live.has(key)) dropMarker(key);
+
+  applyReports();
 }
 
 function dropMarker(key: string): void {
-  const marker = markers.get(key);
-  if (!marker) return;
+  const entry = markers.get(key);
+  if (!entry) return;
   markers.delete(key);
   // El punto ya no existe: dejar su detalle abierto sería mostrar algo que el
   // mapa ya no tiene.
-  if (marker === selected) emit(null);
-  marker.remove();
+  if (entry.marker === selected) emit(null);
+  reportsLayer.removeLayer(entry.marker);
+  entry.marker.remove();
 }
 
 /** The group a report was merged into — its marker, if any, is that group's. */
@@ -596,7 +610,7 @@ export function markerKeyForReport(id: string): string | undefined {
  */
 export function getMarkerElement(id: string): HTMLElement | undefined {
   const key = keyByReport.get(id);
-  const el = key ? markers.get(key)?.getElement() : undefined;
+  const el = key ? markers.get(key)?.marker.getElement() : undefined;
   return (el?.querySelector(".pulse-inner") as HTMLElement | null) ?? undefined;
 }
 
@@ -633,6 +647,63 @@ export function flyTo(
   });
 }
 
+/* ---- Reports: their own layer, so the filter can empty it ---- */
+
+/**
+ * Report markers used to hang straight off the map. They live in a layer now for
+ * the same reason the centers do: the filter has to be able to take them out
+ * without touching anything else, and putting them back has to leave the popup
+ * that was open on a neighbour alone.
+ */
+const reportsLayer = L.layerGroup();
+
+let reportsVisible = true;
+let reportsOnlyRecent = false;
+
+/**
+ * Qué reportes deja ver el filtro del mapa. `onlyRecent` usa la misma frescura
+ * que pinta la tarjeta y el punto ámbar del marcador (`extra.stale`): el mapa y
+ * la lista no pueden discrepar sobre qué tan viejo es un punto.
+ */
+export function setReportVisibility(visible: boolean, onlyRecent: boolean): number {
+  reportsVisible = visible;
+  reportsOnlyRecent = onlyRecent;
+  return applyReports();
+}
+
+/**
+ * Puts the reports that pass the filter in the layer and takes the rest out.
+ * Marker by marker, like `applyCenters` and for the same reason. Returns how
+ * many stayed visible.
+ */
+function applyReports(): number {
+  let shown = 0;
+  for (const { marker, group, extra } of markers.values()) {
+    const visible = reportsVisible && (!reportsOnlyRecent || !extra.stale);
+    if (visible) shown += 1;
+    if (visible === reportsLayer.hasLayer(marker)) continue;
+    if (visible) {
+      reportsLayer.addLayer(marker);
+      // Entrar en la capa reconstruye el elemento, y con él se fue el
+      // `data-estado`: sin esto el marcador vuelve sin color.
+      paintEstado(marker, group, extra);
+    } else {
+      reportsLayer.removeLayer(marker);
+    }
+  }
+  // A filter that hides the open point leaves the detail talking about
+  // something no longer on the map.
+  if (selected && !reportsLayer.hasLayer(selected) && isReportMarker(selected))
+    emit(null);
+  return shown;
+}
+
+function isReportMarker(marker: L.Marker): boolean {
+  for (const { marker: candidate } of markers.values())
+    if (candidate === marker) return true;
+  return false;
+}
+
 /* ---- Centers: their own layer, apart from the reports ---- */
 
 // They go in their own layer so they can be filtered and hidden without
@@ -647,8 +718,30 @@ const centersLayer = L.layerGroup();
  * point. Reconciled like the reports: create, refresh or drop.
  */
 const centers = new Map<string, { data: Center; marker: L.Marker }>();
-let centerFilter: string | null = null;
-let centersVisible = true;
+
+const ALL_CENTER_TYPES: CenterType[] = [
+  "acopio",
+  "albergue",
+  "sangre",
+  "healthcare",
+];
+
+let visibleCenterTypes = new Set<CenterType>(ALL_CENTER_TYPES);
+let centersOnlyActive = false;
+
+/**
+ * Qué puntos deja ver el filtro del mapa: los tipos marcados, y con
+ * `onlyActive`, solo los que hoy cuentan como abiertos — el mismo `isPaused` que
+ * ya decide si el cuadrito va gris.
+ */
+export function setCenterVisibility(
+  types: Set<CenterType>,
+  onlyActive: boolean,
+): number {
+  visibleCenterTypes = new Set(types);
+  centersOnlyActive = onlyActive;
+  return applyCenters();
+}
 
 const collectionIcon = L.divIcon({
   className: "center-marker",
@@ -996,14 +1089,9 @@ function centerPopupHtml(center: Center, mine: boolean): string {
     </div>`;
 }
 
-// `SANGRE_FILTER` and `ALBERGUE_FILTER` are reserved filter values, not ids of
-// `CATEGORIES`: they filter by point type, while the rest filter by what a
-// point takes.
 function matchesFilter(center: Center): boolean {
-  if (centerFilter === null) return true;
-  if (centerFilter === SANGRE_FILTER) return center.type === "sangre";
-  if (centerFilter === ALBERGUE_FILTER) return center.type === "albergue";
-  return center.donations.some((item) => categoryIdOf(item) === centerFilter);
+  if (!visibleCenterTypes.has(center.type)) return false;
+  return !centersOnlyActive || !isPaused(center);
 }
 
 /**
@@ -1015,7 +1103,7 @@ function matchesFilter(center: Center): boolean {
 function applyCenters(): number {
   let shown = 0;
   for (const { data, marker } of centers.values()) {
-    const visible = centersVisible && matchesFilter(data);
+    const visible = matchesFilter(data);
     if (visible) shown += 1;
     if (visible === centersLayer.hasLayer(marker)) continue;
     if (visible) centersLayer.addLayer(marker);

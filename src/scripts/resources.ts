@@ -63,8 +63,10 @@ export const CATEGORIES: ResourceCategory[] = [
     emoji: "🔦",
     items: [
       "ACPM",
+      "Bancos de energía (Powerbank)",
       "Baños portátiles",
       "Carpas",
+      "Chalecos",
       "Cobijas ",
       "Colchonetas",
       "Extensiones",
@@ -97,7 +99,17 @@ export const CATEGORIES: ResourceCategory[] = [
     id: "alimentos",
     label: "Alimentos",
     emoji: "🥫",
-    items: ["Enlatados", "Granos", "Arroz", "Aceite", "Agua", "Jugos"],
+    items: [
+      "Aceite",
+      "Agua",
+      "Alimentos preparados",
+      "Arroz",
+      "Bebidas energizantes",
+      "Café",
+      "Enlatados",
+      "Granos",
+      "Jugos",
+    ],
     chip: "bg-emerald-50 text-emerald-800",
     chipOn: "border-emerald-600 bg-emerald-600 text-white",
   },
@@ -157,10 +169,6 @@ export const CATEGORIES: ResourceCategory[] = [
     chipOn: "border-blue-600 bg-blue-600 text-white",
   },
   {
-    // Lo que come un animal y lo que lo cura, en una sola familia: un albergue
-    // de mascotas pide las dos cosas a la vez, y quien las lleva casi siempre es
-    // la misma persona. El alimento vivía en `alimentos` y se movió acá — el
-    // texto del ítem no cambió, así que un reporte ya guardado sigue calzando.
     id: "mascotas",
     label: "Mascotas",
     emoji: "🐾",
