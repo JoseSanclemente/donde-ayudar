@@ -778,7 +778,10 @@ const CONFIRM_PREFIX = "Nadie confirma este punto desde ";
  * hexadecimal: the share image is drawn on a canvas, and a Tailwind class means
  * nothing there.
  */
-const KICKER: Record<Center["type"], { label: string; color: string; accent: string }> = {
+const KICKER: Record<
+  Center["type"],
+  { label: string; color: string; accent: string }
+> = {
   acopio: {
     label: "Centro de acopio",
     color: "text-indigo-700",
@@ -791,7 +794,7 @@ const KICKER: Record<Center["type"], { label: string; color: string; accent: str
   },
   albergue: { label: "Albergue", color: "text-amber-700", accent: "#b45309" },
   healthcare: {
-    label: "Atención de heridos",
+    label: "Atención en salud",
     color: "text-blue-700",
     accent: "#1d4ed8",
   },
@@ -844,7 +847,10 @@ function centerPopupHtml(center: Center, mine: boolean): string {
   // reason, and it is worth more than «nobody has confirmed this».
   const expired = center.isActive && isExpired(center);
   const donations = donationsHtml(center, paused);
-  const contact = contactLinksHtml(center.contactWhatsapp, center.contactInstagram);
+  const contact = contactLinksHtml(
+    center.contactWhatsapp,
+    center.contactInstagram,
+  );
   // A shelter that asks people to fill a form before showing up leaves the URL
   // here, and as dead text it is no use. Only curated points get linkified: a
   // community one is inserted by anyone from the browser, and making that text
@@ -852,7 +858,9 @@ function centerPopupHtml(center: Center, mine: boolean): string {
   // cases — a URL is a single word and stretches the popup if it cannot break.
   const notes = center.notes
     ? `<p class="text-sm break-words text-slate-500">${
-        isCommunity(center) ? escapeHtml(center.notes) : linkifyHtml(center.notes)
+        isCommunity(center)
+          ? escapeHtml(center.notes)
+          : linkifyHtml(center.notes)
       }</p>`
     : "";
   // The state goes in the kicker and not only in the pin colour: whoever opens
@@ -869,7 +877,9 @@ function centerPopupHtml(center: Center, mine: boolean): string {
   // A blood bank does not take supplies but donors: saying «donaciones» flat
   // leaves the reader wondering whether the door is still open to give blood.
   const notAcceptingLabel =
-    center.type === "sangre" ? "No recibe donantes por ahora" : "No recibe donaciones por ahora";
+    center.type === "sangre"
+      ? "No recibe donantes por ahora"
+      : "No recibe donaciones por ahora";
   // The colour is not the pin's: `accepting_donations` writes a line and
   // nothing else, so a point that is open but full keeps its own colour.
   const notAccepting = center.acceptingDonations
@@ -930,7 +940,11 @@ function centerPopupHtml(center: Center, mine: boolean): string {
       center.hours,
       // The image travels over WhatsApp and gets looked at days later, so the
       // exact hour says nothing: what helps is that the point is unconfirmed.
-      expired ? "Sin confirmar recientemente" : paused ? "Cerrado por ahora" : "",
+      expired
+        ? "Sin confirmar recientemente"
+        : paused
+          ? "Cerrado por ahora"
+          : "",
       center.acceptingDonations ? "" : notAcceptingLabel,
       center.contactWhatsapp ? `WhatsApp ${center.contactWhatsapp}` : "",
       center.contactInstagram ? `Instagram @${center.contactInstagram}` : "",
@@ -938,7 +952,9 @@ function centerPopupHtml(center: Center, mine: boolean): string {
     ].filter(Boolean),
     // No URLs: they cannot be tapped in the PNG, and `wrap()` lets a word wider
     // than the box through, so a raw URL runs off the drawing.
-    notes: [center.notes].map((note) => (note ? stripUrls(note) : "")).filter(Boolean),
+    notes: [center.notes]
+      .map((note) => (note ? stripUrls(note) : ""))
+      .filter(Boolean),
     chipsTitle: "Recibe",
     chips: center.donations.map((item) => ({
       label: item,
@@ -1007,12 +1023,14 @@ function applyCenters(): number {
   }
   // A filter that hides the open point leaves the detail talking about
   // something no longer on the map.
-  if (selected && !centersLayer.hasLayer(selected) && isCenterMarker(selected)) emit(null);
+  if (selected && !centersLayer.hasLayer(selected) && isCenterMarker(selected))
+    emit(null);
   return shown;
 }
 
 function isCenterMarker(marker: L.Marker): boolean {
-  for (const { marker: candidate } of centers.values()) if (candidate === marker) return true;
+  for (const { marker: candidate } of centers.values())
+    if (candidate === marker) return true;
   return false;
 }
 
@@ -1026,7 +1044,8 @@ function centerIconFor(center: Center): L.DivIcon {
   // Only the collection point has a community variant: it is the only type the
   // form registers. Grey wins over origin — «do not go today» is more urgent
   // than who published it.
-  const own = center.type === "acopio" && isCommunity(center) ? communityIcon : normal;
+  const own =
+    center.type === "acopio" && isCommunity(center) ? communityIcon : normal;
   return isPaused(center) ? paused : own;
 }
 

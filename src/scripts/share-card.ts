@@ -37,7 +37,7 @@ export type ShareChip = {
 };
 
 export type ShareCard = {
-  /** «URGENTE», «Centro de acopio», «Banco de sangre», «Albergue», «Atención de heridos». */
+  /** «URGENTE», «Centro de acopio», «Banco de sangre», «Albergue», «Atención en salud». */
   kicker: string;
   /** Color del kicker y de las barras, en hexadecimal. */
   accent: string;
@@ -131,7 +131,8 @@ const TILE_ZOOM = 16;
  */
 const TILE_DRAW = 512;
 /** El mismo `light_all` del mapa, en @2x. */
-const TILE_URL = "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png";
+const TILE_URL =
+  "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png";
 const SUBDOMAINS = ["a", "b", "c", "d"];
 /** Una tesela colgada no puede dejar el botón girando para siempre. */
 const TILE_TIMEOUT_MS = 6000;
@@ -166,7 +167,10 @@ function loadTile(url: string): Promise<HTMLImageElement> {
     // CARTO responde con `Access-Control-Allow-Origin: *`, así que la petición
     // anónima sirve.
     img.crossOrigin = "anonymous";
-    const timer = setTimeout(() => reject(new Error("tile timeout")), TILE_TIMEOUT_MS);
+    const timer = setTimeout(
+      () => reject(new Error("tile timeout")),
+      TILE_TIMEOUT_MS,
+    );
     img.onload = () => {
       clearTimeout(timer);
       resolve(img);
@@ -184,7 +188,11 @@ function tileJobs(
   lat: number,
   lng: number,
   mapHeight: number,
-): { left: number; top: number; jobs: { x: number; y: number; url: string }[] } {
+): {
+  left: number;
+  top: number;
+  jobs: { x: number; y: number; url: string }[];
+} {
   const center = worldPixel(lat, lng);
   const left = center.x - WIDTH / 2;
   const top = center.y - mapHeight / 2;
@@ -198,7 +206,10 @@ function tileJobs(
   let n = 0;
   for (let x = firstX; x <= lastX; x += 1) {
     for (let y = firstY; y <= lastY; y += 1) {
-      const url = TILE_URL.replace("{s}", SUBDOMAINS[n % SUBDOMAINS.length] as string)
+      const url = TILE_URL.replace(
+        "{s}",
+        SUBDOMAINS[n % SUBDOMAINS.length] as string,
+      )
         .replace("{z}", String(TILE_ZOOM))
         .replace("{x}", String(x))
         .replace("{y}", String(y));
@@ -238,10 +249,15 @@ async function drawMap(
   const centerX = Math.floor((left + WIDTH / 2) / TILE_DRAW);
   const centerY = Math.floor((top + mapHeight / 2) / TILE_DRAW);
 
-  const results = await Promise.allSettled(jobs.map((job) => loadTile(job.url)));
+  const results = await Promise.allSettled(
+    jobs.map((job) => loadTile(job.url)),
+  );
 
   const missingCenter = jobs.some(
-    (job, i) => job.x === centerX && job.y === centerY && results[i]?.status !== "fulfilled",
+    (job, i) =>
+      job.x === centerX &&
+      job.y === centerY &&
+      results[i]?.status !== "fulfilled",
   );
   if (missingCenter) throw new Error("center tile missing");
 
@@ -361,7 +377,10 @@ function wrap(
   const last = lines[lines.length - 1];
   if (last !== undefined && (cut || ctx.measureText(last).width > maxWidth)) {
     let trimmed = last;
-    while (trimmed.length > 1 && ctx.measureText(`${trimmed}…`).width > maxWidth) {
+    while (
+      trimmed.length > 1 &&
+      ctx.measureText(`${trimmed}…`).width > maxWidth
+    ) {
       trimmed = trimmed.slice(0, -1);
     }
     lines[lines.length - 1] = `${trimmed}…`;
@@ -396,7 +415,10 @@ function layoutChips(
   chips: ShareChip[],
   maxWidth: number,
   size: number,
-): { placed: { chip: ShareChip; x: number; y: number; width: number }[]; height: number } {
+): {
+  placed: { chip: ShareChip; x: number; y: number; width: number }[];
+  height: number;
+} {
   const { font, height, padX } = chipMetrics(size);
   ctx.font = font;
 
@@ -479,21 +501,28 @@ function measure(ctx: CanvasRenderingContext2D, card: ShareCard): Layout {
   const nameLines = wrap(ctx, card.name, MAX_WIDTH, 3);
 
   ctx.font = `400 36px ${FONT}`;
-  const addressLines = card.address ? wrap(ctx, card.address, MAX_WIDTH, 2) : [];
+  const addressLines = card.address
+    ? wrap(ctx, card.address, MAX_WIDTH, 2)
+    : [];
 
   ctx.font = UPDATED_FONT;
-  const updatedLine = card.updated ? (wrap(ctx, card.updated, MAX_WIDTH, 1)[0] ?? null) : null;
+  const updatedLine = card.updated
+    ? (wrap(ctx, card.updated, MAX_WIDTH, 1)[0] ?? null)
+    : null;
 
   ctx.font = `400 34px ${FONT}`;
   const lineGroups = card.lines.map((line) => wrap(ctx, line, MAX_WIDTH, 2));
 
   ctx.font = NOTE_FONT;
-  const noteGroups = card.notes.map((note) => wrap(ctx, `“${note}”`, MAX_WIDTH, 2));
+  const noteGroups = card.notes.map((note) =>
+    wrap(ctx, `“${note}”`, MAX_WIDTH, 2),
+  );
 
   const notesHeight =
     noteGroups.length === 0
       ? 0
-      : NOTES_GAP + noteGroups.reduce((total, group) => total + group.length * NOTE_H, 0);
+      : NOTES_GAP +
+        noteGroups.reduce((total, group) => total + group.length * NOTE_H, 0);
 
   const textHeight =
     TOP_GAP +
@@ -513,12 +542,16 @@ function measure(ctx: CanvasRenderingContext2D, card: ShareCard): Layout {
     chips = block.placed;
     chipsHeight = block.height;
     const needed =
-      textHeight + (card.chips.length > 0 ? CHIPS_TITLE_H + 28 + chipsHeight : 0) + FOOTER;
+      textHeight +
+      (card.chips.length > 0 ? CHIPS_TITLE_H + 28 + chipsHeight : 0) +
+      FOOTER;
     if (HEIGHT - needed >= MAP_MIN) break;
   }
 
   const needed =
-    textHeight + (card.chips.length > 0 ? CHIPS_TITLE_H + 28 + chipsHeight : 0) + FOOTER;
+    textHeight +
+    (card.chips.length > 0 ? CHIPS_TITLE_H + 28 + chipsHeight : 0) +
+    FOOTER;
   const mapHeight = Math.max(MAP_MIN, Math.min(MAP_MAX, HEIGHT - needed));
 
   return {
@@ -555,7 +588,8 @@ function drawCard(
 
   if (withMap) {
     const center = mapHeight / 2;
-    if (card.marker === "square") squareMarker(ctx, WIDTH / 2, center, card.accent);
+    if (card.marker === "square")
+      squareMarker(ctx, WIDTH / 2, center, card.accent);
     else pulseMarker(ctx, WIDTH / 2, center, card.accent);
 
     // La atribución no es decorativa: redistribuir las teselas dentro de una
@@ -575,7 +609,8 @@ function drawCard(
   } else {
     // Sin mapa la ficha se queda sola: el marcador entra arriba para que la
     // imagen siga siendo reconocible como este sitio.
-    if (card.marker === "square") squareMarker(ctx, PAD + 40, BAR + 120, card.accent);
+    if (card.marker === "square")
+      squareMarker(ctx, PAD + 40, BAR + 120, card.accent);
     else pulseMarker(ctx, PAD + 40, BAR + 120, card.accent);
   }
 
@@ -657,7 +692,10 @@ function drawCard(
   ctx.textAlign = "left";
 }
 
-function newCanvas(): { canvas: HTMLCanvasElement; ctx: CanvasRenderingContext2D } {
+function newCanvas(): {
+  canvas: HTMLCanvasElement;
+  ctx: CanvasRenderingContext2D;
+} {
   const canvas = document.createElement("canvas");
   canvas.width = WIDTH;
   canvas.height = HEIGHT;
