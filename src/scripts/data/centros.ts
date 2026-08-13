@@ -37,6 +37,7 @@ type Row = {
   recibe: string[] | null;
   recibiendo: boolean | null;
   nota_estado: string | null;
+  confirmed_at: string | null;
   activo: boolean;
 };
 
@@ -116,6 +117,10 @@ function fromRow(row: Row): Centro {
     // an older shape, not the database.
     recibiendo: row.recibiendo ?? true,
     nota_estado: text(row.nota_estado),
+    // A row from before the column existed — or a payload read by a tab that
+    // has not reloaded — degrades to «just confirmed». The other way round it
+    // would grey out the whole map on a shape it simply cannot see.
+    confirmedAt: text(row.confirmed_at) ?? new Date().toISOString(),
   };
 
   // A blood bank takes no supplies, and `centros_recibe_por_tipo` guarantees it
@@ -172,6 +177,7 @@ export function addCentro(input: NuevoAcopio): CentroAcopio {
     telefono: input.telefono ?? undefined,
     notas: input.notas ?? undefined,
     recibiendo: true,
+    confirmedAt: new Date().toISOString(),
   };
   cache = sorted([...cache, centro]);
   emit();
@@ -244,6 +250,36 @@ export function removeCentro(id: string): void {
     cache = sorted([...cache, previous]);
     emit();
     reportError("Solo puedes eliminar los puntos que registraste en este navegador.");
+  })();
+}
+
+/**
+ * Dice que el punto sigue abierto y le corre el día de vigencia.
+ *
+ * Comunitario, igual que «cubierto»: quien pasa por la bodega sabe si sigue
+ * abierta, y quien la registró anoche ya no está ahí —ni tiene por qué conservar
+ * la sesión anónima con la que la publicó—. Vía RPC porque la tabla no tiene
+ * policy de UPDATE: `confirm_centro` toca `confirmed_at` y nada más.
+ */
+export function confirmCentro(id: string): void {
+  const previous = cache.find((centro) => centro.id === id);
+  if (!previous) return;
+
+  const now = new Date().toISOString();
+  cache = cache.map((centro) => (centro.id === id ? { ...centro, confirmedAt: now } : centro));
+  emit();
+
+  void (async () => {
+    if (!supabase) return;
+    const { error } = await supabase.rpc("confirm_centro", { p_id: id });
+    if (!error) return;
+    // El punto vuelve a verse vencido: decir que alguien lo confirmó cuando el
+    // servidor no se enteró es justo el error que esto viene a evitar.
+    cache = cache.map((centro) =>
+      centro.id === id ? { ...centro, confirmedAt: previous.confirmedAt } : centro,
+    );
+    emit();
+    reportError(errorMessage(error, "No se pudo confirmar el punto. Revisa la conexión."));
   })();
 }
 

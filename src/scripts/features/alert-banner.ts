@@ -1,5 +1,5 @@
 import { groupReports } from "../cluster";
-import { getReports, onChange } from "../data/reports";
+import { getReports, onChange, reportFreshAt } from "../data/reports";
 import { onUpdates } from "../data/updates";
 import { flyTo } from "../map";
 import { closeSheet } from "../sheet";
@@ -36,7 +36,7 @@ export function initAlertBanner(): void {
   });
 
   function render() {
-    const blocked = groupReports(getReports()).filter((group) =>
+    const blocked = groupReports(getReports(), reportFreshAt).filter((group) =>
       isBlocked(group.status),
     );
 

@@ -57,6 +57,11 @@ Two kinds of data, and they must not mix:
   'acopio'`, `activo` and `user_id = auth.uid()`, so a shelter, a blood bank or any
   curated point cannot be created from the browser. Deleting is the author's own point
   only, and **there is no update policy at all** — nothing edits a point once published.
+  The one communal bit is `confirm_centro`, which touches only `confirmed_at`: a community
+  `acopio` nobody has confirmed in `EXPIRY_HOURS` (12) is drawn grey like a paused one and
+  anyone can revive it from the popup. Expiry is computed in the browser, so a maintainer
+  never has to sweep the table and there is no scheduled job. Nothing else expires — a
+  curated point has an owner, and a shelter has people sleeping in it.
   The map keeps the same square for both origins and only lightens the colour; the popup
   labels both («Creado por la alcaldía» / «Creado por la comunidad»). `recibe` names
   individual supplies from the `resources.ts` catalog — the same strings a report asks
@@ -88,7 +93,8 @@ Two kinds of data, and they must not mix:
   between the two with `suspend()`/`resume()`.
 - **`data/`** — everything that talks to Supabase. One store per table (`reports.ts`,
   `updates.ts`, `offers.ts`, `centros.ts` — this last one insert-only, and only for a
-  community `acopio`), each with its `emitter.ts` to announce changes and its
+  community `acopio`, plus the one communal bit, `confirmCentro()`), each with its
+  `emitter.ts` to announce changes and its
   `bindTable()` in `live.ts`, which merges every table into a single realtime channel.
   `boot.ts` runs once: anonymous session, initial load, and only then the channel.
   `session.ts` holds the current user id and `isMine()`, mirroring the RLS delete policy.

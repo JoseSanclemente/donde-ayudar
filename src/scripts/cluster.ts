@@ -19,7 +19,11 @@ export type ReportGroup = {
   pending: number;
   lat: number;
   lng: number;
-  /** Lo más reciente que se sabe de la zona: un reporte nuevo o un estado tocado. */
+  /**
+   * Lo más reciente que se sabe de la zona: un reporte nuevo, un estado tocado
+   * o una novedad escrita sobre cualquiera de sus reportes. Las tres cuentan
+   * como «alguien pasó por ahí», y es lo que decide si el punto sigue vivo.
+   */
   latestAt: string;
   /**
    * Estado de la zona: el del reporte cuyo estado se tocó de último. No es el
@@ -58,12 +62,24 @@ export function distanceMeters(a: Coords, b: Coords): number {
  * offers panel — so filtering here retires the point from the whole UI at once.
  * A group left with no reports simply stops existing, and `syncReportMarkers`
  * drops its marker.
+ *
+ * `freshAt` says how recently anybody touched a report, novedades included.
+ * It comes in as an argument because the answer spans two tables and this
+ * module knows nothing about stores — same reason `map.ts` gets `MarkerExtra`.
+ * Required and not defaulted on purpose: a caller that forgot it would silently
+ * retire points that somebody confirmed ten minutes ago, and that is exactly
+ * the bug this parameter exists to fix. Pass `reportFreshAt` from
+ * `data/reports.ts`.
  */
-export function groupReports(reports: Report[], radiusM = CLUSTER_RADIUS_M): ReportGroup[] {
+export function groupReports(
+  reports: Report[],
+  freshAt: (report: Report) => string,
+  radiusM = CLUSTER_RADIUS_M,
+): ReportGroup[] {
   const groups: ReportGroup[] = [];
 
   for (const report of reports) {
-    if (isRetired(report.status, report.statusAt, report.createdAt)) continue;
+    if (isRetired(report.status, report.statusAt, freshAt(report))) continue;
 
     const group = groups.find((g) => distanceMeters(g.lead, report) <= radiusM);
     if (group) group.reports.push(report);
@@ -112,11 +128,10 @@ export function groupReports(reports: Report[], radiusM = CLUSTER_RADIUS_M): Rep
     group.reportIds = group.reports.map((r) => r.id);
 
     // `latestAt` se calcula acá y no al crear el grupo: el lead es el más nuevo
-    // por creación, pero el estado que se tocó hace un minuto puede ser el de
-    // un reporte viejo del mismo edificio.
-    group.latestAt = newestIso(
-      ...group.reports.map((r) => newestIso(r.createdAt, r.statusAt)),
-    );
+    // por creación, pero el estado que se tocó hace un minuto —o la novedad que
+    // alguien acaba de escribir— puede ser el de un reporte viejo del mismo
+    // edificio.
+    group.latestAt = newestIso(...group.reports.map(freshAt));
 
     const freshest = group.reports.reduce((a, b) => (a.statusAt >= b.statusAt ? a : b));
     group.status = freshest.status;

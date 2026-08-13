@@ -8,7 +8,7 @@
  * compilar.
  */
 
-import { hoursSince, newestIso } from "./ui/time";
+import { hoursSince } from "./ui/time";
 
 export type ReportStatus = "activo" | "urgente" | "saturado" | "cerrado";
 
@@ -111,16 +111,31 @@ export const RETIRE_HOURS = 1;
 /**
  * How long a point stays visible with nobody touching it.
  *
- * A need nobody has confirmed in a working day's worth of hours is a guess, not
- * a fact: `isStale` already warns at 6 h, and two hours later the pin stops
- * claiming to be live. Marking a status keeps it alive.
+ * A full day, so a need reported in the afternoon is still on the map the next
+ * afternoon. A need is not less real because nobody walked past it overnight,
+ * and retiring the pin does not answer it — it only hides it from whoever could
+ * have. Anything anybody does about the point restarts the clock: writing a
+ * novedad, marking a status, or reporting it in the first place.
+ *
+ * The same day a community collection point gets (`EXPIRY_HOURS` in
+ * `centros.ts`): a need and the place answering it are read side by side, so
+ * they age at the same rate. `isStale` turns the label amber at 6 h, so most of
+ * that day already reads as unconfirmed.
  */
-export const IDLE_HOURS = 8;
+export const IDLE_HOURS = 24;
 
-/** Off the map and off the list: closed a while ago, or idle for too long. */
-export function isRetired(status: ReportStatus, statusAt: string, createdAt: string): boolean {
+/**
+ * Off the map and off the list: closed a while ago, or idle for too long.
+ *
+ * `freshAt` is the newest thing known about the point, and it is not computed
+ * here: a novedad lives in another table, so whoever has both at hand blends
+ * them and hands the result down — see `reportFreshAt` in `data/reports.ts`.
+ * `statusAt` stays a separate argument because a closed point is measured from
+ * the moment it was closed, not from the last novedad written about it.
+ */
+export function isRetired(status: ReportStatus, statusAt: string, freshAt: string): boolean {
   if (status === "cerrado") return hoursSince(statusAt) >= RETIRE_HOURS;
-  return hoursSince(newestIso(statusAt, createdAt)) >= IDLE_HOURS;
+  return hoursSince(freshAt) >= IDLE_HOURS;
 }
 
 /** Filtros de la lista. `null` = todos. */

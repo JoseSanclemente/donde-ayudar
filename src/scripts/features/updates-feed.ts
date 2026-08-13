@@ -1,5 +1,5 @@
 import { groupReports } from "../cluster";
-import { getReports, onChange, reportLabel } from "../data/reports";
+import { getReports, onChange, reportFreshAt, reportLabel } from "../data/reports";
 import { isMine } from "../data/session";
 import {
   addUpdate,
@@ -56,7 +56,7 @@ export function initUpdatesFeed(): void {
    */
   function renderOptions() {
     const chosen = select.value;
-    const groups = groupReports(getReports());
+    const groups = groupReports(getReports(), reportFreshAt);
 
     const options = [new Option("Novedad general", "")];
     for (const group of groups) {

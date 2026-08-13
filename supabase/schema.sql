@@ -342,6 +342,15 @@ create table public.centros (
   -- stays on the map in grey; closing for real is `activo = false`.
   recibiendo  boolean not null default true,
   nota_estado text check (nota_estado is null or char_length(nota_estado) <= 200),
+  -- The last time somebody said this point is still open. A community
+  -- collection center publishes with no maintainer behind it and nothing ever
+  -- retires it, so a day without a confirmation is read in the browser as
+  -- expired — `EXPIRY_HOURS` in `src/scripts/centros.ts` is the threshold, and
+  -- it lives there and not here: the map greys the point out like a pause, and
+  -- `confirm_centro` brings it back. Every other row carries the column and ignores it — a curated
+  -- point is somebody's to keep, and a shelter is not the improvised thing that
+  -- opens for an afternoon.
+  confirmed_at timestamptz not null default now(),
   activo      boolean not null default true,
   created_at  timestamptz not null default now(),
   updated_at  timestamptz not null default now(),
@@ -392,9 +401,44 @@ create policy "cada quien borra su punto"
   using (origen = 'comunidad' and (select auth.uid()) = user_id);
 
 -- Sigue sin haber policy de UPDATE. Corregir un punto ajeno —o el propio— es
--- una edición completa de la fila: nombre, coordenadas y horario a la vez. Las
--- otras tablas resuelven lo comunitario con RPC de una sola columna; acá no hay
--- ninguna columna comunitaria que valga abrir.
+-- una edición completa de la fila: nombre, coordenadas y horario a la vez. Lo
+-- comunitario se resuelve como en las otras tablas, con una RPC de una sola
+-- columna: `confirmed_at`, y nada más.
+
+-- Anyone can say a community point is still open, the same way anyone can mark
+-- a resource covered: whoever walks past knows, and the author cannot be the
+-- one to answer — their session is anonymous and dies with the browser storage,
+-- which would strand the point as expired forever.
+--
+-- It refuses to touch `recibiendo`: a maintainer who paused a point paused it
+-- for a reason, and confirming that the place exists is not the same claim as
+-- confirming it is taking donations again.
+create or replace function public.confirm_centro(p_id text)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if p_id is null or char_length(p_id) > 60 then
+    raise exception 'punto inválido' using errcode = '22023';
+  end if;
+
+  update public.centros c
+     set confirmed_at = now()
+   where c.id = p_id
+     -- Lo mismo que vence en el navegador, y nada más: un punto curado no vence
+     -- así que tampoco se confirma, un albergue comunitario tampoco —ahí duerme
+     -- gente— y uno cerrado (`activo = false`) no vuelve por esta vía.
+     and c.tipo = 'acopio'
+     and c.origen = 'comunidad'
+     and c.activo;
+end;
+$$;
+
+revoke all     on function public.confirm_centro(text) from public;
+revoke execute on function public.confirm_centro(text) from anon;
+grant  execute on function public.confirm_centro(text) to authenticated;
 
 -- `updated_at` is the maintainer's own trail — which point was touched last
 -- time the city changed. The other tables have no UPDATE path, so this trigger

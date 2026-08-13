@@ -28,9 +28,10 @@ inserta lo suyo, y solo el autor borra lo suyo (`auth.uid() = user_id`).
 | `set_resource_covered(ids, recurso, cubierto)` | `reports.covered` | Quien pasa por la zona sabe si ya llegó el agua |
 | `set_report_status(ids, estado)` | `reports.status`, `status_at`, `status_by` | Quien pasa por la zona sabe si está saturado o cerrado |
 | `assign_offer(oferta, reporte)` | `offers.report_id`, `assigned_at` | Quien coordina en la calle no es quien publicó la retroexcavadora |
+| `confirm_centro(id)` | `centros.confirmed_at` | Quien pasa por la bodega sabe si sigue abierta; el autor perdió su sesión anónima hace rato |
 
-Todas topan en 50 ids por llamada y levantan `errcode 22023` con un mensaje en
-español, que el cliente muestra tal cual en el toast.
+Las que reciben listas topan en 50 ids por llamada, y todas levantan `errcode
+22023` con un mensaje en español, que el cliente muestra tal cual en el toast.
 
 Además, un trigger `throttle_inserts` limita las inserciones por autor y por
 minuto: 6 reportes, 10 novedades, 4 ofertas, 3 puntos de acopio.
@@ -66,8 +67,22 @@ garantizaba el schema de Zod ahora lo garantizan los CHECK de la tabla.
 | `recibe` | Nombres de insumo del catálogo de `src/scripts/resources.ts`, los mismos de `reports.resources`. Vacío en `sangre`, y de 1 a 80 en los otros dos |
 | `recibiendo` | `false` = sigue abierto pero no recibe: queda gris en el mapa. Vale para los tres tipos — un banco de sangre que ya cubrió su demanda se pausa igual |
 | `nota_estado` | Por qué no recibe. Solo se ve con `recibiendo: false` |
+| `confirmed_at` | La última vez que alguien dijo que el punto sigue abierto. Solo cuenta en los acopios comunitarios: a las 24 horas se pintan grises hasta que alguien toque «Sigue abierto» |
 | `activo` | `false` = cerrado, deja de dibujarse. No borres la fila |
 | `lat` / `lng` | Dentro del bounding box de Colombia, igual que un reporte. Era el de Cali hasta que la ayuda empezó a coordinarse con otros municipios |
+
+**Un acopio comunitario vence a las 24 horas.** Nadie lo retira nunca —el autor
+pierde su sesión anónima al limpiar el navegador y no hay policy de UPDATE—, así
+que el colegio que recogió donaciones una tarde se quedaba en el mapa como punto
+vivo para siempre. Pasadas 24 horas sin confirmación se dibuja gris, igual que un
+punto en pausa, y el popup ofrece «Sigue abierto» a cualquiera: eso llama a
+`confirm_centro`, que corre `confirmed_at` y nada más. El umbral vive en
+`EXPIRY_HOURS`, en `src/scripts/centros.ts`; el vencimiento se calcula en el
+navegador, así que no hay `pg_cron` ni trabajo agendado que mantener. Solo los
+acopios comunitarios: un punto curado lo cuida un mantenedor, y un albergue
+—donde duerme gente— no es la bodega improvisada que abre una tarde y al otro
+día no está. La RPC pide las mismas tres condiciones que el navegador, así que
+lo que no vence tampoco se puede confirmar.
 
 **Promover un punto comunitario** que resultó bueno, para que deje de verse como
 sin verificar:

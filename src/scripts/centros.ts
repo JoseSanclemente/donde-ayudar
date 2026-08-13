@@ -7,6 +7,8 @@
  * a maintainer with `service_role` and a community one is registered from the
  * form; reading them is `data/centros.ts`, and drawing them is `map.ts`.
  */
+import { hoursSince } from "./ui/time";
+
 export type Origen = "curado" | "comunidad";
 
 type Base = {
@@ -41,6 +43,13 @@ type Base = {
   recibiendo: boolean;
   /** Por qué no recibe. Solo se muestra con `recibiendo: false`. */
   nota_estado?: string;
+  /**
+   * The last time somebody said this point is still open. No `?` either: the
+   * column is `not null default now()`.
+   *
+   * Only a community point is read against it — see `isExpired`.
+   */
+  confirmedAt: string;
 };
 
 /** Lo que comparten los puntos que reciben insumos: `acopio` y `albergue`. */
@@ -76,5 +85,34 @@ export function recibeInsumos(centro: Centro): centro is CentroAcopio | Albergue
 /** Lo registró alguien desde el formulario, no un maintainer. */
 export function esComunitario(centro: Centro): boolean {
   return centro.origen === "comunidad";
+}
+
+/**
+ * A full day, the same a report pin gets (`IDLE_HOURS` in `status.ts`). A
+ * warehouse that took donations one afternoon is a different question the next
+ * morning and nobody goes back to the site to close it, so the point does have
+ * to expire — but a day is what makes the two halves of the map age at the same
+ * rate. A need and the place answering it are read side by side, and one of
+ * them fading out first only says the map is inconsistent.
+ */
+export const EXPIRY_HOURS = 24;
+
+/**
+ * Nobody has confirmed this point in `EXPIRY_HOURS`, so the map stops showing
+ * it as open — grey, like a pause, and one tap away from coming back.
+ *
+ * Only a community `acopio`. A curated point is a maintainer's, who edits it in
+ * the table editor and takes it down when it closes; expiring it would be
+ * greying out the points the city actually vouches for. And only a collection
+ * center: a shelter has people sleeping in it and a blood bank keeps hospital
+ * hours — neither is the improvised thing that opens for an afternoon and is
+ * gone by morning, which is the whole reason this exists.
+ */
+export function isExpired(centro: Centro): boolean {
+  return (
+    centro.tipo === "acopio" &&
+    esComunitario(centro) &&
+    hoursSince(centro.confirmedAt) >= EXPIRY_HOURS
+  );
 }
 

@@ -1,4 +1,4 @@
-import { removeCentro } from "../data/centros";
+import { confirmCentro, removeCentro } from "../data/centros";
 import { setReportStatus } from "../data/reports";
 import { isStatus } from "../status";
 import { confirmClose } from "../ui/status-select";
@@ -55,5 +55,20 @@ export function initMarkerActions(): void {
     // El detalle abierto se cierra solo: al repintar la capa sin este punto,
     // `setCentros` suelta el marcador seleccionado y `marker-sheet` responde.
     removeCentro(id);
+  });
+
+  document.addEventListener("click", (event) => {
+    const button = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>(
+      "[data-confirm-centro]",
+    );
+    if (!button) return;
+
+    const id = button.dataset.confirmCentro;
+    if (!id) return;
+
+    // Sin `confirm()`, al revés que borrar: esto no le quita nada a nadie y el
+    // tiempo lo deshace solo. Preguntar dos veces por algo que caduca en doce
+    // horas es lo que hace que la gente no lo toque.
+    confirmCentro(id);
   });
 }

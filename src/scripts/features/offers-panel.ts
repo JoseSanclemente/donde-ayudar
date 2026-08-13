@@ -6,7 +6,7 @@ import {
   onOffers,
   removeOffer,
 } from "../data/offers";
-import { getReports, onChange, reportLabel } from "../data/reports";
+import { getReports, onChange, reportFreshAt, reportLabel } from "../data/reports";
 import { isMine } from "../data/session";
 import { flyTo } from "../map";
 import { categoryChip, categoryTitle } from "../resources";
@@ -44,7 +44,7 @@ export function initOffersPanel(): void {
 
   /** Los puntos del mapa, agrupados igual que en la lista: uno por zona. */
   function points(): { id: string; name: string }[] {
-    return groupReports(getReports()).map((group) => ({
+    return groupReports(getReports(), reportFreshAt).map((group) => ({
       id: group.lead.id,
       name: reportLabel(group.lead),
     }));

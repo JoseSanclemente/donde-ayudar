@@ -1,6 +1,6 @@
 import L from "leaflet";
 import type { ReportGroup } from "./cluster";
-import { esComunitario, recibeInsumos, type Centro } from "./centros";
+import { esComunitario, isExpired, recibeInsumos, type Centro } from "./centros";
 import {
   ALBERGUE_FILTER,
   byCategory,
@@ -722,9 +722,18 @@ const ICON: Record<Centro["tipo"], { normal: L.DivIcon; pausa?: L.DivIcon }> = {
   albergue: { normal: albergueIcon, pausa: alberguePausaIcon },
 };
 
-/** Un punto que sigue abierto y hoy no recibe. */
+/**
+ * Un punto que hoy no vale como abierto: o un maintainer lo pausó, o venció.
+ *
+ * Two different facts, one drawing. The grey square with the pause bars already
+ * says «this exists, do not walk over there yet», which is exactly what an
+ * unconfirmed point says too — a second grey would only ask the reader to tell
+ * two greys apart. What does change is the wording of the popup, which is where
+ * the difference between «the warehouse is full» and «nobody has confirmed this
+ * since last night» actually matters.
+ */
 function enPausa(centro: Centro): boolean {
-  return !centro.recibiendo;
+  return !centro.recibiendo || isExpired(centro);
 }
 
 /**
@@ -737,6 +746,12 @@ const ORIGEN: Record<Centro["origen"], string> = {
   curado: "Creado por la alcaldía",
   comunidad: "Creado por la comunidad",
 };
+
+/**
+ * Lo que antecede a la hora en el aviso de un punto vencido. Va aparte porque
+ * el mismo texto es el `data-time-prefix` que usa el ticker para repintarlo.
+ */
+const CONFIRM_PREFIX = "Nadie confirma este punto desde ";
 
 /**
  * Etiqueta y color del kicker por tipo. Un cuarto tipo es una entrada más.
@@ -802,6 +817,10 @@ export type CentroEntry = { data: Centro; mine: boolean };
 
 function centroPopupHtml(centro: Centro, mine: boolean): string {
   const pausa = enPausa(centro);
+  // Vencido y pausado se dibujan igual y se leen distinto. Un punto que además
+  // pausó un maintainer se cuenta como pausado: ahí la razón la escribió alguien
+  // y vale más que «nadie lo ha confirmado».
+  const expired = centro.recibiendo && isExpired(centro);
   const recibe = recibeHtml(centro, pausa);
   const telefono = centro.telefono
     ? `<p class="text-sm text-slate-600">Tel. ${escapeHtml(centro.telefono)}</p>`
@@ -821,8 +840,13 @@ function centroPopupHtml(centro: Centro, mine: boolean): string {
   // El estado va en el kicker y no solo en el color del pin: quien abre el popup
   // tiene que leerlo antes que la dirección.
   const { label, color, accent } = KICKER[centro.tipo];
+  const kickerLabel = expired
+    ? `${label} · Sin confirmar`
+    : pausa
+      ? `${label} · No recibe por ahora`
+      : label;
   const kicker = pausa
-    ? `<p class="text-xs font-semibold uppercase tracking-wide text-slate-500">${label} · No recibe por ahora</p>`
+    ? `<p class="text-xs font-semibold uppercase tracking-wide text-slate-500">${kickerLabel}</p>`
     : `<p class="text-xs font-semibold uppercase tracking-wide ${color}">${label}</p>`;
   const notaEstado = centro.nota_estado
     ? `<p class="text-sm text-slate-600">${escapeHtml(centro.nota_estado)}</p>`
@@ -834,9 +858,19 @@ function centroPopupHtml(centro: Centro, mine: boolean): string {
       ? "No recibe donantes por ahora"
       : "No recibe donaciones por ahora";
   // Mismo ámbar que el aviso de un reporte viejo: "existe, pero no te desplaces".
-  const aviso = pausa
-    ? `<p class="text-xs font-medium text-amber-700">${avisoLabel}</p>${notaEstado}`
-    : "";
+  // Un punto vencido dice otra cosa —nadie afirma que cerró, solo que hace rato
+  // nadie lo confirma— y por eso lleva la hora: media hora de más y un día de
+  // más no piden lo mismo de quien lee. `data-time` deja que el contador siga
+  // corriendo con el popup abierto.
+  const aviso = expired
+    ? `<p
+        class="text-xs font-medium text-amber-700"
+        data-time="${escapeHtml(centro.confirmedAt)}"
+        data-time-prefix="${CONFIRM_PREFIX}"
+      >${CONFIRM_PREFIX}${relativeTime(centro.confirmedAt)}</p>`
+    : pausa
+      ? `<p class="text-xs font-medium text-amber-700">${avisoLabel}</p>${notaEstado}`
+      : "";
   // En pausa el CTA deja de ser el azul sólido: sigue disponible para quien
   // quiera ubicarlo, pero no invita al viaje.
   //
@@ -859,25 +893,38 @@ function centroPopupHtml(centro: Centro, mine: boolean): string {
         class="mt-1 w-full text-xs font-medium text-slate-400 transition hover:text-red-600"
       >Eliminar este punto</button>`
       : "";
+  // Lo puede tocar cualquiera y no solo el autor: la sesión con la que se
+  // registró el punto muere al limpiar el navegador, y un punto que nadie puede
+  // revivir se queda vencido para siempre. Encima del botón de borrar y debajo
+  // de «Cómo llegar»: es lo segundo que se hace acá, no lo primero.
+  const confirmar = expired
+    ? `<button
+        type="button"
+        data-confirm-centro="${escapeHtml(centro.id)}"
+        class="mt-2 w-full rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 transition hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-300"
+      >Sigue abierto</button>`
+    : "";
   // Un banco de sangre no lista insumos: sin chips, el bloque no se dibuja y el
   // título tampoco.
   const shareKey = `c:${centro.id}`;
   shareCards.set(shareKey, {
-    kicker: pausa ? `${label} · No recibe por ahora` : label,
+    kicker: pausa ? kickerLabel : label,
     accent: pausa ? "#64748b" : accent,
     name: centro.name,
     address: centro.direccion,
     updated: null,
     lines: [
       centro.horario,
-      pausa ? avisoLabel : "",
+      // La imagen viaja por WhatsApp y se mira días después, así que la hora
+      // exacta no dice nada: lo que sirve es que el punto está sin confirmar.
+      expired ? "Sin confirmar recientemente" : pausa ? avisoLabel : "",
       centro.telefono ? `Tel. ${centro.telefono}` : "",
       ORIGEN[centro.origen],
     ].filter(Boolean),
     // Sin URLs: en el PNG no se pueden tocar, y `wrap()` deja pasar una palabra
     // más ancha que la caja, así que una URL cruda se sale del dibujo. Queda el
     // host, que al menos dice a dónde ir a buscar.
-    notes: [pausa ? centro.nota_estado : null, centro.notas]
+    notes: [pausa && !expired ? centro.nota_estado : null, centro.notas]
       .map((note) => (note ? stripUrls(note) : ""))
       .filter(Boolean),
     chipsTitle: "Recibe",
@@ -917,6 +964,7 @@ function centroPopupHtml(centro: Centro, mine: boolean): string {
         >${NAV_ICON}Cómo llegar</a>
         ${shareButtonHtml(shareKey)}
       </div>
+      ${confirmar}
       ${borrar}
     </div>`;
 }

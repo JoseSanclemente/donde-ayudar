@@ -3,7 +3,9 @@ import { createEmitter } from "./emitter";
 import { errorMessage, reportError } from "./errors";
 import { bindTable, type RealtimePayload } from "./live";
 import { getUserId } from "./session";
+import { latestUpdateFor, onUpdates } from "./updates";
 import { isRetired, isStatus, type ReportStatus } from "../status";
+import { newestIso } from "../ui/time";
 
 export type Report = {
   id: string;
@@ -83,8 +85,26 @@ function emit(): void {
   changes.emit(cache);
 }
 
+/**
+ * Lo más reciente que se sabe de un reporte: se creó, le tocaron el estado o
+ * alguien escribió una novedad sobre él. Es lo que decide si el punto sigue
+ * vivo (`isRetired`) y lo que la lista pinta como «Actualizado hace X».
+ *
+ * Vive acá y no en `status.ts` porque la respuesta cruza dos tablas: una
+ * novedad cuelga de un reporte por `report_id`, y ninguna de las dos filas sabe
+ * de la otra. Este es el único sitio donde un store lee otro store, y es lo que
+ * evita que cada consumidor arme la mezcla por su cuenta —que era justo lo que
+ * pasaba: el mapa retiraba un punto que la lista mostraba recién actualizado.
+ * `latestUpdateFor` lee un índice ya armado, así que no cuesta recorrer nada.
+ */
+export function reportFreshAt(report: Report): string {
+  return newestIso(report.createdAt, report.statusAt, latestUpdateFor(report.id)?.createdAt);
+}
+
 function retiredCount(): number {
-  return cache.filter((report) => isRetired(report.status, report.statusAt, report.createdAt)).length;
+  return cache.filter((report) =>
+    isRetired(report.status, report.statusAt, reportFreshAt(report)),
+  ).length;
 }
 
 /**
@@ -96,6 +116,12 @@ function retiredCount(): number {
  * guard keeps quiet minutes free of renders.
  */
 export function startRetireSweep(): void {
+  // Una novedad mueve el reloj de un reporte sin escribir en `reports`, así que
+  // sin esto el punto que alguien acaba de confirmar seguiría retirado —y el
+  // banner, el panel de ofertas y el selector de novedades seguirían sin verlo—
+  // hasta la próxima escritura ajena. Todos ellos repintan con esta emisión.
+  onUpdates(() => emit());
+
   let retired = retiredCount();
   setInterval(() => {
     const now = retiredCount();

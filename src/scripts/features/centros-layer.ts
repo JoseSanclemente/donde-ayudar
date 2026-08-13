@@ -26,7 +26,18 @@ function paint(list: Centro[]): void {
   setCentros(list.map((data) => ({ data, mine: isMine(data) })));
 }
 
+/**
+ * Cada cuánto se vuelve a pintar sin que el store haya cambiado. Un punto
+ * comunitario vence por reloj y no por evento: sin esto, la pestaña que quedó
+ * abierta anoche sigue mostrando abierto a las nueve de la mañana un punto que
+ * venció a las tres. Cinco minutos sobre un umbral de un día es error de
+ * sobra, y repintar es barato — `setCentros` solo toca el marcador cuyo ícono
+ * cambió de verdad.
+ */
+const REPAINT_MS = 5 * 60_000;
+
 export function initCentrosLayer(): void {
   paint(getCentros());
   onCentros(paint);
+  setInterval(() => paint(getCentros()), REPAINT_MS);
 }

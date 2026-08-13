@@ -5,6 +5,7 @@ import {
   onChange,
   onState,
   removeReport,
+  reportFreshAt,
   setReportStatus,
   setResourceCovered,
   type StoreState,
@@ -32,7 +33,7 @@ import { buildContactCta } from "../ui/contact";
 import { $, scheduleRender } from "../ui/dom";
 import { buildCaret, SELECT_CHIP } from "../ui/select";
 import { confirmClose } from "../ui/status-select";
-import { isStale, newestIso, paintTime } from "../ui/time";
+import { isStale, paintTime } from "../ui/time";
 
 const reduceMotion = window.matchMedia(
   "(prefers-reduced-motion: reduce)",
@@ -49,19 +50,6 @@ let listFilter: string | null = DEFAULT_LIST_FILTER;
 
 /** Whether the visitor picked a filter: the fallback below never overrides one. */
 let filterChosen = false;
-
-/**
- * Lo más reciente que se sabe de un punto: se creó, le tocaron el estado o
- * alguien publicó una novedad sobre él. Las tres cosas cuentan como «lo
- * confirmaron»; si solo se mirara la fecha de creación, un edificio reportado
- * anteayer y visitado hace diez minutos se vería igual de viejo.
- */
-function groupFreshAt(group: ReportGroup): string {
-  return newestIso(
-    group.latestAt,
-    ...group.reportIds.map((id) => latestUpdateFor(id)?.createdAt),
-  );
-}
 
 /** La novedad más reciente de la zona, sin importar de qué reporte cuelgue. */
 function groupLastUpdate(
@@ -302,7 +290,10 @@ export function initReportList(): void {
     const meta = document.createElement("div");
     meta.className = "mt-2 flex items-center justify-between gap-2";
 
-    const freshAt = groupFreshAt(group);
+    // `latestAt` ya trae la novedad más reciente de la zona: la mezcla la hace
+    // `groupReports` con `reportFreshAt`, que es la misma que decide si el punto
+    // sigue en el mapa. La tarjeta y el pin no pueden discrepar.
+    const freshAt = group.latestAt;
     const stale = isStale(freshAt);
     const time = document.createElement("span");
     time.className = stale
@@ -366,7 +357,7 @@ export function initReportList(): void {
     return groups.map((group) => {
       // La frescura es la de la zona, la misma que pinta la tarjeta: si no, el
       // popup y la lista se contradicen sobre el mismo punto.
-      const freshAt = groupFreshAt(group);
+      const freshAt = group.latestAt;
       return {
         group,
         extra: {
@@ -467,7 +458,7 @@ export function initReportList(): void {
 
   function render() {
     const reports = getReports();
-    const groups = groupReports(reports);
+    const groups = groupReports(reports, reportFreshAt);
     lastGroups = groups;
 
     // La lista abre en «Urgentes», pero un filtro que no deja nada a la vista
