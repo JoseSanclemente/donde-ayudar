@@ -25,6 +25,8 @@ export type Offer = {
   /** Punto al que ya se despachó, o `null` mientras siga disponible. */
   reportId: string | null;
   assignedAt: string | null;
+  /** When it was called done, or `null` while it still stands. */
+  finishedAt: string | null;
   createdAt: string;
   userId: string;
 };
@@ -39,6 +41,7 @@ type Row = {
   contact_phone: string;
   report_id: string | null;
   assigned_at: string | null;
+  finished_at: string | null;
   created_at: string;
 };
 
@@ -78,6 +81,7 @@ function fromRow(row: Row): Offer {
     contactPhone: row.contact_phone,
     reportId: text(row.report_id),
     assignedAt: text(row.assigned_at),
+    finishedAt: text(row.finished_at),
     createdAt: row.created_at,
     userId: row.user_id,
   };
@@ -86,9 +90,14 @@ function fromRow(row: Row): Offer {
 /**
  * Sin despachar primero, y dentro de cada bloque lo más reciente arriba: lo que
  * hay que mover es lo que todavía no tiene destino.
+ *
+ * A finished offer sinks below both blocks. It is kept in the list — anyone can
+ * untick it, and something that disappeared could not be corrected — but it is
+ * not capacity anymore, so it does not sit on top of what still is.
  */
 function sorted(offers: Offer[]): Offer[] {
   return [...offers].sort((a, b) => {
+    if (!a.finishedAt !== !b.finishedAt) return a.finishedAt ? 1 : -1;
     if (!a.reportId !== !b.reportId) return a.reportId ? 1 : -1;
     return Date.parse(b.createdAt) - Date.parse(a.createdAt);
   });
@@ -117,6 +126,7 @@ export function addOffer(input: {
     id: crypto.randomUUID(),
     reportId: null,
     assignedAt: null,
+    finishedAt: null,
     createdAt: new Date().toISOString(),
     userId: getUserId() ?? "",
   };
@@ -209,6 +219,44 @@ export function assignOffer(id: string, reportId: string | null): void {
     });
     if (!error) return;
     reportError(errorMessage(error, "No se pudo asignar la ayuda."));
+    // Vuelta a la verdad del servidor: el cambio optimista ya no vale.
+    try {
+      await loadOffers();
+    } catch {
+      cache = sorted([...cache.filter((o) => o.id !== id), previous]);
+      emit();
+    }
+  })();
+}
+
+/**
+ * Marks the offer as delivered, or puts it back in play with `false`.
+ *
+ * Communal like `assignOffer`, and through an RPC for the same reason: whoever
+ * coordinated the delivery knows it happened, and the author's anonymous
+ * session died with their browser storage long before.
+ */
+export function setOfferFinished(id: string, finished: boolean): void {
+  const previous = cache.find((offer) => offer.id === id);
+  if (!previous) return;
+
+  cache = sorted(
+    cache.map((offer) =>
+      offer.id === id
+        ? { ...offer, finishedAt: finished ? new Date().toISOString() : null }
+        : offer,
+    ),
+  );
+  emit();
+
+  void (async () => {
+    if (!supabase) return;
+    const { error } = await supabase.rpc("set_offer_finished", {
+      p_offer: id,
+      p_finished: finished,
+    });
+    if (!error) return;
+    reportError(errorMessage(error, "No se pudo marcar la ayuda como finalizada."));
     // Vuelta a la verdad del servidor: el cambio optimista ya no vale.
     try {
       await loadOffers();

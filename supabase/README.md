@@ -28,6 +28,7 @@ inserta lo suyo, y solo el autor borra lo suyo (`auth.uid() = user_id`).
 | `set_resource_covered(ids, recurso, cubierto)` | `reports.covered` | Quien pasa por la zona sabe si ya llegó el agua |
 | `set_report_status(ids, estado)` | `reports.status`, `status_at`, `status_by` | Quien pasa por la zona sabe si está saturado o cerrado |
 | `assign_offer(oferta, reporte)` | `offers.report_id`, `assigned_at` | Quien coordina en la calle no es quien publicó la retroexcavadora |
+| `set_offer_finished(oferta, finalizada)` | `offers.finished_at` | Quien coordinó la entrega sabe que ya se cumplió; el autor perdió su sesión anónima hace rato |
 | `confirm_center(id)` | `centers.updated_at` | Quien pasa por la bodega sabe si sigue abierta; el autor perdió su sesión anónima hace rato |
 
 Las que reciben listas topan en 50 ids por llamada, y todas levantan `errcode

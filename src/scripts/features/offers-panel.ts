@@ -1,12 +1,11 @@
-﻿import { groupReports } from "../cluster";
-import {
+﻿import {
   addOffer,
-  assignOffer,
   getOffers,
   onOffers,
   removeOffer,
+  setOfferFinished,
 } from "../data/offers";
-import { getReports, onChange, reportFreshAt, reportLabel } from "../data/reports";
+import { getReports, onChange } from "../data/reports";
 import { isMine } from "../data/session";
 import { flyTo } from "../map";
 import { categoryChip, categoryTitle } from "../resources";
@@ -14,7 +13,6 @@ import { closeSheet, setTabDot } from "../sheet";
 import { CHIP_SHAPE } from "../ui/chips";
 import { buildContactCta, isValidPhone } from "../ui/contact";
 import { $, clearError, scheduleRender, showError } from "../ui/dom";
-import { buildCaret, SELECT_FIELD, SELECT_FIELD_WRAP } from "../ui/select";
 import { paintTime } from "../ui/time";
 
 /** Cuántas ofertas se ven antes de «Ver más». */
@@ -42,53 +40,34 @@ export function initOffersPanel(): void {
     renderList();
   });
 
-  /** Los puntos del mapa, agrupados igual que en la lista: uno por zona. */
-  function points(): { id: string; name: string }[] {
-    return groupReports(getReports(), reportFreshAt).map((group) => ({
-      id: group.lead.id,
-      name: reportLabel(group.lead),
-    }));
-  }
-
-  const SHOW_ASSIGN: boolean = false;
-
   /**
-   * Selector de destino de una oferta. Va por RPC, así que cualquiera puede
-   * despacharla: quien coordina en la calle no es quien publicó la máquina.
+   * The communal "this one is done" box: no `isMine` gate, the same way anyone
+   * can mark a resource covered. No confirmation either — it is cheap, and
+   * anyone can untick it.
    */
-  function assignSelect(
-    offerId: string,
-    current: string | null,
-  ): HTMLSpanElement {
-    const wrap = document.createElement("span");
-    wrap.className = `${SELECT_FIELD_WRAP} min-w-0 flex-1`;
+  function finishedBox(offerId: string, finished: boolean): HTMLLabelElement {
+    const label = document.createElement("label");
+    label.className =
+      "flex cursor-pointer items-center gap-2 text-xs font-medium text-slate-500";
 
-    const select = document.createElement("select");
-    select.className = SELECT_FIELD;
-    select.setAttribute("aria-label", "Punto al que se despacha esta ayuda");
-
-    const options = [new Option("Sin asignar", "")];
-    for (const point of points())
-      options.push(new Option(point.name, point.id));
-    // El punto ya no está en el mapa (lo borraron) pero la oferta lo apunta: se
-    // agrega a mano para no cambiarle el destino en silencio a nadie.
-    if (current && !options.some((o) => o.value === current)) {
-      options.push(new Option("Punto que ya no está", current));
-    }
-    select.replaceChildren(...options);
-    select.value = current ?? "";
-
-    select.addEventListener("change", () => {
-      assignOffer(offerId, select.value || null);
+    const box = document.createElement("input");
+    box.type = "checkbox";
+    box.checked = finished;
+    box.className =
+      "h-4 w-4 shrink-0 rounded border-slate-300 text-red-600 accent-red-600 focus:ring-red-300";
+    box.addEventListener("change", () => {
+      setOfferFinished(offerId, box.checked);
     });
 
-    wrap.append(select, buildCaret("field"));
-    return wrap;
+    label.append(box, document.createTextNode("Finalizada"));
+    return label;
   }
 
   function renderList() {
     const offers = getOffers();
-    const available = offers.filter((offer) => !offer.reportId).length;
+    const available = offers.filter(
+      (offer) => !offer.reportId && !offer.finishedAt,
+    ).length;
     // Cuenta lo que todavía se puede mover: una oferta ya despachada no es
     // capacidad disponible.
     total.textContent = String(available);
@@ -106,16 +85,20 @@ export function initOffersPanel(): void {
       ...offers.slice(0, limit).map((offer) => {
         const item = document.createElement("li");
         item.className = `rounded-lg border px-3 py-5 space-y-5 ${
-          offer.reportId
-            ? "border-slate-200 bg-slate-50"
-            : "border-slate-200 bg-white"
+          offer.finishedAt
+            ? "border-slate-200 bg-slate-50 opacity-60"
+            : offer.reportId
+              ? "border-slate-200 bg-slate-50"
+              : "border-slate-200 bg-white"
         }`;
 
         const head = document.createElement("div");
         head.className = "flex items-start justify-between gap-2";
 
         const name = document.createElement("p");
-        name.className = "text-sm font-semibold text-slate-900";
+        name.className = offer.finishedAt
+          ? "text-sm font-semibold text-slate-500 line-through"
+          : "text-sm font-semibold text-slate-900";
         name.textContent = offer.title;
         head.append(name);
 
@@ -159,8 +142,8 @@ export function initOffersPanel(): void {
         item.append(call);
 
         const row = document.createElement("div");
-        row.className = "mt-2 flex items-center gap-2";
-        if (SHOW_ASSIGN) row.append(assignSelect(offer.id, offer.reportId));
+        row.className = "mt-2 flex items-center justify-between gap-2";
+        row.append(finishedBox(offer.id, offer.finishedAt !== null));
 
         const pointName = offer.reportId
           ? names.get(offer.reportId)
@@ -180,7 +163,7 @@ export function initOffersPanel(): void {
           row.append(link);
         }
 
-        if (row.childElementCount > 0) item.append(row);
+        item.append(row);
         return item;
       }),
     );
@@ -230,8 +213,8 @@ export function initOffersPanel(): void {
 
   const scheduled = scheduleRender(renderList);
   onOffers(scheduled);
-  // Un reporte nuevo agrega un destino a cada selector, y uno borrado le quita
-  // el nombre a la oferta que lo apuntaba.
+  // A deleted report takes the name away from the offer pointing at it, so the
+  // «↦ Ver punto» button has to be repainted too.
   onChange(scheduled);
 
   renderList();

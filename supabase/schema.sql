@@ -242,6 +242,10 @@ create table public.offers (
   -- disponible, solo se queda otra vez sin destino.
   report_id     uuid references public.reports on delete set null,
   assigned_at   timestamptz,
+  -- When the offer was called done; `null` while it still stands. Communal like
+  -- `report_id`: whoever coordinated the delivery knows it happened, and the
+  -- author lost their anonymous session a long time ago.
+  finished_at   timestamptz,
   created_at    timestamptz not null default now()
 );
 
@@ -293,6 +297,41 @@ $$;
 revoke all     on function public.assign_offer(uuid, uuid) from public;
 revoke execute on function public.assign_offer(uuid, uuid) from anon;
 grant  execute on function public.assign_offer(uuid, uuid) to authenticated;
+
+-- Calling an offer done is communal for the same reason assigning it is: the
+-- backhoe already worked, whoever published it is not watching the site, and
+-- their anonymous session died with the browser storage. Without this, the
+-- offer stays counted as available capacity forever.
+--
+-- It touches `finished_at` and nothing else: there is still no UPDATE policy on
+-- the table, which would let anyone rewrite someone else's phone number.
+create or replace function public.set_offer_finished(p_offer uuid, p_finished boolean)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if p_offer is null or p_finished is null then
+    return;
+  end if;
+
+  if not exists (select 1 from public.offers where id = p_offer) then
+    raise exception 'la oferta no existe' using errcode = '22023';
+  end if;
+
+  update public.offers o
+     set finished_at = case when p_finished then now() else null end
+   where o.id = p_offer
+     -- Re-ticking what was already ticked does not move the clock: the stamp
+     -- says when the help was delivered, not when somebody touched the box.
+     and (o.finished_at is not null) is distinct from p_finished;
+end;
+$$;
+
+revoke all     on function public.set_offer_finished(uuid, boolean) from public;
+revoke execute on function public.set_offer_finished(uuid, boolean) from anon;
+grant  execute on function public.set_offer_finished(uuid, boolean) to authenticated;
 
 /* ================================================================== */
 /* Centers — donation points, shelters, blood banks, healthcare        */
