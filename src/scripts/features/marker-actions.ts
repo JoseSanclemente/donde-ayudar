@@ -1,11 +1,12 @@
 import { confirmCenter, removeCenter } from "../data/centers";
-import { setReportStatus } from "../data/reports";
+import { setReportStatus, setResourceCovered } from "../data/reports";
 import { isStatus } from "../status";
 import { confirmClose } from "../ui/status-select";
 
 /**
  * What can be done from a marker's detail — popup on desktop, bottom sheet on
- * mobile: change a report's status, and delete or confirm one's own center. The
+ * mobile: change a report's status, mark one of its resources as covered, and
+ * delete or confirm one's own center. The
  * HTML is built by `map.ts`, which cannot touch the stores, so the wiring lives
  * here.
  *
@@ -32,6 +33,24 @@ export function initMarkerActions(): void {
     const ids = (select.dataset.reportIds ?? "").split(",").filter(Boolean);
     if (ids.length === 0) return;
     setReportStatus(ids, next);
+  });
+
+  document.addEventListener("click", (event) => {
+    const chip = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>(
+      "[data-cover-resource]",
+    );
+    if (!chip) return;
+
+    const resource = chip.dataset.coverResource;
+    if (!resource) return;
+
+    const ids = (chip.dataset.reportIds ?? "").split(",").filter(Boolean);
+    if (ids.length === 0) return;
+
+    // No `confirm()`: whoever is standing at the point is who knows the water
+    // arrived, and the same chip takes it back. The list chip does not ask
+    // either, and it is the same action.
+    setResourceCovered(ids, resource, chip.dataset.covered !== "true");
   });
 
   document.addEventListener("click", (event) => {

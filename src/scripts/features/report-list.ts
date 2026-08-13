@@ -28,7 +28,7 @@ import {
   STATUSES,
   type ReportStatus,
 } from "../status";
-import { chipLabel, chipStyle } from "../ui/chips";
+import { buildResourceChip } from "../ui/chips";
 import { buildContactCta } from "../ui/contact";
 import { $, scheduleRender } from "../ui/dom";
 import { buildCaret, SELECT_CHIP } from "../ui/select";
@@ -92,16 +92,7 @@ export function initReportList(): void {
     }
 
     for (const resource of group.resources) {
-      const chip = document.createElement("button");
-      chip.type = "button";
-      chip.className = `${chipStyle(resource.name, resource.covered)} transition hover:opacity-70`;
-      chip.textContent = chipLabel(resource.name, resource.covered);
-      chip.setAttribute("aria-pressed", String(resource.covered));
-      const action = resource.covered
-        ? `Volver a marcar ${resource.name} como necesario`
-        : `Marcar ${resource.name} como cubierto`;
-      chip.title = action;
-      chip.setAttribute("aria-label", action);
+      const chip = buildResourceChip(resource);
       chip.addEventListener("click", () =>
         setResourceCovered(
           resource.reportIds,

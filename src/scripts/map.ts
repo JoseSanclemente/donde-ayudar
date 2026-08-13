@@ -6,7 +6,7 @@ import { readCachedCoords } from "./geolocation";
 import type { ShareCard } from "./share-card";
 import { markerEstado, statusInfo, type ReportStatus } from "./status";
 import { isMobile, onBreakpointChange } from "./ui/breakpoint";
-import { chipLabel, chipStyle } from "./ui/chips";
+import { chipStyle, resourceChipHtml } from "./ui/chips";
 import { contactCtaHtml, contactLinksHtml } from "./ui/contact";
 import {
   directionsUrl,
@@ -147,14 +147,7 @@ function resourcesHtml(group: ReportGroup): string {
 
   const blocks = byCategory(group.resources, (resource) => resource.name).map(
     (bucket) => {
-      const chips = bucket.items
-        .map(
-          (resource) =>
-            `<span class="inline-block ${chipStyle(resource.name, resource.covered)}">${escapeHtml(
-              chipLabel(resource.name, resource.covered),
-            )}</span>`,
-        )
-        .join(" ");
+      const chips = bucket.items.map(resourceChipHtml).join(" ");
       return `
       <div>
         <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">${escapeHtml(bucket.label)}</p>

@@ -173,6 +173,7 @@ export function initUpdatesFeed(): void {
 
     addUpdate({ body: text, reportId: select.value || null });
     body.value = "";
+    select.value = "";
     if (count) count.textContent = "0";
   });
 
