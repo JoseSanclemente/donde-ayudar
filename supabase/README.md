@@ -17,7 +17,7 @@ eso nadie puede insertar, porque toda escritura pasa por una sesión anónima.
 ## Qué puede escribir un visitante
 
 Cuatro tablas abiertas a escritura anónima — `reports`, `updates`, `offers` y,
-solo en parte, `centros` — con la misma forma: cualquiera lee todo, cualquiera
+solo en parte, `centers` — con la misma forma: cualquiera lee todo, cualquiera
 inserta lo suyo, y solo el autor borra lo suyo (`auth.uid() = user_id`).
 
 **Ninguna tiene policy de UPDATE.** Lo que sí es comunitario pasa por funciones
@@ -28,92 +28,101 @@ inserta lo suyo, y solo el autor borra lo suyo (`auth.uid() = user_id`).
 | `set_resource_covered(ids, recurso, cubierto)` | `reports.covered` | Quien pasa por la zona sabe si ya llegó el agua |
 | `set_report_status(ids, estado)` | `reports.status`, `status_at`, `status_by` | Quien pasa por la zona sabe si está saturado o cerrado |
 | `assign_offer(oferta, reporte)` | `offers.report_id`, `assigned_at` | Quien coordina en la calle no es quien publicó la retroexcavadora |
-| `confirm_centro(id)` | `centros.confirmed_at` | Quien pasa por la bodega sabe si sigue abierta; el autor perdió su sesión anónima hace rato |
+| `confirm_center(id)` | `centers.updated_at` | Quien pasa por la bodega sabe si sigue abierta; el autor perdió su sesión anónima hace rato |
 
 Las que reciben listas topan en 50 ids por llamada, y todas levantan `errcode
 22023` con un mensaje en español, que el cliente muestra tal cual en el toast.
 
 Además, un trigger `throttle_inserts` limita las inserciones por autor y por
-minuto: 6 reportes, 10 novedades, 4 ofertas, 3 puntos de acopio.
+minuto: 6 reportes, 10 novedades, 4 ofertas, 3 puntos.
 
 ## Los puntos de donación
 
-`centros` es la cuarta tabla: acopios, albergues y bancos de sangre. Dos
-orígenes conviven ahí, y la columna `origen` los separa.
+`centers` es la cuarta tabla: acopios, albergues, bancos de sangre y puntos de
+atención de heridos. Dos orígenes conviven ahí, y la columna `origin` los separa.
 
-- **`curado`** — lo edita un mantenedor en el dashboard (**Table Editor →
-  centros**), que corre como `service_role` y se salta RLS. `user_id` va nulo.
+- **`curado`** — lo escribe un mantenedor con SQL, que corre como `service_role`
+  y se salta RLS. `user_id` va nulo.
 - **`comunidad`** — lo registra cualquiera desde el formulario del sitio y sale
   al mapa de inmediato, con el pin en un indigo más claro y la etiqueta «Creado
   por la comunidad» en el popup. Los curados llevan la suya, «Creado por la
   alcaldía»: la primera no dice nada si la otra va sin marcar.
 
 La policy de `insert` es la superficie de escritura entera, y es estrecha a
-propósito: `origen = 'comunidad'`, `tipo = 'acopio'`, `activo`, y `user_id =
-auth.uid()`. Un albergue, un banco de sangre o cualquier punto curado no se
-pueden crear desde el navegador. La de `delete` deja borrar solo el punto propio
-y comunitario. **No hay policy de UPDATE**: ni el autor edita su punto después de
-publicarlo. Corregir uno es cosa del dashboard.
+propósito: `origin = 'comunidad'`, `type = 'acopio'`, `is_active`, y `user_id =
+auth.uid()`. Los otros tres tipos no se pueden crear desde el navegador: se
+insertan a mano hasta que exista un panel de administración.
 
-Antes eran archivos YAML en `src/content/centros/`, validados en cada build. El
-costo era el deploy: corregir un horario pedía commit y build de Netlify. Lo que
-garantizaba el schema de Zod ahora lo garantizan los CHECK de la tabla.
+```sql
+insert into public.centers (id, type, name, address, lat, lng, hours, donations)
+values (
+  'clinica-valle-lili', 'healthcare', 'Clínica Valle del Lili',
+  'Cra 98 # 18-49', 3.3736, -76.5195, 'Todos los días, 24 horas',
+  array['Vendas', 'Gasas']
+);
+```
+
+La policy de `delete` deja borrar solo el punto propio y comunitario. **No hay
+policy de UPDATE**: ni el autor edita su punto después de publicarlo.
 
 | Campo | Qué cuidar |
 | --- | --- |
-| `id` | Llave primaria. Slug kebab-case en los curados —era el nombre del archivo YAML—; uuid en los comunitarios, que pasa el mismo patrón |
-| `tipo` | `acopio`, `albergue` o `sangre` |
-| `origen` | `curado` o `comunidad`. Con `curado`, `user_id` tiene que ir nulo; con `comunidad`, obligatorio (`centros_origen_autor`) |
-| `recibe` | Nombres de insumo del catálogo de `src/scripts/resources.ts`, los mismos de `reports.resources`. Vacío en `sangre`, y de 1 a 80 en los otros dos |
-| `recibiendo` | `false` = sigue abierto pero no recibe: queda gris en el mapa. Vale para los tres tipos — un banco de sangre que ya cubrió su demanda se pausa igual |
-| `nota_estado` | Por qué no recibe. Solo se ve con `recibiendo: false` |
-| `confirmed_at` | La última vez que alguien dijo que el punto sigue abierto. Solo cuenta en los acopios comunitarios: a las 24 horas se pintan grises hasta que alguien toque «Sigue abierto» |
-| `activo` | `false` = cerrado, deja de dibujarse. No borres la fila |
-| `lat` / `lng` | Dentro del bounding box de Colombia, igual que un reporte. Era el de Cali hasta que la ayuda empezó a coordinarse con otros municipios |
+| `id` | Llave primaria. Slug kebab-case en los curados; uuid en los comunitarios, que pasa el mismo patrón |
+| `type` | `acopio`, `albergue`, `sangre` o `healthcare` |
+| `origin` | `curado` o `comunidad`. Con `curado`, `user_id` tiene que ir nulo; con `comunidad`, obligatorio (`centers_origin_author`) |
+| `donations` | Nombres de insumo del catálogo de `src/scripts/resources.ts`, los mismos de `reports.resources`. Opcional en los cuatro tipos, hasta 80 |
+| `accepting_donations` | `false` = sigue abierto pero no recibe. Solo escribe una línea en el popup; el color del pin no cambia |
+| `is_active` | `false` = el pin se pinta gris. El punto sigue en el mapa: quien lo vio ayer necesita saber por qué no ir. Retirarlo de verdad es borrar la fila |
+| `updated_at` | También el reloj de vencimiento. Solo cuenta en los acopios comunitarios: a las 24 horas se pintan grises hasta que alguien toque «Sigue abierto» |
+| `contact_whatsapp` / `contact_instagram` | Opcionales. El usuario de Instagram va sin `@` |
+| `lat` / `lng` | Dentro del bounding box de Colombia, igual que un reporte |
 
 **Un acopio comunitario vence a las 24 horas.** Nadie lo retira nunca —el autor
 pierde su sesión anónima al limpiar el navegador y no hay policy de UPDATE—, así
 que el colegio que recogió donaciones una tarde se quedaba en el mapa como punto
-vivo para siempre. Pasadas 24 horas sin confirmación se dibuja gris, igual que un
-punto en pausa, y el popup ofrece «Sigue abierto» a cualquiera: eso llama a
-`confirm_centro`, que corre `confirmed_at` y nada más. El umbral vive en
-`EXPIRY_HOURS`, en `src/scripts/centros.ts`; el vencimiento se calcula en el
-navegador, así que no hay `pg_cron` ni trabajo agendado que mantener. Solo los
-acopios comunitarios: un punto curado lo cuida un mantenedor, y un albergue
-—donde duerme gente— no es la bodega improvisada que abre una tarde y al otro
-día no está. La RPC pide las mismas tres condiciones que el navegador, así que
-lo que no vence tampoco se puede confirmar.
+vivo para siempre. Pasadas 24 horas sin que nadie lo toque se dibuja gris, y el
+popup ofrece «Sigue abierto» a cualquiera: eso llama a `confirm_center`, que
+corre `updated_at` y nada más. El umbral vive en `EXPIRY_HOURS`, en
+`src/scripts/centers.ts`; el vencimiento se calcula en el navegador, así que no
+hay `pg_cron` ni trabajo agendado que mantener.
+
+El precio de usar `updated_at` como reloj: el trigger `centers_touch_updated_at`
+lo corre en **cualquier** update, así que un mantenedor que corrige una tilde en
+un acopio comunitario también le reinicia el día. Es el trato — que un
+mantenedor toque la fila es evidencia de que el punto existe.
 
 **Promover un punto comunitario** que resultó bueno, para que deje de verse como
 sin verificar:
 
 ```sql
-update public.centros
-   set origen = 'curado', user_id = null
+update public.centers
+   set origin = 'curado', user_id = null
  where id = '<uuid>';
 ```
 
-**Bajar uno malo** sin borrarlo, igual que cualquier otro punto cerrado:
+**Bajar uno malo**: `is_active = false` lo deja gris en el mapa, y borrar la fila
+lo retira del todo.
 
 ```sql
-update public.centros set activo = false where id = '<uuid>';
+update public.centers set is_active = false where id = '<uuid>';
+delete from public.centers where id = '<uuid>';
 ```
 
-`recibe` guarda nombres de insumo, no ids de categoría: un punto que solo recibe
-pañales se publicaba como si recibiera toda la categoría, y el popup prometía
-leche en polvo que ahí no reciben. Lo que se pide y lo que se ofrece se nombran
-igual, así que se pueden comparar ítem por ítem.
+`donations` guarda nombres de insumo, no ids de categoría: un punto que solo
+recibe pañales se publicaba como si recibiera toda la categoría, y el popup
+prometía leche en polvo que ahí no reciben. Lo que se pide y lo que se ofrece se
+nombran igual, así que se pueden comparar ítem por ítem.
 
-Se valida como `reports.resources` —por largo, no por contenido: de 1 a 80
-elementos (`centros_recibe_por_tipo`) y hasta 60 caracteres cada uno
-(`centros_recibe_largo`)—. **El catálogo ya no está duplicado fuera del repo**:
+Se valida como `reports.resources` —por largo, no por contenido: hasta 80
+elementos (`centers_donations_max`) y hasta 60 caracteres cada uno
+(`centers_donations_len`)—. **El catálogo ya no está duplicado fuera del repo**:
 agregar una categoría o un insumo en `src/scripts/resources.ts` no pide
-migración. El precio es que un nombre mal escrito a mano en el editor de tablas
-sale gris, bajo «Otros», en vez de ser rechazado.
+migración. El precio es que un nombre mal escrito a mano sale gris, bajo
+«Otros», en vez de ser rechazado.
 
-Las filas viejas guardadas por categoría siguen funcionando: `data/centros.ts`
+Las filas viejas guardadas por categoría siguen funcionando: `data/centers.ts`
 expande al leer cualquier id del catálogo que encuentre, así que escribir
-`salud` en el editor de tablas publica lo mismo de siempre.
+`salud` publica lo mismo de siempre.
 
 Cualquier cambio sale al aire de inmediato, sin deploy: la tabla va en el canal
 de realtime y el mapa de quien ya está mirando se repinta solo.

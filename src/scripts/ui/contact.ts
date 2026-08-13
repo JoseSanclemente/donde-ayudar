@@ -36,6 +36,50 @@ export function telUrl(phone: string): string {
   return `tel:${phone.replace(/[^\d+]/g, "")}`;
 }
 
+/* ---- Instagram ---- */
+
+/** Same pattern Instagram itself accepts, minus the `@` nobody stores. */
+export const INSTAGRAM_PATTERN = /^[A-Za-z0-9._]{1,30}$/;
+
+/** Whatever the visitor typed — `@name`, a url — down to the handle. */
+export function instagramHandle(value: string): string {
+  return value
+    .trim()
+    .replace(/^https?:\/\/(www\.)?instagram\.com\//i, "")
+    .replace(/^@/, "")
+    .replace(/\/.*$/, "");
+}
+
+export function isValidInstagram(value: string): boolean {
+  return INSTAGRAM_PATTERN.test(instagramHandle(value));
+}
+
+export function instagramUrl(handle: string): string {
+  return `https://instagram.com/${instagramHandle(handle)}`;
+}
+
+/**
+ * The two contact lines of a center, as links: the chat and the profile. A
+ * phone written down as dead text is no use to whoever is reading it on a
+ * phone, which is where this site is read.
+ */
+export function contactLinksHtml(whatsapp?: string, instagram?: string): string {
+  const lines = [
+    whatsapp
+      ? `<a class="center-link text-sm font-medium" href="${escapeHtml(
+          whatsappUrl(whatsapp) ?? telUrl(whatsapp),
+        )}" target="_blank" rel="noopener noreferrer">WhatsApp ${escapeHtml(whatsapp)}</a>`
+      : "",
+    instagram
+      ? `<a class="center-link text-sm font-medium" href="${escapeHtml(
+          instagramUrl(instagram),
+        )}" target="_blank" rel="noopener noreferrer">@${escapeHtml(instagramHandle(instagram))}</a>`
+      : "",
+  ].filter(Boolean);
+  if (lines.length === 0) return "";
+  return `<div class="flex flex-col gap-1">${lines.join("")}</div>`;
+}
+
 /* ---- El botón de llamar, en las dos formas en que se arma ---- */
 
 /**
@@ -64,7 +108,7 @@ function contactLabel(name: string, phone: string): string {
 }
 
 /**
- * El CTA como string, para el popup del mapa. Lleva `centro-cta` además de las
+ * El CTA como string, para el popup del mapa. Lleva `center-cta` además de las
  * clases: Leaflet pinta de azul todo `a` dentro del mapa y esa clase es la que
  * recupera el blanco (`global.css`), tanto en el popup como en el sheet.
  */
@@ -75,10 +119,10 @@ export function contactCtaHtml(
 ): string {
   const { href, external } = contactHref(phone);
   // El margen va en el propio `a` y no en un envoltorio: el sheet móvil anula
-  // el margen de `a.centro-cta` para repartir el aire con su `gap`, y una capa
+  // el margen de `a.center-cta` para repartir el aire con su `gap`, y una capa
   // de por medio le escondería el elemento a esa regla.
   return `<a
-      class="centro-cta ${extra} ${CONTACT_CTA}"
+      class="center-cta ${extra} ${CONTACT_CTA}"
       href="${escapeHtml(href)}"
       ${external ? 'target="_blank" rel="noopener noreferrer"' : ""}
     >${PHONE_ICON}<span>${escapeHtml(contactLabel(name, phone))}</span></a>`;

@@ -37,7 +37,7 @@ export type ShareChip = {
 };
 
 export type ShareCard = {
-  /** «URGENTE», «Centro de acopio», «Banco de sangre», «Albergue». */
+  /** «URGENTE», «Centro de acopio», «Banco de sangre», «Albergue», «Atención de heridos». */
   kicker: string;
   /** Color del kicker y de las barras, en hexadecimal. */
   accent: string;

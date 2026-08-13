@@ -224,11 +224,11 @@ body {
   outline-offset: 4px;
 }
 
-/* ---- Centro de acopio: punto fijo, sin pulso ----
-   Los reportes son el rojo que late; un centro es un sitio estable a donde
-   llegar. Cuadrado índigo para que se distinga también sin color. */
+/* ---- Collection point: a fixed dot, no pulse ----
+   The reports are the red that beats; a center is a stable place to walk to.
+   An indigo square, so it can be told apart with no colour at all. */
 
-.centro-marker .centro-pin {
+.center-marker .center-pin {
   display: block;
   width: 16px;
   height: 16px;
@@ -238,26 +238,24 @@ body {
   box-shadow: 0 1px 4px rgba(15, 23, 42, 0.45);
 }
 
-/* Acopio en pausa: el mismo cuadrado, gris y con las dos barras de pausa — se
-   lee como "detenido" también sin color. Las barras son el glifo compartido de
-   estado; la forma sigue diciendo de qué se trata: cuadrado = acopio, círculo =
-   reporte. Por eso un acopio en pausa y un reporte saturado no se confunden. El
-   punto no se borra del mapa: quien ya lo vio necesita saber por qué no ir. */
-/* Registrado por la comunidad: el mismo cuadrado, un indigo más claro. Quién lo
-   publicó no cambia qué es el punto, así que no cambia la forma; el popup es el
-   que lo dice con todas sus letras. Va antes de la pausa a propósito: gris con
-   barras tiene que ganarle al color del origen. */
-.centro-marker .centro-pin[data-comunidad] {
+/* Registered by the community: the same square, a lighter indigo. Who published
+   it does not change what the point is, so it does not change the shape; the
+   popup is what says it in full. It goes before the paused rule on purpose:
+   grey with bars has to beat the colour of the origin. */
+.center-marker .center-pin[data-community] {
   background: #818cf8;
 }
 
-.centro-marker .centro-pin[data-pausa] {
+/* Paused: the same square, grey and with the two pause bars — it reads as
+   "stopped" with no colour too. The point is not removed from the map: whoever
+   already saw it needs to know why not to go. */
+.center-marker .center-pin[data-paused] {
   position: relative;
   background: #64748b;
 }
 
-.centro-marker .centro-pin[data-pausa]::before,
-.centro-marker .centro-pin[data-pausa]::after {
+.center-marker .center-pin[data-paused]::before,
+.center-marker .center-pin[data-paused]::after {
   content: "";
   position: absolute;
   top: 3px;
@@ -267,31 +265,54 @@ body {
   border-radius: 1px;
 }
 
-.centro-marker .centro-pin[data-pausa]::before {
+.center-marker .center-pin[data-paused]::before {
   left: 3px;
 }
 
-.centro-marker .centro-pin[data-pausa]::after {
+.center-marker .center-pin[data-paused]::after {
   right: 3px;
 }
 
-/* ---- Banco de sangre: círculo con cruz ----
-   Se separa del reporte por forma, no solo por color: el reporte late y es un
-   punto liso; este no se mueve y lleva cruz. */
+/* ---- Blood bank: a red drop ----
+   The tip points up, so the icon anchors above its box in `map.ts` — rotating
+   about the centre pushes the sharp corner past the edge. The rotation is what
+   turns a rounded square with one sharp corner into a drop, and `border-radius`
+   is used instead of `clip-path` because a border survives it. */
 
-.sangre-marker .sangre-pin {
+.blood-marker .blood-pin {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border: 2px solid #ffffff;
+  border-radius: 9999px 9999px 9999px 0;
+  background: #e11d48;
+  transform: rotate(135deg);
+  transform-origin: center;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.45);
+}
+
+.blood-marker .blood-pin[data-paused] {
+  background: #64748b;
+}
+
+/* ---- Healthcare: a blue circle with a cross ----
+   The shape the blood bank used to carry. A cross says «they treat people
+   here», which is what this type is, and the blue keeps it away from the red of
+   a need. */
+
+.healthcare-marker .healthcare-pin {
   position: relative;
   display: block;
   width: 18px;
   height: 18px;
   border-radius: 9999px;
   border: 2px solid #ffffff;
-  background: #e11d48;
+  background: #2563eb;
   box-shadow: 0 1px 4px rgba(15, 23, 42, 0.45);
 }
 
-.sangre-marker .sangre-pin::before,
-.sangre-marker .sangre-pin::after {
+.healthcare-marker .healthcare-pin::before,
+.healthcare-marker .healthcare-pin::after {
   content: "";
   position: absolute;
   top: 50%;
@@ -300,32 +321,31 @@ body {
   border-radius: 1px;
 }
 
-.sangre-marker .sangre-pin::before {
+.healthcare-marker .healthcare-pin::before {
   width: 8px;
   height: 2px;
   margin: -1px 0 0 -4px;
 }
 
-.sangre-marker .sangre-pin::after {
+.healthcare-marker .healthcare-pin::after {
   width: 2px;
   height: 8px;
   margin: -4px 0 0 -1px;
 }
 
-/* Banco de sangre en pausa: el mismo círculo con cruz, en gris. Las barras de
-   pausa del acopio dirían "detenido" pero borrarían la cruz, que es lo único
-   que dice de qué punto se trata — y en el mapa se ve el pin antes que el
-   popup. El gris ya carga el estado; la cruz se queda diciendo qué es. */
-.sangre-marker .sangre-pin[data-pausa] {
+/* Paused: the same circle with the cross, in grey. The pause bars would say
+   "stopped" but would erase the cross, which is the only thing saying what the
+   point is — and on the map the pin is seen before the popup. */
+.healthcare-marker .healthcare-pin[data-paused] {
   background: #64748b;
 }
 
-/* ---- Albergue: casita ámbar ----
-   Tercer tipo, tercera forma: ni el cuadrado del acopio ni el círculo del banco
-   de sangre. El `span` es el borde blanco y el `::before` el relleno ámbar —
-   `clip-path` recorta el `border`, así que el contorno se hace por capas. */
+/* ---- Shelter: a small amber house ----
+   Third type, third shape. The `span` is the white outline and the `::before`
+   the amber fill — `clip-path` cuts the `border`, so the outline is done in
+   layers. */
 
-.albergue-marker .albergue-pin {
+.shelter-marker .shelter-pin {
   position: relative;
   display: block;
   width: 20px;
@@ -335,7 +355,7 @@ body {
   filter: drop-shadow(0 1px 3px rgba(15, 23, 42, 0.45));
 }
 
-.albergue-marker .albergue-pin::before {
+.shelter-marker .shelter-pin::before {
   content: "";
   position: absolute;
   inset: 2px;
@@ -343,14 +363,14 @@ body {
   clip-path: polygon(50% 0, 100% 38%, 100% 100%, 0 100%, 0 38%);
 }
 
-/* Albergue en pausa: misma casita en gris con las dos barras, igual que el
-   acopio detenido. Las barras salen de un solo pseudo-elemento — el `::before`
-   ya está tomado por el relleno — duplicado con `box-shadow`. */
-.albergue-marker .albergue-pin[data-pausa]::before {
+/* Paused: the same house in grey with the two bars. They come out of a single
+   pseudo-element — the `::before` is already taken by the fill — duplicated
+   with `box-shadow`. */
+.shelter-marker .shelter-pin[data-paused]::before {
   background: #64748b;
 }
 
-.albergue-marker .albergue-pin[data-pausa]::after {
+.shelter-marker .shelter-pin[data-paused]::after {
   content: "";
   position: absolute;
   left: 7px;
@@ -434,23 +454,23 @@ option {
 /* Leaflet pinta todo enlace del mapa con `.leaflet-container a { color: #0078A8 }`,
    y ese selector le gana en especificidad al `text-white` de Tailwind — el texto
    del botón quedaba azul sobre azul. Se recupera aquí, no con `!important`. */
-.leaflet-container a.centro-cta,
-#detail-body a.centro-cta {
+.leaflet-container a.center-cta,
+#detail-body a.center-cta {
   color: #fff;
 }
 
-/* Variante del CTA para un centro en pausa: fondo blanco, así que el texto no
-   puede ser blanco. Va después para ganarle a la regla de arriba. */
-.leaflet-container a.centro-cta-quiet,
-#detail-body a.centro-cta-quiet {
+/* The CTA of a paused center: white background, so the text cannot be white. It
+   goes after to beat the rule above. */
+.leaflet-container a.center-cta-quiet,
+#detail-body a.center-cta-quiet {
   color: #475569;
 }
 
-/* Un enlace dentro de las notas de un punto curado —el formulario que pide un
-   albergue, por ejemplo—. Mismo problema que el CTA con el azul de Leaflet, y
-   subrayado porque acá no hay botón que lo delate: es texto dentro de texto. */
-.leaflet-container a.centro-nota-link,
-#detail-body a.centro-nota-link {
+/* A link inside a point's notes or its contact lines. Same problem as the CTA
+   with Leaflet's blue, and underlined because there is no button giving it
+   away: it is text inside text. */
+.leaflet-container a.center-link,
+#detail-body a.center-link {
   color: #2563eb;
   text-decoration: underline;
 }
@@ -471,7 +491,7 @@ option {
 #detail-body .space-y-2 > * + *,
 #detail-body .space-y-1\.5 > * + *,
 #detail-body .mt-1,
-#detail-body a.centro-cta {
+#detail-body a.center-cta {
   margin-top: 0;
 }
 

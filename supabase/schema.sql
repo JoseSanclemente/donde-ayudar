@@ -1,13 +1,13 @@
 -- Full schema. Three tables anyone can write to — reports, updates, offers —
--- plus `centros`, the curated donation points, which everyone reads and only a
--- maintainer with `service_role` writes.
+-- plus `centers`, where only a collection point can be written from the
+-- browser and everything else takes a maintainer with `service_role`.
 --
--- Este archivo es la FOTO COMPLETA: se corre tal cual en el SQL Editor de un
--- proyecto nuevo. Para un proyecto que ya está arriba no se corre esto, sino el
--- delta de `supabase/migrations/`.
+-- This file is the FULL SNAPSHOT: it runs as is in the SQL Editor of a new
+-- project. A project already up runs the delta in `supabase/migrations/`
+-- instead.
 --
--- Lo único que no está acá: Authentication -> Sign In / Providers -> habilitar
--- "Anonymous sign-ins". Sin eso, nadie puede insertar.
+-- The only thing not here: Authentication -> Sign In / Providers -> enable
+-- "Anonymous sign-ins". Without it, nobody can insert.
 
 -- El largo de cada elemento de un arreglo no se puede medir en un CHECK: no
 -- admite subconsultas. Por eso la medición vive en esta función inmutable.
@@ -295,125 +295,108 @@ revoke execute on function public.assign_offer(uuid, uuid) from anon;
 grant  execute on function public.assign_offer(uuid, uuid) to authenticated;
 
 /* ================================================================== */
-/* Puntos de donación — curados, de lectura pública                    */
+/* Centers — donation points, shelters, blood banks, healthcare        */
 /* ================================================================== */
 
--- Los puntos de donación. Dos orígenes en una sola tabla, y `origen` los separa:
--- los curados los edita un maintainer en el editor de tablas, que corre como
--- `service_role` y se salta RLS; los comunitarios los registra cualquiera desde
--- el formulario. Ninguno de los dos se puede editar desde el navegador — no hay
--- policy de UPDATE — así que un punto curado sigue siendo intocable.
---
--- Antes eran archivos YAML en src/content/centros/ validados por Zod en el
--- build; el rebuild que exigía cada corrección era el problema, así que los
--- CHECK de acá se quedaron con lo que garantizaba el esquema.
-create table public.centros (
-  -- Slug para los curados: es el nombre del YAML viejo, sobrevivió a la
-  -- migración y deja distinguir las filas en el editor de tablas. Un punto
-  -- comunitario trae un uuid, que son 36 caracteres de hex y guiones y pasan
-  -- este mismo patrón sin tocarlo.
+-- Two origins in one table, and `origin` separates them: a curated center is
+-- written by a maintainer with SQL, which runs as `service_role` and skips RLS;
+-- a community one is registered by anyone from the form. Neither can be edited
+-- from the browser — there is no UPDATE policy.
+create table public.centers (
+  -- A slug for the curated ones, a uuid for the community ones: 36 characters
+  -- of hex and dashes, which pass this same pattern untouched.
   id          text primary key check (id ~ '^[a-z0-9-]{3,60}$'),
-  tipo        text not null check (tipo in ('acopio','albergue','sangre')),
-  -- Quién lo publicó. El formulario solo registra acopios: los albergues y los
-  -- bancos de sangre siguen siendo curados (ver la policy de insert).
-  origen      text not null default 'curado' check (origen in ('curado','comunidad')),
-  -- Autor del punto comunitario, para que pueda borrar el suyo. Los curados no
-  -- tienen autor: los publica el editor de tablas, no una sesión.
+  type        text not null
+              constraint centers_type_check
+              check (type in ('acopio','albergue','sangre','healthcare')),
+  -- Who published it. The form only registers collection points; the other
+  -- three types are a maintainer's (see the insert policy).
+  origin      text not null default 'curado'
+              constraint centers_origin_check
+              check (origin in ('curado','comunidad')),
   user_id     uuid references auth.users on delete cascade,
   name        text not null check (char_length(name) between 3 and 120),
-  direccion   text not null check (char_length(direccion) between 3 and 200),
-  -- Mismo bounding box de Colombia que los reportes.
+  address     text not null check (char_length(address) between 3 and 200),
+  -- Same Colombia bounding box as the reports.
   lat         double precision not null check (lat between -4.3 and 13.5),
   lng         double precision not null check (lng between -82.0 and -66.8),
   -- Empty string is a real value here: a point whose opening hours nobody has
   -- confirmed yet. The popup just leaves the line blank.
-  horario     text not null default '' check (char_length(horario) <= 120),
-  telefono    text check (telefono is null or char_length(telefono) <= 40),
-  notas       text check (notas is null or char_length(notas) <= 300),
-  -- Nombres de insumo del catálogo de `src/scripts/resources.ts`, los mismos de
-  -- `reports.resources`: lo que se pide y lo que se ofrece se nombran igual, así
-  -- que se pueden comparar ítem por ítem. Se valida por largo, no por contenido
-  -- —el catálogo vive en el repo y crece sin migración—; la UI agrupa cada
-  -- nombre bajo su categoría y pinta gris lo que no reconoce.
-  recibe      text[] not null default '{}'
-              constraint centros_recibe_largo
-              check (public.max_text_len(recibe) <= 60),
-  -- `false` = still open, not taking supplies right now (warehouse full). It
-  -- stays on the map in grey; closing for real is `activo = false`.
-  recibiendo  boolean not null default true,
-  nota_estado text check (nota_estado is null or char_length(nota_estado) <= 200),
-  -- The last time somebody said this point is still open. A community
-  -- collection center publishes with no maintainer behind it and nothing ever
-  -- retires it, so a day without a confirmation is read in the browser as
-  -- expired — `EXPIRY_HOURS` in `src/scripts/centros.ts` is the threshold, and
-  -- it lives there and not here: the map greys the point out like a pause, and
-  -- `confirm_centro` brings it back. Every other row carries the column and ignores it — a curated
-  -- point is somebody's to keep, and a shelter is not the improvised thing that
-  -- opens for an afternoon.
-  confirmed_at timestamptz not null default now(),
-  activo      boolean not null default true,
+  hours       text not null default '' check (char_length(hours) <= 120),
+  contact_whatsapp  text check (contact_whatsapp is null or char_length(contact_whatsapp) <= 40),
+  -- The handle, with no `@` and no url.
+  contact_instagram text check (contact_instagram is null or char_length(contact_instagram) <= 40),
+  notes       text check (notes is null or char_length(notes) <= 300),
+  -- Supply names from the catalog in `src/scripts/resources.ts`, the same ones
+  -- `reports.resources` holds: what is asked for and what is offered are named
+  -- alike, so they compare item by item. Validated by length and not by
+  -- content — the catalog lives in the repo and grows without a migration.
+  -- Optional for every type: a blood bank may list donations and a collection
+  -- point may list none.
+  donations   text[] not null default '{}'
+              constraint centers_donations_len
+              check (public.max_text_len(donations) <= 60)
+              constraint centers_donations_max
+              check (cardinality(donations) <= 80),
+  -- `false` = open, not taking supplies right now (warehouse full). It only
+  -- writes a line in the popup; the marker keeps its color.
+  accepting_donations boolean not null default true,
+  -- `false` greys the marker out. The point stays on the map: whoever saw it
+  -- yesterday needs to know why not to go. Retiring it for good is deleting the
+  -- row.
+  is_active   boolean not null default true,
   created_at  timestamptz not null default now(),
+  -- Also the expiry clock. A community collection point publishes with no
+  -- maintainer behind it and nothing ever retires it, so a day untouched is
+  -- read in the browser as expired — `EXPIRY_HOURS` in `src/scripts/centers.ts`
+  -- is the threshold — and `confirm_center` brings it back. Every other row
+  -- carries the column and ignores it.
   updated_at  timestamptz not null default now(),
 
-  -- The discriminated union src/content.config.ts used to enforce: a blood bank
-  -- takes no supplies and must not list any, everything else must list one. The
-  -- ceiling is the whole catalog: a warehouse can and does take everything.
-  constraint centros_recibe_por_tipo check (
-    case when tipo = 'sangre' then cardinality(recibe) = 0
-         else cardinality(recibe) between 1 and 80 end
-  ),
-  -- Un punto curado no tiene autor; uno comunitario tiene exactamente uno. Sin
-  -- esto, un `user_id` nulo en una fila comunitaria la volvería imborrable.
-  constraint centros_origen_autor check (
-    (origen = 'curado'    and user_id is null) or
-    (origen = 'comunidad' and user_id is not null)
+  -- A curated point has no author; a community one has exactly one. Without
+  -- this, a null `user_id` on a community row would make it undeletable.
+  constraint centers_origin_author check (
+    (origin = 'curado'    and user_id is null) or
+    (origin = 'comunidad' and user_id is not null)
   )
 );
 
--- The client only ever asks for the active ones.
-create index centros_activo_idx on public.centros (activo);
--- El freno de inserciones cuenta por autor y por minuto.
-create index centros_user_created_idx on public.centros (user_id, created_at desc);
+create index centers_active_idx on public.centers (is_active);
+-- The insert throttle counts per author per minute.
+create index centers_user_created_idx on public.centers (user_id, created_at desc);
 
-alter table public.centros replica identity full;
-alter table public.centros enable row level security;
-alter publication supabase_realtime add table public.centros;
+alter table public.centers replica identity full;
+alter table public.centers enable row level security;
+alter publication supabase_realtime add table public.centers;
 
-create policy "puntos visibles para todos"
-  on public.centros for select to anon, authenticated using (true);
+create policy "centers are public"
+  on public.centers for select to anon, authenticated using (true);
 
--- Toda la superficie de escritura de la tabla, y es a propósito así de estrecha:
--- solo un acopio, solo `origen = 'comunidad'`, solo a nombre de quien inserta.
--- Un punto curado no se puede crear desde el navegador ni por accidente ni a
--- propósito — el editor de tablas sigue siendo la única vía.
-create policy "la comunidad registra acopios"
-  on public.centros for insert to authenticated
+-- The whole write surface of the table, this narrow on purpose: a collection
+-- point, community origin, in the name of whoever inserts it. The other three
+-- types cannot be created from the browser by accident or on purpose.
+create policy "the community registers collection points"
+  on public.centers for insert to authenticated
   with check (
-    origen = 'comunidad'
-    and tipo = 'acopio'
-    and activo
+    origin = 'comunidad'
+    and type = 'acopio'
+    and is_active
     and (select auth.uid()) = user_id
   );
 
--- Espejo de `reports`: cada quien borra lo suyo, y lo curado no lo borra nadie.
-create policy "cada quien borra su punto"
-  on public.centros for delete to authenticated
-  using (origen = 'comunidad' and (select auth.uid()) = user_id);
+create policy "authors delete their own center"
+  on public.centers for delete to authenticated
+  using (origin = 'comunidad' and (select auth.uid()) = user_id);
 
--- Sigue sin haber policy de UPDATE. Corregir un punto ajeno —o el propio— es
--- una edición completa de la fila: nombre, coordenadas y horario a la vez. Lo
--- comunitario se resuelve como en las otras tablas, con una RPC de una sola
--- columna: `confirmed_at`, y nada más.
+-- There is still no UPDATE policy. Correcting a point is a full row edit —
+-- name, coordinates and hours at once. The communal bit goes the same way as in
+-- the other tables, through a one-column RPC.
 
 -- Anyone can say a community point is still open, the same way anyone can mark
--- a resource covered: whoever walks past knows, and the author cannot be the
--- one to answer — their session is anonymous and dies with the browser storage,
--- which would strand the point as expired forever.
---
--- It refuses to touch `recibiendo`: a maintainer who paused a point paused it
--- for a reason, and confirming that the place exists is not the same claim as
--- confirming it is taking donations again.
-create or replace function public.confirm_centro(p_id text)
+-- a resource covered: whoever walks past knows, and the author cannot answer —
+-- their anonymous session dies with the browser storage, which would strand the
+-- point as expired forever. It touches `updated_at` and nothing else.
+create or replace function public.confirm_center(p_id text)
 returns void
 language plpgsql
 security definer
@@ -424,21 +407,20 @@ begin
     raise exception 'punto inválido' using errcode = '22023';
   end if;
 
-  update public.centros c
-     set confirmed_at = now()
+  update public.centers c
+     set updated_at = now()
    where c.id = p_id
-     -- Lo mismo que vence en el navegador, y nada más: un punto curado no vence
-     -- así que tampoco se confirma, un albergue comunitario tampoco —ahí duerme
-     -- gente— y uno cerrado (`activo = false`) no vuelve por esta vía.
-     and c.tipo = 'acopio'
-     and c.origen = 'comunidad'
-     and c.activo;
+     -- The same thing that expires in the browser, and nothing else: a curated
+     -- point does not expire so it is not confirmed either, and neither does a
+     -- community shelter — people sleep there.
+     and c.type = 'acopio'
+     and c.origin = 'comunidad';
 end;
 $$;
 
-revoke all     on function public.confirm_centro(text) from public;
-revoke execute on function public.confirm_centro(text) from anon;
-grant  execute on function public.confirm_centro(text) to authenticated;
+revoke all     on function public.confirm_center(text) from public;
+revoke execute on function public.confirm_center(text) from anon;
+grant  execute on function public.confirm_center(text) to authenticated;
 
 -- `updated_at` is the maintainer's own trail — which point was touched last
 -- time the city changed. The other tables have no UPDATE path, so this trigger
@@ -456,7 +438,7 @@ $$;
 
 revoke all on function public.touch_updated_at() from public;
 
-create trigger centros_touch_updated_at before update on public.centros
+create trigger centers_touch_updated_at before update on public.centers
   for each row execute function public.touch_updated_at();
 
 /* ================================================================== */
@@ -507,8 +489,8 @@ create trigger updates_throttle before insert on public.updates
 create trigger offers_throttle before insert on public.offers
   for each row execute function public.throttle_inserts(4);
 
--- El más bajo de los cuatro: un punto de acopio es una respuesta, no un reporte,
--- y nadie abre tres bodegas en un minuto. Cuenta por `user_id`, así que las
--- filas curadas —sin autor— nunca entran en la cuenta.
-create trigger centros_throttle before insert on public.centros
+-- The lowest of the four: a collection point is an answer, not a report, and
+-- nobody opens three warehouses in a minute. It counts per `user_id`, so the
+-- curated rows — with no author — never enter the count.
+create trigger centers_throttle before insert on public.centers
   for each row execute function public.throttle_inserts(3);

@@ -1,19 +1,17 @@
-import { confirmCentro, removeCentro } from "../data/centros";
+import { confirmCenter, removeCenter } from "../data/centers";
 import { setReportStatus } from "../data/reports";
 import { isStatus } from "../status";
 import { confirmClose } from "../ui/status-select";
 
 /**
- * Lo que se puede hacer desde el detalle de un marcador —popup en escritorio,
- * bottom sheet en móvil—: cambiarle el estado a un reporte y borrar un punto de
- * acopio propio. El HTML lo arma `map.ts` —que no puede tocar los stores—, así
- * que el cableado vive acá.
+ * What can be done from a marker's detail — popup on desktop, bottom sheet on
+ * mobile: change a report's status, and delete or confirm one's own center. The
+ * HTML is built by `map.ts`, which cannot touch the stores, so the wiring lives
+ * here.
  *
- * Listeners delegados en `document` y no uno por control: los dos contenedores
- * se rehacen enteros en cada emisión del store, así que cualquier listener
- * pegado al nodo habría que volver a pegarlo en cada tick. Delegar en
- * `document` es además lo que hace que el mismo HTML sirva en los dos sitios
- * sin que este archivo sepa de ninguno.
+ * Listeners are delegated on `document` and not one per control: both
+ * containers are rebuilt whole on every store emission, so any listener stuck
+ * to the node would have to be stuck again on every tick.
  */
 export function initMarkerActions(): void {
   document.addEventListener("change", (event) => {
@@ -38,37 +36,37 @@ export function initMarkerActions(): void {
 
   document.addEventListener("click", (event) => {
     const button = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>(
-      "[data-delete-centro]",
+      "[data-delete-center]",
     );
     if (!button) return;
 
-    const id = button.dataset.deleteCentro;
+    const id = button.dataset.deleteCenter;
     if (!id) return;
 
-    // Un punto no se puede editar después de publicarlo, así que borrarlo es la
-    // única corrección posible y no tiene vuelta atrás: nadie en la aplicación
-    // deshace nada. Mismo `confirm` nativo que al cerrar un punto — la otra
-    // acción que le cambia el mapa a todo el mundo.
+    // A point cannot be edited after publishing, so deleting it is the only
+    // correction there is and it does not come back. Same native `confirm` as
+    // closing a point — the other action that changes the map for everybody.
     const name = button.dataset.pointName ?? "este punto";
     if (!confirm(`¿Eliminar «${name}» del mapa? Deja de verlo todo el mundo.`)) return;
 
-    // El detalle abierto se cierra solo: al repintar la capa sin este punto,
-    // `setCentros` suelta el marcador seleccionado y `marker-sheet` responde.
-    removeCentro(id);
+    // The open detail closes on its own: repainting the layer without this
+    // point makes `setCenters` drop the selected marker, and `marker-sheet`
+    // answers.
+    removeCenter(id);
   });
 
   document.addEventListener("click", (event) => {
     const button = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>(
-      "[data-confirm-centro]",
+      "[data-confirm-center]",
     );
     if (!button) return;
 
-    const id = button.dataset.confirmCentro;
+    const id = button.dataset.confirmCenter;
     if (!id) return;
 
-    // Sin `confirm()`, al revés que borrar: esto no le quita nada a nadie y el
-    // tiempo lo deshace solo. Preguntar dos veces por algo que caduca en doce
-    // horas es lo que hace que la gente no lo toque.
-    confirmCentro(id);
+    // No `confirm()`, the other way round from deleting: this takes nothing
+    // away from anybody and time undoes it on its own. Asking twice for
+    // something that expires in a day is what stops people from touching it.
+    confirmCenter(id);
   });
 }

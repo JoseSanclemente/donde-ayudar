@@ -118,7 +118,7 @@ export const RETIRE_HOURS = 1;
  * novedad, marking a status, or reporting it in the first place.
  *
  * The same day a community collection point gets (`EXPIRY_HOURS` in
- * `centros.ts`): a need and the place answering it are read side by side, so
+ * `centers.ts`): a need and the place answering it are read side by side, so
  * they age at the same rate. `isStale` turns the label amber at 6 h, so most of
  * that day already reads as unconfirmed.
  */

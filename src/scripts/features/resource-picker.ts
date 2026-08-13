@@ -26,7 +26,7 @@ export type ResourcePicker = {
 export type ResourcePickerOptions = {
   /**
    * Cuántos insumos caben. Es el `check` de la columna donde van a parar:
-   * veinte en `reports.resources`, ochenta en `centros.recibe`. Sin el freno
+   * veinte en `reports.resources`, ochenta en `centers.donations`. Sin el freno
    * acá, pasarse vuelve como «no se pudo guardar» y nadie sabe por qué.
    */
   max: number;

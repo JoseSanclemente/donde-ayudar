@@ -1,12 +1,12 @@
 import { initData } from "./data/boot";
 import { onError } from "./data/errors";
 import { initAlertBanner } from "./features/alert-banner";
-import { initCentrosLayer } from "./features/centros-layer";
+import { initCentersLayer } from "./features/centers-layer";
 import { initHeaderOffset } from "./features/header-offset";
 import { initMarkerActions } from "./features/marker-actions";
 import { initMarkerSheet } from "./features/marker-sheet";
 import { initOffersPanel } from "./features/offers-panel";
-import { initCentroForm } from "./features/centro-form";
+import { initCenterForm } from "./features/center-form";
 import { initReportForm } from "./features/report-form";
 import { initReportList } from "./features/report-list";
 import { initReportTabs } from "./features/report-tabs";
@@ -27,14 +27,14 @@ initSheet();
 initMarkerSheet();
 initMarkerActions();
 initShare();
-initCentrosLayer();
+initCentersLayer();
 // Antes del aviso: la primera vez que aparece ya cambia la altura del header.
 initHeaderOffset();
 initAlertBanner();
 // Antes de los dos formularios: los dos se suscriben a su cambio de pestaña.
 initReportTabs();
 initReportForm();
-initCentroForm();
+initCenterForm();
 initReportList();
 initUpdatesFeed();
 initOffersPanel();

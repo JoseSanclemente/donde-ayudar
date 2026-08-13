@@ -1,6 +1,6 @@
 import L from "leaflet";
 import type { ReportGroup } from "./cluster";
-import { esComunitario, isExpired, recibeInsumos, type Centro } from "./centros";
+import { isCommunity, isExpired, type Center } from "./centers";
 import {
   ALBERGUE_FILTER,
   byCategory,
@@ -12,7 +12,7 @@ import type { ShareCard } from "./share-card";
 import { markerEstado, statusInfo, type ReportStatus } from "./status";
 import { isMobile, onBreakpointChange } from "./ui/breakpoint";
 import { chipLabel, chipStyle } from "./ui/chips";
-import { contactCtaHtml } from "./ui/contact";
+import { contactCtaHtml, contactLinksHtml } from "./ui/contact";
 import {
   directionsUrl,
   escapeHtml,
@@ -333,7 +333,7 @@ function selectOnMobile(event: L.LeafletMouseEvent): void {
 function syncPopupMode(): void {
   const all = [
     ...markers.values(),
-    ...[...centros.values()].map((centro) => centro.marker),
+    ...[...centers.values()].map((center) => center.marker),
   ];
   for (const marker of all) {
     const html = popupHtml.get(marker);
@@ -371,7 +371,7 @@ export function initMap(containerId: string): L.Map {
     },
   ).addTo(map);
 
-  centrosLayer.addTo(map);
+  centersLayer.addTo(map);
 
   map.on("click", (event: L.LeafletMouseEvent) => {
     if (!pickHandler) return;
@@ -633,135 +633,152 @@ export function flyTo(
   });
 }
 
-/* ---- Centros de acopio: capa curada, fija, aparte de los reportes ---- */
+/* ---- Centers: their own layer, apart from the reports ---- */
 
-// Van en su propia capa para poder filtrarlos y ocultarlos sin tocar los
-// reportes, y con zIndexOffset negativo para que el rojo pulsante de una
-// necesidad activa siempre quede por encima de un punto de entrega.
-const centrosLayer = L.layerGroup();
+// They go in their own layer so they can be filtered and hidden without
+// touching the reports, and with a negative zIndexOffset so the pulsing red of
+// an active need always stays above a delivery point.
+const centersLayer = L.layerGroup();
 /**
- * Punto -> su marcador, por id. Es un registro y no una lista que se rehace
- * porque el marcador tiene que sobrevivir a la emisión: cualquiera puede
- * registrar un acopio en cualquier parte de la ciudad, eso llega por realtime, y
- * rehacer la capa entera cerraba el detalle que alguien estaba leyendo de otro
- * punto. Igual que los reportes, se reconcilia: crear, refrescar o soltar.
+ * Center -> its marker, by id. A registry and not a list that gets rebuilt,
+ * because the marker has to survive the emission: anyone can register a
+ * collection point anywhere in the city, that arrives over realtime, and
+ * rebuilding the whole layer closed the detail somebody was reading of another
+ * point. Reconciled like the reports: create, refresh or drop.
  */
-const centros = new Map<string, { data: Centro; marker: L.Marker }>();
-let centroFilter: string | null = null;
-let centrosVisible = true;
+const centers = new Map<string, { data: Center; marker: L.Marker }>();
+let centerFilter: string | null = null;
+let centersVisible = true;
 
-const centroIcon = L.divIcon({
-  className: "centro-marker",
-  html: '<span class="centro-pin"></span>',
+const collectionIcon = L.divIcon({
+  className: "center-marker",
+  html: '<span class="center-pin"></span>',
   iconSize: [16, 16],
   iconAnchor: [8, 8],
   popupAnchor: [0, -10],
 });
 
-// Registrado por la comunidad: el mismo cuadrado, un indigo más claro. Quién lo
-// publicó no cambia qué es el punto, así que tampoco cambia la forma — un tercer
-// contorno se leería como un cuarto tipo. Lo que sí lo dice con todas sus letras
-// es el popup, y ahí se etiquetan los dos orígenes.
-const comunidadIcon = L.divIcon({
-  className: "centro-marker",
-  html: '<span class="centro-pin" data-comunidad></span>',
+// Registered by the community: the same square, a lighter indigo. Who published
+// it does not change what the point is, so it does not change the shape either
+// — a third outline would read as a fifth type. The popup is what says it in
+// full, and it labels both origins.
+const communityIcon = L.divIcon({
+  className: "center-marker",
+  html: '<span class="center-pin" data-community></span>',
   iconSize: [16, 16],
   iconAnchor: [8, 8],
   popupAnchor: [0, -10],
 });
 
-// Mismo cuadrado que un acopio, en gris y con barras de pausa: sigue siendo el
-// mismo sitio, solo que ahora mismo no recibe. Se queda en el mapa a propósito
-// — borrarlo dejaría sin explicación a quien ya lo vio ayer.
-const pausaIcon = L.divIcon({
-  className: "centro-marker",
-  html: '<span class="centro-pin" data-pausa></span>',
+// The same square, grey and with the pause bars: still the same place, only it
+// is not open right now. It stays on the map on purpose — deleting it would
+// leave whoever saw it yesterday with no explanation.
+const collectionPausedIcon = L.divIcon({
+  className: "center-marker",
+  html: '<span class="center-pin" data-paused></span>',
   iconSize: [16, 16],
   iconAnchor: [8, 8],
   popupAnchor: [0, -10],
 });
 
-const sangreIcon = L.divIcon({
-  className: "sangre-marker",
-  html: '<span class="sangre-pin"></span>',
+// A red drop, tip up. The tip is the coordinate, and the rotation carries it
+// about four pixels above the box, so the anchor goes negative.
+const bloodIcon = L.divIcon({
+  className: "blood-marker",
+  html: '<span class="blood-pin"></span>',
   iconSize: [18, 18],
-  iconAnchor: [9, 9],
-  popupAnchor: [0, -11],
+  iconAnchor: [9, -4],
+  popupAnchor: [0, -2],
 });
 
-const sangrePausaIcon = L.divIcon({
-  className: "sangre-marker",
-  html: '<span class="sangre-pin" data-pausa></span>',
+const bloodPausedIcon = L.divIcon({
+  className: "blood-marker",
+  html: '<span class="blood-pin" data-paused></span>',
   iconSize: [18, 18],
-  iconAnchor: [9, 9],
-  popupAnchor: [0, -11],
+  iconAnchor: [9, -4],
+  popupAnchor: [0, -2],
 });
 
-// Casita ámbar: tercer tipo, tercera forma. Ni el cuadrado del acopio ni el
-// círculo del banco de sangre, para que se distinga también sin color.
-const albergueIcon = L.divIcon({
-  className: "albergue-marker",
-  html: '<span class="albergue-pin"></span>',
+// A small amber house: third type, third shape, so it can be told apart with no
+// colour at all.
+const shelterIcon = L.divIcon({
+  className: "shelter-marker",
+  html: '<span class="shelter-pin"></span>',
   iconSize: [20, 20],
   iconAnchor: [10, 10],
   popupAnchor: [0, -12],
 });
 
-const alberguePausaIcon = L.divIcon({
-  className: "albergue-marker",
-  html: '<span class="albergue-pin" data-pausa></span>',
+const shelterPausedIcon = L.divIcon({
+  className: "shelter-marker",
+  html: '<span class="shelter-pin" data-paused></span>',
   iconSize: [20, 20],
   iconAnchor: [10, 10],
   popupAnchor: [0, -12],
 });
 
-/** Icono por tipo con su variante en pausa. */
-const ICON: Record<Centro["tipo"], { normal: L.DivIcon; pausa?: L.DivIcon }> = {
-  acopio: { normal: centroIcon, pausa: pausaIcon },
-  sangre: { normal: sangreIcon, pausa: sangrePausaIcon },
-  albergue: { normal: albergueIcon, pausa: alberguePausaIcon },
+// A blue circle with a white cross — the shape the blood bank used to carry,
+// which says «medical attention» more directly than it ever said «blood».
+const healthcareIcon = L.divIcon({
+  className: "healthcare-marker",
+  html: '<span class="healthcare-pin"></span>',
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+  popupAnchor: [0, -11],
+});
+
+const healthcarePausedIcon = L.divIcon({
+  className: "healthcare-marker",
+  html: '<span class="healthcare-pin" data-paused></span>',
+  iconSize: [18, 18],
+  iconAnchor: [9, 9],
+  popupAnchor: [0, -11],
+});
+
+/** Icon per type with its paused variant. */
+const ICON: Record<Center["type"], { normal: L.DivIcon; paused: L.DivIcon }> = {
+  acopio: { normal: collectionIcon, paused: collectionPausedIcon },
+  sangre: { normal: bloodIcon, paused: bloodPausedIcon },
+  albergue: { normal: shelterIcon, paused: shelterPausedIcon },
+  healthcare: { normal: healthcareIcon, paused: healthcarePausedIcon },
 };
 
 /**
- * Un punto que hoy no vale como abierto: o un maintainer lo pausó, o venció.
+ * A point that does not count as open today: either it is not active, or it
+ * expired.
  *
  * Two different facts, one drawing. The grey square with the pause bars already
  * says «this exists, do not walk over there yet», which is exactly what an
  * unconfirmed point says too — a second grey would only ask the reader to tell
- * two greys apart. What does change is the wording of the popup, which is where
- * the difference between «the warehouse is full» and «nobody has confirmed this
- * since last night» actually matters.
+ * two greys apart. What does change is the wording of the popup.
  */
-function enPausa(centro: Centro): boolean {
-  return !centro.recibiendo || isExpired(centro);
+function isPaused(center: Center): boolean {
+  return !center.isActive || isExpired(center);
 }
 
 /**
- * Quién publicó el punto. Se etiquetan los dos orígenes y no solo el
- * comunitario: «creado por la comunidad» no dice nada si lo otro va sin marcar,
- * y la pregunta que resuelve —¿esto lo verificó alguien?— necesita las dos
- * respuestas a la vista.
+ * Who published the point. Both origins are labelled and not only the community
+ * one: «created by the community» says nothing if the alternative goes
+ * unmarked, and the question it answers — did anybody verify this? — needs both
+ * answers in sight.
  */
-const ORIGEN: Record<Centro["origen"], string> = {
+const ORIGIN: Record<Center["origin"], string> = {
   curado: "Creado por la alcaldía",
   comunidad: "Creado por la comunidad",
 };
 
 /**
- * Lo que antecede a la hora en el aviso de un punto vencido. Va aparte porque
- * el mismo texto es el `data-time-prefix` que usa el ticker para repintarlo.
+ * What precedes the time in the notice of an expired point. It is apart because
+ * the same text is the `data-time-prefix` the ticker uses to repaint it.
  */
 const CONFIRM_PREFIX = "Nadie confirma este punto desde ";
 
 /**
- * Etiqueta y color del kicker por tipo. Un cuarto tipo es una entrada más.
- * `accent` es el mismo color de `color` en hexadecimal: la imagen para compartir
- * se dibuja en un canvas y ahí una clase de Tailwind no significa nada.
+ * Kicker label and colour per type. `accent` is the same colour as `color` in
+ * hexadecimal: the share image is drawn on a canvas, and a Tailwind class means
+ * nothing there.
  */
-const KICKER: Record<
-  Centro["tipo"],
-  { label: string; color: string; accent: string }
-> = {
+const KICKER: Record<Center["type"], { label: string; color: string; accent: string }> = {
   acopio: {
     label: "Centro de acopio",
     color: "text-indigo-700",
@@ -773,24 +790,28 @@ const KICKER: Record<
     accent: "#be123c",
   },
   albergue: { label: "Albergue", color: "text-amber-700", accent: "#b45309" },
+  healthcare: {
+    label: "Atención de heridos",
+    color: "text-blue-700",
+    accent: "#1d4ed8",
+  },
 };
 
 /**
- * Lo que recibe un punto, con un chip por insumo y la categoría de título —el
- * mismo armado de `resourcesHtml`. Lo que el punto listó son esos insumos y no
- * la categoría entera, así que el chip tiene que ser el insumo: es lo único que
- * se puede comparar de un vistazo contra los chips de un reporte.
+ * What a point takes, a chip per supply and the category as a title — the same
+ * build as `resourcesHtml`. What the point listed are those supplies and not
+ * the whole category, so the chip has to be the supply: it is the only thing
+ * that compares at a glance against a report's chips.
  */
-function recibeHtml(centro: Centro, pausa: boolean): string {
-  if (!recibeInsumos(centro)) return "";
-  const blocks = byCategory(centro.recibe, (item) => item).map((bucket) => {
-    // En pausa los chips van tachados, con el mismo gris de un recurso ya
-    // cubierto: sigue siendo lo que ese centro recibe, pero no ahora. Sin el
-    // «✓» de `chipLabel`, eso sí: acá no hay nada cubierto.
+function donationsHtml(center: Center, paused: boolean): string {
+  if (center.donations.length === 0) return "";
+  const blocks = byCategory(center.donations, (item) => item).map((bucket) => {
+    // Paused, the chips go struck through, in the same grey as an already
+    // covered resource: it is still what that center takes, only not now.
     const chips = bucket.items
       .map(
         (item) =>
-          `<span class="inline-block ${chipStyle(item, pausa)}">${escapeHtml(item)}</span>`,
+          `<span class="inline-block ${chipStyle(item, paused)}">${escapeHtml(item)}</span>`,
       )
       .join(" ");
     return `
@@ -799,8 +820,9 @@ function recibeHtml(centro: Centro, pausa: boolean): string {
         <div class="mt-1 flex flex-wrap gap-1">${chips}</div>
       </div>`;
   });
-  // Con el detalle debajo, los chips dejaron de leerse solos: sin este título
-  // parecen lo que el punto necesita, no lo que entrega quien va.
+  // With the detail underneath, the chips stopped reading on their own: without
+  // this title they look like what the point needs, not what the visitor
+  // brings.
   return `
     <div class="space-y-2">
       <p class="text-xs m-0 font-semibold uppercase tracking-wide text-slate-500">Recibe</p>
@@ -809,274 +831,246 @@ function recibeHtml(centro: Centro, pausa: boolean): string {
 }
 
 /**
- * Un punto y si es de quien está mirando. Igual que `MarkerExtra`: lo que no
- * vive en la fila entra por parámetro, para que `map.ts` no tenga que importar
- * los stores. Quien lo calcula es `features/centros-layer.ts`.
+ * A center and whether it belongs to whoever is looking. Like `MarkerExtra`:
+ * what does not live in the row comes in as a parameter, so `map.ts` never
+ * imports the stores. `features/centers-layer.ts` is what computes it.
  */
-export type CentroEntry = { data: Centro; mine: boolean };
+export type CenterEntry = { data: Center; mine: boolean };
 
-function centroPopupHtml(centro: Centro, mine: boolean): string {
-  const pausa = enPausa(centro);
-  // Vencido y pausado se dibujan igual y se leen distinto. Un punto que además
-  // pausó un maintainer se cuenta como pausado: ahí la razón la escribió alguien
-  // y vale más que «nadie lo ha confirmado».
-  const expired = centro.recibiendo && isExpired(centro);
-  const recibe = recibeHtml(centro, pausa);
-  const telefono = centro.telefono
-    ? `<p class="text-sm text-slate-600">Tel. ${escapeHtml(centro.telefono)}</p>`
-    : "";
-  // Un albergue que pide llenar un formulario antes de llegar deja la URL acá, y
-  // como texto muerto no sirve de nada. Solo se enlaza lo curado: un punto
-  // comunitario lo inserta cualquiera desde el navegador, y volver clicable ese
-  // texto sería publicar el enlace de quien quiera. `break-words` va en los dos
-  // casos — una URL es una sola palabra y estira el popup si no puede quebrarse.
-  const notas = centro.notas
+function centerPopupHtml(center: Center, mine: boolean): string {
+  const paused = isPaused(center);
+  // Expired and inactive draw the same and read differently. A point a
+  // maintainer also greyed out counts as inactive: there somebody wrote the
+  // reason, and it is worth more than «nobody has confirmed this».
+  const expired = center.isActive && isExpired(center);
+  const donations = donationsHtml(center, paused);
+  const contact = contactLinksHtml(center.contactWhatsapp, center.contactInstagram);
+  // A shelter that asks people to fill a form before showing up leaves the URL
+  // here, and as dead text it is no use. Only curated points get linkified: a
+  // community one is inserted by anyone from the browser, and making that text
+  // clickable would be publishing whoever's link. `break-words` goes in both
+  // cases — a URL is a single word and stretches the popup if it cannot break.
+  const notes = center.notes
     ? `<p class="text-sm break-words text-slate-500">${
-        esComunitario(centro)
-          ? escapeHtml(centro.notas)
-          : linkifyHtml(centro.notas)
+        isCommunity(center) ? escapeHtml(center.notes) : linkifyHtml(center.notes)
       }</p>`
     : "";
-  // El estado va en el kicker y no solo en el color del pin: quien abre el popup
-  // tiene que leerlo antes que la dirección.
-  const { label, color, accent } = KICKER[centro.tipo];
+  // The state goes in the kicker and not only in the pin colour: whoever opens
+  // the popup has to read it before the address.
+  const { label, color, accent } = KICKER[center.type];
   const kickerLabel = expired
     ? `${label} · Sin confirmar`
-    : pausa
-      ? `${label} · No recibe por ahora`
+    : paused
+      ? `${label} · Cerrado por ahora`
       : label;
-  const kicker = pausa
+  const kicker = paused
     ? `<p class="text-xs font-semibold uppercase tracking-wide text-slate-500">${kickerLabel}</p>`
     : `<p class="text-xs font-semibold uppercase tracking-wide ${color}">${label}</p>`;
-  const notaEstado = centro.nota_estado
-    ? `<p class="text-sm text-slate-600">${escapeHtml(centro.nota_estado)}</p>`
-    : "";
-  // Un banco de sangre no recibe insumos sino donantes: decirle «donaciones» a
-  // secas deja pensando si la puerta sigue abierta para donar sangre.
-  const avisoLabel =
-    centro.tipo === "sangre"
-      ? "No recibe donantes por ahora"
-      : "No recibe donaciones por ahora";
-  // Mismo ámbar que el aviso de un reporte viejo: "existe, pero no te desplaces".
-  // Un punto vencido dice otra cosa —nadie afirma que cerró, solo que hace rato
-  // nadie lo confirma— y por eso lleva la hora: media hora de más y un día de
-  // más no piden lo mismo de quien lee. `data-time` deja que el contador siga
-  // corriendo con el popup abierto.
-  const aviso = expired
+  // A blood bank does not take supplies but donors: saying «donaciones» flat
+  // leaves the reader wondering whether the door is still open to give blood.
+  const notAcceptingLabel =
+    center.type === "sangre" ? "No recibe donantes por ahora" : "No recibe donaciones por ahora";
+  // The colour is not the pin's: `accepting_donations` writes a line and
+  // nothing else, so a point that is open but full keeps its own colour.
+  const notAccepting = center.acceptingDonations
+    ? ""
+    : `<p class="text-xs font-medium text-amber-700">${notAcceptingLabel}</p>`;
+  // Same amber as the notice of an old report: "it exists, but do not travel".
+  // An expired point says something else — nobody claims it closed, only that
+  // nobody has confirmed it in a while — and that is why it carries the time.
+  // `data-time` lets the counter keep running with the popup open.
+  const notice = expired
     ? `<p
         class="text-xs font-medium text-amber-700"
-        data-time="${escapeHtml(centro.confirmedAt)}"
+        data-time="${escapeHtml(center.updatedAt)}"
         data-time-prefix="${CONFIRM_PREFIX}"
-      >${CONFIRM_PREFIX}${relativeTime(centro.confirmedAt)}</p>`
-    : pausa
-      ? `<p class="text-xs font-medium text-amber-700">${avisoLabel}</p>${notaEstado}`
+      >${CONFIRM_PREFIX}${relativeTime(center.updatedAt)}</p>`
+    : paused
+      ? `<p class="text-xs font-medium text-amber-700">Cerrado por ahora</p>`
       : "";
-  // En pausa el CTA deja de ser el azul sólido: sigue disponible para quien
-  // quiera ubicarlo, pero no invita al viaje.
+  // Paused, the CTA stops being the solid blue: still there for whoever wants
+  // to locate it, but it does not invite the trip.
   //
-  // Sin `w-full` ni `mt-1`: el CTA comparte fila con el botón de compartir, así
-  // que el ancho lo reparte el `flex-1` y el margen vive en el contenedor.
-  const ctaClass = pausa
-    ? "centro-cta centro-cta-quiet flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-md font-semibold no-underline transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300"
-    : "centro-cta flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-md font-semibold no-underline shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300";
-  const origen = `<p class="text-sm text-slate-500">${ORIGEN[centro.origen]}</p>`;
-  // Las dos condiciones de la policy de delete, y por eso las dos acá: ofrecer
-  // el botón sobre un punto curado sería ofrecer algo que el servidor rechaza.
-  // Va al final y en gris: se busca cuando se necesita, no compite con «Cómo
-  // llegar», que es a lo que viene todo el mundo.
-  const borrar =
-    mine && esComunitario(centro)
+  // No `w-full` and no `mt-1`: the CTA shares a row with the share button, so
+  // `flex-1` splits the width and the margin lives in the container.
+  const ctaClass = paused
+    ? "center-cta center-cta-quiet flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-md font-semibold no-underline transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300"
+    : "center-cta flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-md font-semibold no-underline shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300";
+  const origin = `<p class="text-sm text-slate-500">${ORIGIN[center.origin]}</p>`;
+  // The two conditions of the delete policy, and that is why both are here:
+  // offering the button over a curated point would be offering something the
+  // server rejects.
+  const remove =
+    mine && isCommunity(center)
       ? `<button
         type="button"
-        data-delete-centro="${escapeHtml(centro.id)}"
-        data-point-name="${escapeHtml(centro.name)}"
+        data-delete-center="${escapeHtml(center.id)}"
+        data-point-name="${escapeHtml(center.name)}"
         class="mt-1 w-full text-xs font-medium text-slate-400 transition hover:text-red-600"
       >Eliminar este punto</button>`
       : "";
-  // Lo puede tocar cualquiera y no solo el autor: la sesión con la que se
-  // registró el punto muere al limpiar el navegador, y un punto que nadie puede
-  // revivir se queda vencido para siempre. Encima del botón de borrar y debajo
-  // de «Cómo llegar»: es lo segundo que se hace acá, no lo primero.
-  const confirmar = expired
+  // Anyone can touch it, not only the author: the session the point was
+  // registered with dies when the browser is cleared, and a point nobody can
+  // revive stays expired forever.
+  const confirm = expired
     ? `<button
         type="button"
-        data-confirm-centro="${escapeHtml(centro.id)}"
+        data-confirm-center="${escapeHtml(center.id)}"
         class="mt-2 w-full rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 transition hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-300"
       >Sigue abierto</button>`
     : "";
-  // Un banco de sangre no lista insumos: sin chips, el bloque no se dibuja y el
-  // título tampoco.
-  const shareKey = `c:${centro.id}`;
+  const shareKey = `c:${center.id}`;
   shareCards.set(shareKey, {
-    kicker: pausa ? kickerLabel : label,
-    accent: pausa ? "#64748b" : accent,
-    name: centro.name,
-    address: centro.direccion,
+    kicker: paused ? kickerLabel : label,
+    accent: paused ? "#64748b" : accent,
+    name: center.name,
+    address: center.address,
     updated: null,
     lines: [
-      centro.horario,
-      // La imagen viaja por WhatsApp y se mira días después, así que la hora
-      // exacta no dice nada: lo que sirve es que el punto está sin confirmar.
-      expired ? "Sin confirmar recientemente" : pausa ? avisoLabel : "",
-      centro.telefono ? `Tel. ${centro.telefono}` : "",
-      ORIGEN[centro.origen],
+      center.hours,
+      // The image travels over WhatsApp and gets looked at days later, so the
+      // exact hour says nothing: what helps is that the point is unconfirmed.
+      expired ? "Sin confirmar recientemente" : paused ? "Cerrado por ahora" : "",
+      center.acceptingDonations ? "" : notAcceptingLabel,
+      center.contactWhatsapp ? `WhatsApp ${center.contactWhatsapp}` : "",
+      center.contactInstagram ? `Instagram @${center.contactInstagram}` : "",
+      ORIGIN[center.origin],
     ].filter(Boolean),
-    // Sin URLs: en el PNG no se pueden tocar, y `wrap()` deja pasar una palabra
-    // más ancha que la caja, así que una URL cruda se sale del dibujo. Queda el
-    // host, que al menos dice a dónde ir a buscar.
-    notes: [pausa && !expired ? centro.nota_estado : null, centro.notas]
-      .map((note) => (note ? stripUrls(note) : ""))
-      .filter(Boolean),
+    // No URLs: they cannot be tapped in the PNG, and `wrap()` lets a word wider
+    // than the box through, so a raw URL runs off the drawing.
+    notes: [center.notes].map((note) => (note ? stripUrls(note) : "")).filter(Boolean),
     chipsTitle: "Recibe",
-    chips: recibeInsumos(centro)
-      ? centro.recibe.map((item) => ({
-          label: item,
-          category: categoryIdOf(item) ?? null,
-          muted: pausa,
-        }))
-      : [],
+    chips: center.donations.map((item) => ({
+      label: item,
+      category: categoryIdOf(item) ?? null,
+      muted: paused,
+    })),
     marker: "square",
-    lat: centro.lat,
-    lng: centro.lng,
+    lat: center.lat,
+    lng: center.lng,
   });
 
-  // Nombre, quién lo publicó y dónde queda son la misma respuesta —«qué es esto
-  // y dónde está»—, así que van pegados en un bloque y el resto respira aparte.
+  // Name, who published it and where it is are the same answer — «what is this
+  // and where» — so they go together in one block.
   return `
     <div class="space-y-2">
       <div class="space-y-1">
         ${kicker}
-        <p class="text-lg font-semibold leading-tight text-slate-900 mt-3">${escapeHtml(centro.name)}</p>
-        ${origen}
-        <p data-address class="text-xs text-slate-600">${escapeHtml(centro.direccion)}</p>
+        <p class="text-lg font-semibold leading-tight text-slate-900 mt-3">${escapeHtml(center.name)}</p>
+        ${origin}
+        <p data-address class="text-xs text-slate-600">${escapeHtml(center.address)}</p>
       </div>
-      ${aviso}
-      <p class="text-xs text-slate-600">${escapeHtml(centro.horario)}</p>
-      ${recibe}
-      ${telefono}
-      ${notas}
+      ${notice}
+      ${notAccepting}
+      <p class="text-xs text-slate-600">${escapeHtml(center.hours)}</p>
+      ${donations}
+      ${contact}
+      ${notes}
       <div class="mt-1 flex items-stretch gap-2">
         <a
           class="${ctaClass}"
-          href="${directionsUrl(centro.lat, centro.lng)}"
+          href="${directionsUrl(center.lat, center.lng)}"
           target="_blank"
           rel="noopener noreferrer"
         >${NAV_ICON}Cómo llegar</a>
         ${shareButtonHtml(shareKey)}
       </div>
-      ${confirmar}
-      ${borrar}
+      ${confirm}
+      ${remove}
     </div>`;
 }
 
-// `SANGRE_FILTER` y `ALBERGUE_FILTER` son valores reservados del filtro, no ids de
-// `CATEGORIES`: filtran por tipo de punto, mientras que los demás filtran por qué
-// se recibe — y por eso alcanzan a acopios y albergues por igual.
-function matchesFilter(centro: Centro): boolean {
-  if (centroFilter === null) return true;
-  if (centroFilter === SANGRE_FILTER) return centro.tipo === "sangre";
-  if (centroFilter === ALBERGUE_FILTER) return centro.tipo === "albergue";
-  return (
-    recibeInsumos(centro) &&
-    centro.recibe.some((item) => categoryIdOf(item) === centroFilter)
-  );
+// `SANGRE_FILTER` and `ALBERGUE_FILTER` are reserved filter values, not ids of
+// `CATEGORIES`: they filter by point type, while the rest filter by what a
+// point takes.
+function matchesFilter(center: Center): boolean {
+  if (centerFilter === null) return true;
+  if (centerFilter === SANGRE_FILTER) return center.type === "sangre";
+  if (centerFilter === ALBERGUE_FILTER) return center.type === "albergue";
+  return center.donations.some((item) => categoryIdOf(item) === centerFilter);
 }
 
 /**
- * Pone en la capa los que pasan el filtro y saca los que no. Va marcador por
- * marcador y no con `clearLayers()`: vaciar la capa entera arranca del DOM
- * también los que se van a volver a agregar en la misma vuelta, y con ellos el
- * popup que estuviera abierto encima. Devuelve cuántos quedaron visibles.
+ * Puts the ones that pass the filter in the layer and takes the rest out.
+ * Marker by marker and not with `clearLayers()`: emptying the whole layer rips
+ * out of the DOM the ones about to be added back in the same pass, and with
+ * them the popup open on top. Returns how many stayed visible.
  */
-function applyCentros(): number {
+function applyCenters(): number {
   let shown = 0;
-  for (const { data, marker } of centros.values()) {
-    const visible = centrosVisible && matchesFilter(data);
+  for (const { data, marker } of centers.values()) {
+    const visible = centersVisible && matchesFilter(data);
     if (visible) shown += 1;
-    if (visible === centrosLayer.hasLayer(marker)) continue;
-    if (visible) centrosLayer.addLayer(marker);
-    else centrosLayer.removeLayer(marker);
+    if (visible === centersLayer.hasLayer(marker)) continue;
+    if (visible) centersLayer.addLayer(marker);
+    else centersLayer.removeLayer(marker);
   }
-  // Un filtro que esconde el punto abierto deja el detalle hablando de algo que
-  // ya no está en el mapa.
-  if (selected && !centrosLayer.hasLayer(selected) && isCentroMarker(selected))
-    emit(null);
+  // A filter that hides the open point leaves the detail talking about
+  // something no longer on the map.
+  if (selected && !centersLayer.hasLayer(selected) && isCenterMarker(selected)) emit(null);
   return shown;
 }
 
-function isCentroMarker(marker: L.Marker): boolean {
-  for (const { marker: candidate } of centros.values())
-    if (candidate === marker) return true;
+function isCenterMarker(marker: L.Marker): boolean {
+  for (const { marker: candidate } of centers.values()) if (candidate === marker) return true;
   return false;
 }
 
 /**
- * El icono que le toca a un punto. Se elige en cada emisión y no una sola vez:
- * pausar un punto en Supabase llega como una fila nueva sobre el mismo id, y el
- * marcador se queda — lo que cambia es el dibujo.
+ * The icon a point gets. Chosen on every emission and not once: greying a point
+ * out in Supabase arrives as a new row over the same id, and the marker stays —
+ * what changes is the drawing.
  */
-function centroIconFor(centro: Centro): L.DivIcon {
-  const { normal, pausa } = ICON[centro.tipo];
-  // Solo el acopio tiene variante comunitaria: es el único tipo que registra el
-  // formulario. La pausa gana sobre el origen — gris con barras dice «hoy no
-  // vayas», que es más urgente que quién lo publicó.
-  const suyo =
-    centro.tipo === "acopio" && esComunitario(centro) ? comunidadIcon : normal;
-  return enPausa(centro) && pausa ? pausa : suyo;
+function centerIconFor(center: Center): L.DivIcon {
+  const { normal, paused } = ICON[center.type];
+  // Only the collection point has a community variant: it is the only type the
+  // form registers. Grey wins over origin — «do not go today» is more urgent
+  // than who published it.
+  const own = center.type === "acopio" && isCommunity(center) ? communityIcon : normal;
+  return isPaused(center) ? paused : own;
 }
 
-export function setCentros(entries: CentroEntry[]): number {
+export function setCenters(entries: CenterEntry[]): number {
   const live = new Set(entries.map(({ data }) => data.id));
-  for (const [id, { marker }] of centros) {
+  for (const [id, { marker }] of centers) {
     if (live.has(id)) continue;
-    // El punto dejó de existir —lo borró su autor, o lo cerró un mantenedor—:
-    // dejar su detalle abierto sería mostrar algo que el mapa ya no tiene.
+    // The point stopped existing: leaving its detail open would show something
+    // the map no longer has.
     if (marker === selected) emit(null);
-    centrosLayer.removeLayer(marker);
+    centersLayer.removeLayer(marker);
     marker.remove();
-    centros.delete(id);
+    centers.delete(id);
     shareCards.delete(`c:${id}`);
   }
 
   for (const { data, mine } of entries) {
-    const existing = centros.get(data.id);
+    const existing = centers.get(data.id);
     if (existing) {
       existing.data = data;
-      const icon = centroIconFor(data);
-      // `setIcon` rehace el elemento del marcador, así que solo cuando el dibujo
-      // de verdad cambió: hacerlo por igual soltaría el popup abierto encima.
+      const icon = centerIconFor(data);
+      // `setIcon` rebuilds the marker element, so only when the drawing really
+      // changed: doing it every time would drop the popup open on top.
       if (existing.marker.options.icon !== icon) existing.marker.setIcon(icon);
       const at = existing.marker.getLatLng();
       if (at.lat !== data.lat || at.lng !== data.lng)
         existing.marker.setLatLng([data.lat, data.lng]);
-      attachPopup(existing.marker, centroPopupHtml(data, mine));
-      // Con el detalle abierto, una pausa o un cambio de horario tiene que
-      // aparecer ahí mismo: el sheet no se entera solo.
+      attachPopup(existing.marker, centerPopupHtml(data, mine));
+      // With the detail open, a pause or a change of hours has to show up right
+      // there: the sheet does not find out on its own.
       if (existing.marker === selected) emit(existing.marker);
       continue;
     }
 
     const marker = L.marker([data.lat, data.lng], {
-      icon: centroIconFor(data),
+      icon: centerIconFor(data),
       zIndexOffset: -500,
     });
-    attachPopup(marker, centroPopupHtml(data, mine));
+    attachPopup(marker, centerPopupHtml(data, mine));
     marker.on("click", selectOnMobile);
-    centros.set(data.id, { data, marker });
+    centers.set(data.id, { data, marker });
   }
 
-  return applyCentros();
-}
-
-/** `null` = todas las categorías. */
-export function setCentroFilter(categoryId: string | null): number {
-  centroFilter = categoryId;
-  return applyCentros();
-}
-
-export function setCentrosVisible(visible: boolean): number {
-  centrosVisible = visible;
-  return applyCentros();
+  return applyCenters();
 }
 
 export function startPicking(onPick: (latlng: L.LatLng) => void): void {

@@ -3,40 +3,40 @@ import LocationField from "./LocationField.astro";
 import ResourcePicker from "./ResourcePicker.astro";
 ---
 
-<form id="centro-form" novalidate class="space-y-5">
+<form id="center-form" novalidate class="space-y-5">
   <p class="text-sm text-slate-500">
     Un sitio que está recibiendo donaciones: una bodega, un parqueadero, un colegio.
   </p>
 
   <div>
-    <label for="centro-nombre" class="block text-sm font-medium text-slate-700">
+    <label for="center-point-name" class="block text-sm font-medium text-slate-700">
       Nombre del punto
     </label>
     <input
-      id="centro-nombre"
+      id="center-point-name"
       type="text"
       autocomplete="off"
       maxlength="120"
       placeholder="Ej. Coliseo del Pueblo"
       class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm outline-none focus:border-slate-400"
     />
-    <p id="centro-nombre-error" class="mt-1 hidden text-xs font-medium text-red-600"></p>
+    <p id="center-point-name-error" class="mt-1 hidden text-xs font-medium text-red-600"></p>
   </div>
 
   <div>
     <LocationField
-      prefix="centro"
+      prefix="center"
       label="Dirección"
       placeholder="Ej. Cll 9 # 34 - 01, Cali"
     />
   </div>
 
   <div>
-    <label for="centro-horario" class="block text-sm font-medium text-slate-700">
+    <label for="center-hours" class="block text-sm font-medium text-slate-700">
       Horario <span class="font-normal text-slate-400">(opcional)</span>
     </label>
     <input
-      id="centro-horario"
+      id="center-hours"
       type="text"
       autocomplete="off"
       maxlength="120"
@@ -45,26 +45,43 @@ import ResourcePicker from "./ResourcePicker.astro";
     />
   </div>
 
-  <!-- Ítem por ítem, el mismo catálogo con el que se pide: un punto que solo
-       recibe pañales no debe publicarse como si recibiera toda la categoría. -->
-  <ResourcePicker prefix="centro" label="¿Qué está recibiendo?" />
+  <!-- Item by item, the same catalog a need is asked with: a point that only
+       takes nappies must not publish as if it took the whole category. -->
+  <ResourcePicker
+    prefix="center"
+    label="¿Qué está recibiendo?"
+    hint="Déjalo vacío si todavía no saben qué van a necesitar."
+  />
 
   <div>
-    <label for="centro-telefono" class="block text-sm font-medium text-slate-700">
-      Teléfono <span class="font-normal text-slate-400">(opcional)</span>
+    <label for="center-whatsapp" class="block text-sm font-medium text-slate-700">
+      WhatsApp <span class="font-normal text-slate-400">(opcional)</span>
     </label>
     <input
-      id="centro-telefono"
+      id="center-whatsapp"
       type="tel"
       maxlength="20"
       autocomplete="off"
-      placeholder="Teléfono"
+      placeholder="Ej. 310 123 4567"
       class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm outline-none focus:border-slate-400"
     />
-    <p id="centro-telefono-error" class="mt-1 hidden text-xs font-medium text-red-600"></p>
+    <p id="center-whatsapp-error" class="mt-1 hidden text-xs font-medium text-red-600"></p>
 
-    <!-- Mismo aviso azul que en los otros dos formularios: publicar un teléfono
-         es la misma decisión en todos. -->
+    <label for="center-instagram" class="mt-4 block text-sm font-medium text-slate-700">
+      Instagram <span class="font-normal text-slate-400">(opcional)</span>
+    </label>
+    <input
+      id="center-instagram"
+      type="text"
+      maxlength="40"
+      autocomplete="off"
+      placeholder="Ej. @alcaldiadecali"
+      class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm outline-none focus:border-slate-400"
+    />
+    <p id="center-instagram-error" class="mt-1 hidden text-xs font-medium text-red-600"></p>
+
+    <!-- The same blue notice as the other two forms: publishing a contact is
+         the same decision in all of them. -->
     <div
       class="mt-2 flex items-start gap-2 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs font-medium text-blue-700"
     >
@@ -87,11 +104,11 @@ import ResourcePicker from "./ResourcePicker.astro";
   </div>
 
   <div>
-    <label for="centro-notas" class="block text-sm font-medium text-slate-700">
+    <label for="center-notes" class="block text-sm font-medium text-slate-700">
       Nota <span class="font-normal text-slate-400">(opcional)</span>
     </label>
     <textarea
-      id="centro-notas"
+      id="center-notes"
       rows="2"
       maxlength="300"
       placeholder="Ej: entrada por la portería norte; no reciben ropa usada."
@@ -118,9 +135,10 @@ import ResourcePicker from "./ResourcePicker.astro";
 </form>
 
 <style>
-  /* Sin texto no hay error que mostrar; el margen de uno invisible se ve igual. */
-  #centro-nombre-error:empty,
-  #centro-telefono-error:empty {
+  /* No text, no error to show; the margin of an invisible one shows anyway. */
+  #center-point-name-error:empty,
+  #center-whatsapp-error:empty,
+  #center-instagram-error:empty {
     display: none;
   }
 </style>

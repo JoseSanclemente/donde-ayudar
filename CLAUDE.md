@@ -3,9 +3,6 @@
 Write in **English**: conversation, code, identifiers, comments, commit messages and
 documentation. There is no exception for "small" comments.
 
-Write in **Spanish** anything a visitor reads on screen: UI strings, the rows a maintainer
-writes into `centros`, error and toast messages. The site serves Cali.
-
 Existing Spanish comments stay as they are. Rewrite one only when the change makes it
 wrong — no drive-by translation passes.
 
@@ -46,28 +43,30 @@ Two kinds of data, and they must not mix:
   the author deletes, and the communal bit — assigning an offer to a point — goes through
   the `assign_offer` RPC, which touches only `report_id` and `assigned_at`.
 - **Puntos de donación** — the table with the narrowest write surface, in Supabase too
-  (`centros`). Three kinds, split by a `tipo` discriminator: `acopio` (collection centers)
-  and `albergue` (shelters) both carry `recibe` and can be paused with `recibiendo:
-  false`; `sangre` (blood banks) carries neither — the `centros_recibe_por_tipo` check
-  enforces it. A second discriminator, `origen`, says who published it: a `curado` point
-  is edited by a maintainer in the dashboard's table editor, which runs as `service_role`
-  (dashboard and repo access are the only "admin privilege" in this project); a
-  `comunidad` point is registered by anyone from the form and publishes immediately. The
-  insert policy is the whole write surface and pins all of `origen = 'comunidad'`, `tipo =
-  'acopio'`, `activo` and `user_id = auth.uid()`, so a shelter, a blood bank or any
-  curated point cannot be created from the browser. Deleting is the author's own point
-  only, and **there is no update policy at all** — nothing edits a point once published.
-  The one communal bit is `confirm_centro`, which touches only `confirmed_at`: a community
-  `acopio` nobody has confirmed in `EXPIRY_HOURS` (12) is drawn grey like a paused one and
-  anyone can revive it from the popup. Expiry is computed in the browser, so a maintainer
-  never has to sweep the table and there is no scheduled job. Nothing else expires — a
-  curated point has an owner, and a shelter has people sleeping in it.
+  (`centers`). Four kinds, split by a `type` discriminator: `acopio` (collection centers),
+  `albergue` (shelters), `sangre` (blood banks) and `healthcare` (where the injured are
+  treated). All four carry `donations`, and for all four it is optional. A second
+  discriminator, `origin`, says who published it: a `curado` point is written by a
+  maintainer with SQL, which runs as `service_role` (dashboard and repo access are the
+  only "admin privilege" in this project); a `comunidad` point is registered by anyone
+  from the form and publishes immediately. The insert policy is the whole write surface
+  and pins all of `origin = 'comunidad'`, `type = 'acopio'`, `is_active` and `user_id =
+auth.uid()`, so the other three types cannot be created from the browser. Deleting is
+  the author's own point only, and **there is no update policy at all** — nothing edits a
+  point once published. Two flags carry the state and they are not the same: `is_active:
+false` greys the marker out, `accepting_donations: false` only writes a line in the
+  popup, and retiring a point for good is deleting the row. The one communal bit is
+  `confirm_center`, which touches only `updated_at`: a community `acopio` nobody has
+  touched in `EXPIRY_HOURS` (24) is drawn grey and anyone can revive it from the popup.
+  Expiry is computed in the browser, so a maintainer never has to sweep the table and
+  there is no scheduled job. Nothing else expires — a curated point has an owner, and a
+  shelter has people sleeping in it.
   The map keeps the same square for both origins and only lightens the colour; the popup
-  labels both («Creado por la alcaldía» / «Creado por la comunidad»). `recibe` names
+  labels both («Creado por la alcaldía» / «Creado por la comunidad»). `donations` names
   individual supplies from the `resources.ts` catalog — the same strings a report asks
   for, so a need and a point can be compared item by item — and is validated by length
   only, like `reports.resources`. Rows saved before that carry category ids instead;
-  `data/centros.ts` expands them on read. Read `supabase/README.md` before adding or
+  `data/centers.ts` expands them on read. Read `supabase/README.md` before adding or
   changing a point.
 
 ## Client layout
@@ -79,7 +78,7 @@ Two kinds of data, and they must not mix:
   `location-picker` starts it on the first focus of an address field and `app.ts` only
   warms it from an idle callback, for the visitor who never opens a form.
 - **`features/`** — one UI piece per file, each with its `init…()`: `alert-banner`,
-  `centro-form`, `centros-layer`, `header-offset`, `location-picker`, `marker-actions`,
+  `center-form`, `centers-layer`, `header-offset`, `location-picker`, `marker-actions`,
   `marker-sheet`, `offers-panel`, `report-form`, `report-list`, `report-tabs`,
   `resource-picker`, `share`, `sync-badge`, `updates-feed`, `user-location`. They
   subscribe to the stores; they never call Supabase directly. `marker-actions` is the odd
@@ -92,8 +91,8 @@ Two kinds of data, and they must not mix:
   draft pin and the click-to-pick mode are single, so `report-tabs` hands them over
   between the two with `suspend()`/`resume()`.
 - **`data/`** — everything that talks to Supabase. One store per table (`reports.ts`,
-  `updates.ts`, `offers.ts`, `centros.ts` — this last one insert-only, and only for a
-  community `acopio`, plus the one communal bit, `confirmCentro()`), each with its
+  `updates.ts`, `offers.ts`, `centers.ts` — this last one insert-only, and only for a
+  community `acopio`, plus the one communal bit, `confirmCenter()`), each with its
   `emitter.ts` to announce changes and its
   `bindTable()` in `live.ts`, which merges every table into a single realtime channel.
   `boot.ts` runs once: anonymous session, initial load, and only then the channel.
@@ -105,9 +104,9 @@ Two kinds of data, and they must not mix:
 - **Domain modules at the root of `src/scripts/`** — no Supabase, no DOM wiring:
   - `map.ts` — the Leaflet map, its markers and popups.
   - `cluster.ts` — merges nearby reports into groups.
-  - `centros.ts` — the shape of a donation point: types and the `recibeInsumos()` /
-    `esComunitario()` narrowings. Reading and writing them is `data/centros.ts`, drawing
-    them is `map.ts`.
+  - `centers.ts` — the shape of a donation point: the `Center` type, `isCommunity()` and
+    `isExpired()`. Reading and writing them is `data/centers.ts`, drawing them is
+    `map.ts`.
   - `resources.ts` / `status.ts` — the catalogs (resource categories and chips, point
     statuses). Tailwind classes are spelled out literally here: the scanner reads these
     files as plain text, so an interpolated class name never gets compiled.

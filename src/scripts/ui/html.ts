@@ -43,7 +43,7 @@ export function linkifyHtml(value: string): string {
     out += escapeHtml(value.slice(last, start));
     // `break-all` es el cinturón: una URL es una sola palabra, y sin esto estira
     // el popup —300px por defecto en Leaflet— en vez de quebrarse.
-    out += `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="centro-nota-link break-all">${escapeHtml(elide(url))}</a>`;
+    out += `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" class="center-link break-all">${escapeHtml(elide(url))}</a>`;
     last = start + url.length;
   }
   return out + escapeHtml(value.slice(last));
