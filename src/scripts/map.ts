@@ -1,6 +1,11 @@
 import L from "leaflet";
 import type { ReportGroup } from "./cluster";
-import { isCommunity, isExpired, type Center, type CenterType } from "./centers";
+import {
+  isCommunity,
+  isExpired,
+  type Center,
+  type CenterType,
+} from "./centers";
 import { byCategory, categoryIdOf } from "./resources";
 import { readCachedCoords } from "./geolocation";
 import type { ShareCard } from "./share-card";
@@ -369,8 +374,14 @@ export function initMap(containerId: string): L.Map {
   ).addTo(map);
 
   L.control
-    .zoom({ position: "topright", zoomInTitle: "Acercar", zoomOutTitle: "Alejar" })
+    .zoom({
+      position: "topright",
+      zoomInTitle: "Acercar",
+      zoomOutTitle: "Alejar",
+    })
     .addTo(map);
+
+  collapseAttribution(map);
 
   centersLayer.addTo(map);
   reportsLayer.addTo(map);
@@ -400,6 +411,72 @@ export function initMap(containerId: string): L.Map {
   onBreakpointChange(syncPopupMode);
 
   return map;
+}
+
+/**
+ * On a phone the credits are a bar along the whole bottom edge of the map. The
+ * text itself is not optional — OSM and CARTO both require it — but reaching it
+ * through an ⓘ is the standard mobile affordance, so the button goes in front of
+ * it and the stylesheet only shows it below `lg`.
+ *
+ * The toggle lives inside Leaflet's own control instead of being one more
+ * element in `index.astro`: the container is created by Leaflet and there is
+ * nothing to move into the corner. `disableClickPropagation`, as in
+ * `mountControl`, keeps the tap from dropping a pin while picking.
+ */
+function collapseAttribution(instance: L.Map): void {
+  const container = instance.attributionControl?.getContainer();
+  if (!container) return;
+
+  // Leaflet writes the credits as raw HTML — the «contributors» between the two
+  // links is a bare text node with no element to style. They are wrapped once
+  // here so the open state can be a card: it holds because the tile layer is the
+  // only layer carrying an attribution, and it is added before this runs, so
+  // Leaflet never rewrites the container again.
+  const credits = document.createElement("span");
+  credits.className = "attr-credits";
+  credits.append(...container.childNodes);
+
+  const card = document.createElement("div");
+  card.className = "attr-card";
+  card.innerHTML = `
+    <p class="attr-people">
+      Hecho por
+      <a href="https://www.instagram.com/panqueso.sanclemente/" target="_blank"
+        rel="noopener noreferrer">@panqueso.sanclemente</a>
+      y
+      <a href="https://www.instagram.com/manuu6450/" target="_blank"
+        rel="noopener noreferrer">@manuu6450</a>,
+      y por la comunidad que reporta, confirma y mantiene al día cada punto del mapa 💚
+    </p>`;
+  card.append(credits);
+  container.append(card);
+
+  const toggle = document.createElement("button");
+  toggle.type = "button";
+  toggle.className = "attr-toggle";
+  toggle.setAttribute("aria-label", "Créditos del mapa");
+  toggle.setAttribute("aria-expanded", "false");
+  toggle.innerHTML = `
+    <svg viewBox="0 0 20 20" aria-hidden="true" fill="none" stroke="currentColor"
+      stroke-width="1.6" stroke-linecap="round">
+      <circle cx="10" cy="10" r="7"></circle>
+      <path d="M10 9v4.5"></path>
+      <path d="M10 6.5v.5"></path>
+    </svg>`;
+  container.prepend(toggle);
+
+  L.DomEvent.disableClickPropagation(container);
+
+  const setOpen = (open: boolean) => {
+    container.classList.toggle("is-open", open);
+    toggle.setAttribute("aria-expanded", String(open));
+  };
+
+  toggle.addEventListener("click", () => {
+    setOpen(!container.classList.contains("is-open"));
+  });
+  instance.on("click movestart", () => setOpen(false));
 }
 
 /**
@@ -684,7 +761,10 @@ let reportsOnlyRecent = false;
  * que pinta la tarjeta y el punto ámbar del marcador (`extra.stale`): el mapa y
  * la lista no pueden discrepar sobre qué tan viejo es un punto.
  */
-export function setReportVisibility(visible: boolean, onlyRecent: boolean): number {
+export function setReportVisibility(
+  visible: boolean,
+  onlyRecent: boolean,
+): number {
   reportsVisible = visible;
   reportsOnlyRecent = onlyRecent;
   return applyReports();
