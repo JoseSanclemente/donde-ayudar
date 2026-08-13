@@ -141,8 +141,14 @@ Two kinds of data, and they must not mix:
     `resources.ts`, and a new category has to be added to both.
   - `supabase.ts` — the client; `null` when the env vars are missing.
 - **`ui/`** — stateless helpers with no domain knowledge (`breakpoint`, `chips`, `contact`,
-  `dom`, `html`, `pick-hint`, `status-select`, `time`, `toast`). They know neither the
-  stores nor the features. `status-select` is the status `<select>` as a string, for the
+  `dom`, `html`, `pick-hint`, `select`, `status-select`, `time`, `toast`). They know
+  neither the stores nor the features. `select` is the one select of the site in its two
+  variants — `field`, the white form control, and `chip`, the status pill painted with the
+  colour of the state — as class constants plus the caret, so the five places that build a
+  select (two as HTML strings, two as elements, two as markup) share one look;
+  `Select.astro` is the `field` variant for the two written as markup, and the `option`
+  rule in `global.css` normalises the open menu, which otherwise inherits the chip's
+  colour. `status-select` sits on top of it: the status `<select>` as a string, for the
   two places built as HTML — the map popup and the mobile sheet; the list builds its own as
   an element. Whoever listens for the `change` is a feature.
 

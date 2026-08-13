@@ -15,6 +15,7 @@ import { CHIP_SHAPE } from "../ui/chips";
 import { isValidPhone, telUrl, whatsappUrl } from "../ui/contact";
 import { $, clearError, scheduleRender, showError } from "../ui/dom";
 import { PHONE_ICON } from "../ui/html";
+import { buildCaret, SELECT_FIELD, SELECT_FIELD_WRAP } from "../ui/select";
 import { paintTime } from "../ui/time";
 
 /** Cuántas ofertas se ven antes de «Ver más». */
@@ -57,10 +58,12 @@ export function initOffersPanel(): void {
   function assignSelect(
     offerId: string,
     current: string | null,
-  ): HTMLSelectElement {
+  ): HTMLSpanElement {
+    const wrap = document.createElement("span");
+    wrap.className = `${SELECT_FIELD_WRAP} min-w-0 flex-1`;
+
     const select = document.createElement("select");
-    select.className =
-      "min-w-0 flex-1 rounded-lg border border-slate-300 px-2 py-1 text-base text-slate-700 shadow-sm outline-none focus:border-slate-400";
+    select.className = SELECT_FIELD;
     select.setAttribute("aria-label", "Punto al que se despacha esta ayuda");
 
     const options = [new Option("Sin asignar", "")];
@@ -77,7 +80,9 @@ export function initOffersPanel(): void {
     select.addEventListener("change", () => {
       assignOffer(offerId, select.value || null);
     });
-    return select;
+
+    wrap.append(select, buildCaret("field"));
+    return wrap;
   }
 
   function renderList() {

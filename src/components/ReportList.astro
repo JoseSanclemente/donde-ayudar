@@ -1,6 +1,7 @@
 ---
 import { DEFAULT_LIST_FILTER, LIST_FILTERS } from "../scripts/status";
 import { CHIP_OFF, chipOnClass } from "../scripts/resources";
+import { CARET } from "../scripts/ui/select";
 ---
 
 <section id="report-card" class="border-b border-slate-200 pb-5 pt-3">
@@ -25,7 +26,7 @@ import { CHIP_OFF, chipOnClass } from "../scripts/resources";
       aria-label="Mostrar u ocultar la lista de zonas"
       class="ml-auto hidden shrink-0 rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 lg:inline-flex"
     >
-      <span id="report-caret" aria-hidden="true">▾</span>
+      <span id="report-caret" aria-hidden="true">{CARET}</span>
     </button>
   </div>
 

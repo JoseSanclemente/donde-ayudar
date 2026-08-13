@@ -13,7 +13,14 @@ import { markerEstado, statusInfo, type ReportStatus } from "./status";
 import { isMobile, onBreakpointChange } from "./ui/breakpoint";
 import { chipLabel, chipStyle } from "./ui/chips";
 import { telUrl, whatsappUrl } from "./ui/contact";
-import { directionsUrl, escapeHtml, NAV_ICON, SHARE_ICON } from "./ui/html";
+import {
+  directionsUrl,
+  escapeHtml,
+  linkifyHtml,
+  NAV_ICON,
+  SHARE_ICON,
+  stripUrls,
+} from "./ui/html";
 import { statusSelectHtml } from "./ui/status-select";
 import { relativeTime } from "./ui/time";
 
@@ -803,8 +810,17 @@ function centroPopupHtml(centro: Centro, mine: boolean): string {
   const telefono = centro.telefono
     ? `<p class="text-sm text-slate-600">Tel. ${escapeHtml(centro.telefono)}</p>`
     : "";
+  // Un albergue que pide llenar un formulario antes de llegar deja la URL acá, y
+  // como texto muerto no sirve de nada. Solo se enlaza lo curado: un punto
+  // comunitario lo inserta cualquiera desde el navegador, y volver clicable ese
+  // texto sería publicar el enlace de quien quiera. `break-words` va en los dos
+  // casos — una URL es una sola palabra y estira el popup si no puede quebrarse.
   const notas = centro.notas
-    ? `<p class="text-sm text-slate-500">${escapeHtml(centro.notas)}</p>`
+    ? `<p class="text-sm break-words text-slate-500">${
+        esComunitario(centro)
+          ? escapeHtml(centro.notas)
+          : linkifyHtml(centro.notas)
+      }</p>`
     : "";
   // El estado va en el kicker y no solo en el color del pin: quien abre el popup
   // tiene que leerlo antes que la dirección.
@@ -862,9 +878,12 @@ function centroPopupHtml(centro: Centro, mine: boolean): string {
       centro.telefono ? `Tel. ${centro.telefono}` : "",
       ORIGEN[centro.origen],
     ].filter(Boolean),
-    notes: [pausa ? centro.nota_estado : null, centro.notas].filter(
-      Boolean,
-    ) as string[],
+    // Sin URLs: en el PNG no se pueden tocar, y `wrap()` deja pasar una palabra
+    // más ancha que la caja, así que una URL cruda se sale del dibujo. Queda el
+    // host, que al menos dice a dónde ir a buscar.
+    notes: [pausa ? centro.nota_estado : null, centro.notas]
+      .map((note) => (note ? stripUrls(note) : ""))
+      .filter(Boolean),
     chipsTitle: "Recibe",
     chips: recibeInsumos(centro)
       ? centro.recibe.map((item) => ({

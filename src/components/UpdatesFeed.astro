@@ -2,6 +2,7 @@
 // Bitácora de la ciudad. Lo que en el grupo de WhatsApp es un mensaje suelto
 // («Chiminangos: ya no más alimentos, falta un baño portátil»), acá queda con
 // hora y, si aplica, colgado de un punto del mapa.
+import Select from "./Select.astro";
 ---
 
 <!-- The separator border belongs to the sidebar stack: on desktop this section
@@ -26,13 +27,13 @@
     ></textarea>
 
     <div class="flex items-center gap-2">
-      <select
+      <Select
         id="update-report"
-        aria-label="Punto al que se refiere la novedad"
-        class="min-w-0 flex-1 rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700 shadow-sm outline-none focus:border-slate-400"
+        label="Punto al que se refiere la novedad"
+        class="min-w-0 flex-1"
       >
         <option value="">Novedad general</option>
-      </select>
+      </Select>
     </div>
 
     <button

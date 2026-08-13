@@ -361,6 +361,18 @@ body {
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
 }
 
+/* ---- Selects ----
+   El menú desplegado lo pinta el sistema y hereda el color del `<select>`. La
+   variante `chip` de `ui/select.ts` pinta el suyo con el color del estado, así
+   que sin esta regla el menú del chip rojo salía con las cuatro opciones en
+   rojo. Va como regla y no como clase en cada `<option>` porque hay opciones que
+   se crean con `new Option()` y nunca pasan por una clase. */
+option {
+  background: #fff;
+  color: #0f172a;
+  font-weight: 400;
+}
+
 /* ---- «Estás acá» ---- */
 
 /* El halo es una sombra y no una animación: solo los reportes laten, y esa
@@ -411,6 +423,15 @@ body {
 .leaflet-container a.centro-cta-quiet,
 #detail-body a.centro-cta-quiet {
   color: #475569;
+}
+
+/* Un enlace dentro de las notas de un punto curado —el formulario que pide un
+   albergue, por ejemplo—. Mismo problema que el CTA con el azul de Leaflet, y
+   subrayado porque acá no hay botón que lo delate: es texto dentro de texto. */
+.leaflet-container a.centro-nota-link,
+#detail-body a.centro-nota-link {
+  color: #2563eb;
+  text-decoration: underline;
 }
 
 /* ---- Detalle del marcador (solo móvil) ----

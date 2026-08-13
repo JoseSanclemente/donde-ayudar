@@ -31,6 +31,7 @@ import { chipLabel, chipStyle } from "../ui/chips";
 import { telUrl, whatsappUrl } from "../ui/contact";
 import { $, scheduleRender } from "../ui/dom";
 import { PHONE_ICON } from "../ui/html";
+import { buildCaret, SELECT_CHIP } from "../ui/select";
 import { confirmClose } from "../ui/status-select";
 import { isStale, newestIso, paintTime } from "../ui/time";
 
@@ -133,21 +134,17 @@ export function initReportList(): void {
    * chips que significan otra cosa (recursos), y porque en móvil el selector
    * nativo es una sola línea en vez de cuatro botones que empujan la tarjeta.
    *
-   * El chip es el envase y no el `<select>`: la flecha nativa la pinta el
-   * navegador contra el borde del elemento, fuera del flujo, así que el `px-2`
-   * del chip no la corría y quedaba montada sobre la esquina redonda. Se apaga
-   * con `appearance-none` y se dibuja como un glifo más, que sí respeta el
-   * padding y hereda el color del estado. Mismo armado que `statusSelectHtml`.
+   * Mismo armado que `statusSelectHtml`, en elementos y una talla más chica: una
+   * tarjeta de la lista no es el encabezado de un popup.
    */
   function buildStatusChip(group: ReportGroup): HTMLSpanElement {
     const info = statusInfo(group.status);
     const chip = document.createElement("span");
-    chip.className = `inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold focus-within:ring-2 focus-within:ring-slate-400 ${info.chip}`;
+    chip.className = `inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${info.chip}`;
     chip.title = "Cómo está el punto ahora mismo";
 
     const select = document.createElement("select");
-    select.className =
-      "appearance-none border-0 bg-transparent p-0 font-semibold text-inherit outline-none";
+    select.className = SELECT_CHIP;
     select.setAttribute("aria-label", `Estado de ${group.lead.name}`);
     select.title = "Cómo está el punto ahora mismo";
 
@@ -168,12 +165,7 @@ export function initReportList(): void {
       setReportStatus(group.reportIds, next);
     });
 
-    const caret = document.createElement("span");
-    caret.className = "pointer-events-none text-[0.65rem] opacity-70";
-    caret.setAttribute("aria-hidden", "true");
-    caret.textContent = "▾";
-
-    chip.append(select, caret);
+    chip.append(select, buildCaret("chip"));
     return chip;
   }
 

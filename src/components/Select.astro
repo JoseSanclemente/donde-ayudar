@@ -1,0 +1,27 @@
+---
+// The `field` variant of the shared select, for the two places written as
+// markup. The options come in the slot: this component owns the look, never the
+// list.
+import {
+  caretHtml,
+  SELECT_FIELD,
+  SELECT_FIELD_WRAP,
+} from "../scripts/ui/select";
+
+interface Props {
+  id: string;
+  /** Goes to `aria-label`: these selects have no visible label. */
+  label: string;
+  /** Extra classes for the wrapper — how the field sits in its row. */
+  class?: string;
+}
+
+const { id, label, class: extra = "" } = Astro.props;
+---
+
+<span class={`${SELECT_FIELD_WRAP} ${extra}`}>
+  <select id={id} aria-label={label} class={SELECT_FIELD}>
+    <slot />
+  </select>
+  <Fragment set:html={caretHtml("field")} />
+</span>
