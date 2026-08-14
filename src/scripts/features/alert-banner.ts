@@ -1,7 +1,7 @@
 import { getUpdates, onUpdates } from "../data/updates";
 import { openUpdatesPanel } from "../sheet";
 import { $, scheduleRender } from "../ui/dom";
-import { paintTime } from "../ui/time";
+import { isFresh, paintTime } from "../ui/time";
 
 /**
  * The newest novedad, one line, at the top of the header.
@@ -16,6 +16,11 @@ export function initAlertBanner(): void {
   const time = $<HTMLSpanElement>("alert-banner-time");
 
   banner.addEventListener("click", () => openUpdatesPanel());
+  banner.addEventListener("animationend", () => {
+    delete banner.dataset.shake;
+  });
+
+  let shaken = false;
 
   function render() {
     // `data/updates` keeps the cache sorted newest first.
@@ -26,6 +31,11 @@ export function initAlertBanner(): void {
 
     body.textContent = latest.body;
     paintTime(time, latest.createdAt);
+
+    if (!shaken && isFresh(latest.createdAt)) {
+      shaken = true;
+      banner.dataset.shake = "";
+    }
   }
 
   onUpdates(scheduleRender(render));

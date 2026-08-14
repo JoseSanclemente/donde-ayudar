@@ -5,6 +5,7 @@ import { locateUser } from "../geolocation";
 import { flyTo, hideDraft, isPicking, showDraft, startPicking, stopPicking } from "../map";
 import { closeSheet, getSheetCover, openSheet, peekSheet } from "../sheet";
 import { $, clearError, debounce, showError } from "../ui/dom";
+import { flashField } from "../ui/flash";
 import { hidePickHint, showPickHint } from "../ui/pick-hint";
 import { showToast } from "../ui/toast";
 
@@ -53,6 +54,7 @@ export type LocationPicker = {
   requireCoords(): Coords | null;
   /** Dirección y punto ya conocidos: se ponen sin pasar por el geocodificador. */
   setLocation(name: string, at: Coords, source?: string): void;
+  flash(): void;
   showNameError(message: string): void;
   clearNameError(): void;
   /** Después de enviar: campo vacío, sin pin, sin sugerencias, sin nota. */
@@ -406,6 +408,10 @@ export function createLocationPicker(prefix: string): LocationPicker {
       hideSuggestions();
       clearNote();
       setCoords(at, source);
+    },
+
+    flash() {
+      flashField(nameInput);
     },
 
     showNameError(message) {

@@ -4,6 +4,7 @@ import { flyTo, getMarkerElement, isPicking } from "../map";
 import { closeReportPanel, closeSheet, isTabVisible, onTabChange, openReportPanel } from "../sheet";
 import { isValidPhone } from "../ui/contact";
 import { $, clearError, showError } from "../ui/dom";
+import { flashField } from "../ui/flash";
 import { createLocationPicker } from "./location-picker";
 import { currentReportTab, onReportTabChange, showReportTab } from "./report-tabs";
 import { createResourcePicker } from "./resource-picker";
@@ -80,6 +81,8 @@ export function initReportForm(): void {
     location.setLocation(zone.name, { lat: zone.lat, lng: zone.lng }, "zona ya reportada");
     showReportTab("necesidad");
     openReportPanel();
+    location.flash();
+    flashField(placeName);
   };
 
   /* ---------------------------------------------------------------- */
