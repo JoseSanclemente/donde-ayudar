@@ -1,0 +1,50 @@
+---
+/**
+ * Lugares que ya se reportaron alguna vez, encima del formulario de necesidad.
+ *
+ * Las mismas cuadras se reportan una y otra vez, y un punto se cae del mapa a
+ * las 24 horas sin que nadie lo toque — pero la fila sigue en la base con su
+ * dirección y sus coordenadas. En vez de volver a escribirlas se toca la
+ * tarjeta del lugar, y lo único que queda por llenar son los insumos.
+ *
+ * Plegado con `<details>` y sin JavaScript, igual que las categorías de
+ * `ResourcePicker.astro`: no es un paso del formulario, es un atajo para quien
+ * lo reconoce en la lista, así que arranca cerrado y no le quita la primera
+ * pantalla al campo de dirección.
+ *
+ * Vacío al arrancar y oculto mientras lo esté: la lista la arma
+ * `features/report-history.ts` con lo que ya tiene el store.
+ */
+---
+
+<details
+  id="report-history"
+  hidden
+  class="mb-5 overflow-hidden rounded-xl border border-slate-200 bg-slate-50"
+>
+  <summary
+    class="flex cursor-pointer list-none items-center gap-2 px-3 py-2.5 text-sm font-semibold text-slate-900 transition hover:bg-slate-100"
+  >
+    <span class="caret opacity-60 transition-transform">▸</span>
+    <span class="flex-1">Lugares recientemente reportados</span>
+    <span id="report-history-count" class="text-xs font-normal text-slate-400"></span>
+  </summary>
+
+  <div class="border-t border-slate-200 px-3 py-3">
+    <p class="text-xs text-slate-500">
+      Toca uno y se llenan la dirección, el nombre y el punto en el mapa.
+    </p>
+    <ul id="report-history-list" class="mt-2.5 space-y-2"></ul>
+  </div>
+</details>
+
+<style>
+  /* Safari sigue pintando el triángulo nativo aunque `list-none` esté puesto. */
+  #report-history summary::-webkit-details-marker {
+    display: none;
+  }
+
+  #report-history[open] > summary .caret {
+    transform: rotate(90deg);
+  }
+</style>

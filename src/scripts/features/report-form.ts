@@ -1,14 +1,35 @@
 import gsap from "gsap";
 import { addReport } from "../data/reports";
 import { flyTo, getMarkerElement, isPicking } from "../map";
-import { closeReportPanel, closeSheet, isTabVisible, onTabChange } from "../sheet";
+import { closeReportPanel, closeSheet, isTabVisible, onTabChange, openReportPanel } from "../sheet";
 import { isValidPhone } from "../ui/contact";
 import { $, clearError, showError } from "../ui/dom";
 import { createLocationPicker } from "./location-picker";
-import { currentReportTab, onReportTabChange } from "./report-tabs";
+import { currentReportTab, onReportTabChange, showReportTab } from "./report-tabs";
 import { createResourcePicker } from "./resource-picker";
 
 const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/** La mitad del formulario que una zona ya reportada sabe contestar. */
+export type ReportPrefill = {
+  name: string;
+  placeName: string | null;
+  lat: number;
+  lng: number;
+};
+
+/**
+ * El formulario guarda sus campos en el cierre de `initReportForm`, así que
+ * llenarlo desde afuera pasa por acá. Antes de arrancar no hay a quién
+ * llamarle: `app.ts` inicializa el formulario antes que el historial, y aun así
+ * un `null` es más barato que un error para algo que nadie pudo haber tocado
+ * todavía.
+ */
+let applyPrefill: ((zone: ReportPrefill) => void) | null = null;
+
+export function prefillReport(zone: ReportPrefill): void {
+  applyPrefill?.(zone);
+}
 
 export function initReportForm(): void {
   const form = $<HTMLFormElement>("report-form");
@@ -34,6 +55,32 @@ export function initReportForm(): void {
     noteCount.textContent = String(note.value.length);
   }
   note.addEventListener("input", syncNoteCount);
+
+  // `form.reset()` solo devuelve los controles nativos a su valor inicial: el
+  // pin, las sugerencias y los insumos elegidos viven fuera del formulario y
+  // hay que limpiarlos aparte.
+  function resetForm() {
+    form.reset();
+    picker.clear();
+    location.reset();
+    clearError(contactError);
+    syncNoteCount();
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Rellenar desde una zona ya reportada                              */
+  /* ---------------------------------------------------------------- */
+
+  // Se copia la ubicación y nada más. Los insumos, la nota y el contacto son
+  // justamente lo que cambió desde la última vez: heredarlos publicaría como
+  // nuevo un dato que nadie volvió a mirar.
+  applyPrefill = (zone) => {
+    resetForm();
+    placeName.value = zone.placeName ?? "";
+    location.setLocation(zone.name, { lat: zone.lat, lng: zone.lng }, "zona ya reportada");
+    showReportTab("necesidad");
+    openReportPanel();
+  };
 
   /* ---------------------------------------------------------------- */
   /* Envío                                                             */
@@ -94,11 +141,7 @@ export function initReportForm(): void {
       contactPhone: person && phone ? phone : null,
     });
 
-    form.reset();
-    picker.clear();
-    location.reset();
-    clearError(contactError);
-    syncNoteCount();
+    resetForm();
 
     // Cerrar el sheet y el panel: lo que queda a la vista es el marcador
     // nuevo aterrizando, con el FAB de vuelta para el siguiente reporte.

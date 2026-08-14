@@ -10,6 +10,7 @@ import { initVolunteerPanels } from "./features/volunteer-panel";
 import { initOffersPanel } from "./features/offers-panel";
 import { initCenterForm } from "./features/center-form";
 import { initReportForm } from "./features/report-form";
+import { initReportHistory } from "./features/report-history";
 import { initReportList } from "./features/report-list";
 import { initReportTabs } from "./features/report-tabs";
 import { initShare } from "./features/share";
@@ -39,6 +40,9 @@ initAlertBanner();
 // Antes de los dos formularios: los dos se suscriben a su cambio de pestaña.
 initReportTabs();
 initReportForm();
+// Después del formulario: el historial lo rellena, y `prefillReport` no tiene
+// a quién llamarle hasta que el formulario se inicializó.
+initReportHistory();
 initCenterForm();
 initReportList();
 initUpdatesFeed();

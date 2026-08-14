@@ -202,7 +202,7 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
     : "";
 
   const lastUpdate = extra.lastUpdate
-    ? `<p class="text-xs text-slate-600">«${escapeHtml(extra.lastUpdate)}»</p>`
+    ? `<p class="text-sm text-slate-600">«${escapeHtml(extra.lastUpdate)}»</p>`
     : "";
 
   // Las notas y los contactos son de toda la zona, con el mismo tope de dos que

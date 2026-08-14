@@ -20,6 +20,15 @@ import { showToast } from "../ui/toast";
 let coords: Coords | null = null;
 let inFlight = false;
 
+/**
+ * La posición viva, o `null` si el permiso no ha contestado. No cae a la caché
+ * a propósito: quien la quiera vieja que la pida a `readCachedCoords()` y sepa
+ * lo que está leyendo.
+ */
+export function getUserCoords(): Coords | null {
+  return coords;
+}
+
 function remember(next: Coords): void {
   coords = next;
   writeCachedCoords(next);

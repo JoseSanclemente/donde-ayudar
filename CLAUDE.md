@@ -87,7 +87,7 @@ false` greys the marker out, `accepting_donations: false` only writes a line in 
   warms it from an idle callback, for the visitor who never opens a form.
 - **`features/`** — one UI piece per file, each with its `init…()`: `alert-banner`,
   `center-form`, `centers-layer`, `header-offset`, `location-picker`, `marker-actions`,
-  `marker-sheet`, `offers-panel`, `report-form`, `report-list`, `report-tabs`,
+  `marker-sheet`, `offers-panel`, `report-form`, `report-history`, `report-list`, `report-tabs`,
   `resource-picker`, `share`, `sync-badge`, `updates-feed`, `user-location`,
   `volunteer-panel`. They
   subscribe to the stores; they never call Supabase directly. `marker-actions` is the odd
@@ -114,7 +114,16 @@ false` greys the marker out, `accepting_donations: false` only writes a line in 
   `features/sync-badge.ts` shows in the header.
 - **Domain modules at the root of `src/scripts/`** — no Supabase, no DOM wiring:
   - `map.ts` — the Leaflet map, its markers and popups.
-  - `cluster.ts` — merges nearby reports into groups.
+  - `cluster.ts` — merges nearby reports into groups. `groupReports` is the one
+    door every live consumer walks through, and it drops what `isRetired` says is
+    gone. `groupZones` is the same grouping without that filter, for the one
+    caller that wants the points that fell off the map: `features/report-history`,
+    the folded list of already-reported places above the need form. Nothing
+    deletes a report, so the address and the coordinates of a retired point are
+    still in the store — the whole card is one button and it fills the location
+    half of the form and nothing else, because what changed is exactly the
+    resources. A place already off the map says so on its card: reposting an old
+    report and confirming a live one are not the same act.
   - `centers.ts` — the shape of a donation point: the `Center` type, `isCommunity()` and
     `isExpired()`. Reading and writing them is `data/centers.ts`, drawing them is
     `map.ts`.

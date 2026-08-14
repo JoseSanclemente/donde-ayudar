@@ -76,11 +76,38 @@ export function groupReports(
   freshAt: (report: Report) => string,
   radiusM = CLUSTER_RADIUS_M,
 ): ReportGroup[] {
+  const live = reports.filter(
+    (report) => !isRetired(report.status, report.statusAt, freshAt(report)),
+  );
+  return buildGroups(live, freshAt, radiusM);
+}
+
+/**
+ * The same zones, retired ones included. The one caller is the history in the
+ * report form: a point that fell off the map is exactly what somebody is about
+ * to report again, and its address and coordinates are still in the store.
+ *
+ * Deliberately a separate export instead of a flag on `groupReports`: the
+ * invariant above — every live consumer walks through one door that retires a
+ * point everywhere at once — only survives if the door that keeps them is
+ * named, and has to be asked for.
+ */
+export function groupZones(
+  reports: Report[],
+  freshAt: (report: Report) => string,
+  radiusM = CLUSTER_RADIUS_M,
+): ReportGroup[] {
+  return buildGroups(reports, freshAt, radiusM);
+}
+
+function buildGroups(
+  reports: Report[],
+  freshAt: (report: Report) => string,
+  radiusM: number,
+): ReportGroup[] {
   const groups: ReportGroup[] = [];
 
   for (const report of reports) {
-    if (isRetired(report.status, report.statusAt, freshAt(report))) continue;
-
     const group = groups.find((g) => distanceMeters(g.lead, report) <= radiusM);
     if (group) group.reports.push(report);
     else

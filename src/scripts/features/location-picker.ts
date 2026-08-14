@@ -51,6 +51,8 @@ export type LocationPicker = {
   getName(): string;
   /** Falta la ubicación: lo dice, abre el modo de señalar y devuelve `null`. */
   requireCoords(): Coords | null;
+  /** Dirección y punto ya conocidos: se ponen sin pasar por el geocodificador. */
+  setLocation(name: string, at: Coords, source?: string): void;
   showNameError(message: string): void;
   clearNameError(): void;
   /** Después de enviar: campo vacío, sin pin, sin sugerencias, sin nota. */
@@ -393,6 +395,17 @@ export function createLocationPicker(prefix: string): LocationPicker {
       showNote("Falta la ubicación — usa «Ubicar en el mapa» o elige una sugerencia.");
       beginPicking();
       return null;
+    },
+
+    setLocation(name, at, source) {
+      // El valor se asigna sin disparar `input`: el evento arrancaría el
+      // geocodificador para una dirección cuyo punto ya viene resuelto, y la
+      // lista de sugerencias taparía el campo recién llenado.
+      nameInput.value = name;
+      clearError(nameError);
+      hideSuggestions();
+      clearNote();
+      setCoords(at, source);
     },
 
     showNameError(message) {

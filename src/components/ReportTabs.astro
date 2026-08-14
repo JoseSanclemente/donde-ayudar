@@ -11,6 +11,7 @@
  */
 import CenterForm from "./CenterForm.astro";
 import ReportForm from "./ReportForm.astro";
+import ReportHistory from "./ReportHistory.astro";
 ---
 
 <div id="report-tabs" data-report-tab="necesidad">
@@ -49,7 +50,10 @@ import ReportForm from "./ReportForm.astro";
     </button>
   </div>
 
-  <div data-report-panel="necesidad" class="mt-5"><ReportForm /></div>
+  <div data-report-panel="necesidad" class="mt-5">
+    <ReportHistory />
+    <ReportForm />
+  </div>
   <div data-report-panel="acopio" class="mt-5"><CenterForm /></div>
 </div>
 
