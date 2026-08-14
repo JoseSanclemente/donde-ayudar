@@ -1,42 +1,31 @@
 ---
-// Aviso de puntos cerrados o saturados. Vive dentro del header y no dentro del
-// sheet a propósito: no debe competir por los 108 px que el sheet deja asomar,
-// ni depender de qué pestaña esté abierta. Arranca oculto y lo enciende
-// `features/alert-banner.ts` cuando hay algo que avisar.
+// The headline of the city log. It lives inside the header and not inside the
+// sheet on purpose: it must not compete for the 108 px the sheet leaves
+// showing, nor depend on which tab is open. It starts hidden and
+// `features/alert-banner.ts` turns it on with the newest novedad; tapping it
+// opens the «Novedades» panel.
 ---
 
-<div
+<button
+  type="button"
   id="alert-banner"
-  class="mt-2 hidden overflow-hidden rounded-xl border border-amber-300 bg-amber-50 text-amber-900 lg:mt-3"
+  aria-label="Ver las novedades"
+  class="mt-2 flex hidden w-full items-center gap-2 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-left text-xs text-amber-900 transition hover:border-amber-400 hover:bg-amber-100 lg:mt-3"
 >
-  <button
-    type="button"
-    id="alert-banner-toggle"
-    aria-expanded="false"
-    aria-controls="alert-banner-body"
-    class="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-semibold"
+  <svg
+    class="h-4 w-4 shrink-0 text-amber-700"
+    viewBox="0 0 20 20"
+    fill="none"
+    stroke="currentColor"
+    stroke-width="1.6"
+    stroke-linecap="round"
+    stroke-linejoin="round"
+    aria-hidden="true"
   >
-    <svg
-      class="h-4 w-4 shrink-0"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      stroke-width="2.2"
-      aria-hidden="true"
-    >
-      <path d="M12 9v4M12 17h.01"></path>
-      <path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"
-      ></path>
-    </svg>
-    <span id="alert-banner-summary" class="flex-1">&nbsp;</span>
-    <span id="alert-banner-caret" class="shrink-0 text-amber-700">▾</span>
-  </button>
-
-  <div id="alert-banner-body" class="hidden px-3 pb-3">
-    <ul id="alert-banner-list" class="space-y-1"></ul>
-    <p class="mt-2 text-[11px] leading-snug text-amber-800">
-      Las condiciones cambian rápido: confirma que el punto sigue necesitando apoyo antes
-      de movilizarte, y no difundas información sin verificar.
-    </p>
-  </div>
-</div>
+    <path
+      d="M10 3.2A4.3 4.3 0 005.7 7.5c0 3.6-1.4 4.8-1.4 4.8h11.4s-1.4-1.2-1.4-4.8A4.3 4.3 0 0010 3.2zM8.6 15a1.6 1.6 0 002.8 0"
+    ></path>
+  </svg>
+  <span id="alert-banner-body" class="min-w-0 flex-1 truncate font-medium">&nbsp;</span>
+  <span id="alert-banner-time" class="shrink-0 text-[11px] text-amber-700"></span>
+</button>

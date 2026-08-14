@@ -287,6 +287,15 @@ export function closeReportPanel(): void {
 }
 
 /**
+ * The city log. Unlike the form or the detail, this one does have its button in
+ * the tablist — the banner in the header is a second door to it, for the newest
+ * novedad, which on mobile is otherwise behind a closed sheet.
+ */
+export function openUpdatesPanel(): void {
+  showTab("novedades");
+}
+
+/**
  * El detalle de un marcador. Es una pestaña sin botón en el tablist, como
  * `reportar`: no se llega desde el encabezado sino tocando un punto del mapa.
  */

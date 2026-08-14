@@ -1,91 +1,33 @@
-import { groupReports } from "../cluster";
-import { getReports, onChange, reportFreshAt } from "../data/reports";
-import { onUpdates } from "../data/updates";
-import { flyTo } from "../map";
-import { closeSheet } from "../sheet";
-import { isBlocked } from "../status";
+import { getUpdates, onUpdates } from "../data/updates";
+import { openUpdatesPanel } from "../sheet";
 import { $, scheduleRender } from "../ui/dom";
-import { relativeTime } from "../ui/time";
+import { paintTime } from "../ui/time";
 
 /**
- * «No te desplaces»: los puntos que alguien reportó como llenos o cerrados.
+ * The newest novedad, one line, at the top of the header.
  *
- * Es lo único de la página que se lee antes de salir de la casa, así que va
- * arriba del todo y colapsado a una línea: el detalle se despliega, el aviso no
- * se pierde.
+ * The city log is what moves fastest, and on mobile it lives inside a closed
+ * sheet: nobody reads it without going looking for it. This is the headline —
+ * the last thing somebody wrote, and a door into the panel where the rest is.
  */
 export function initAlertBanner(): void {
-  const banner = $<HTMLDivElement>("alert-banner");
-  const toggle = $<HTMLButtonElement>("alert-banner-toggle");
-  const summary = $<HTMLSpanElement>("alert-banner-summary");
-  const caret = $<HTMLSpanElement>("alert-banner-caret");
-  const body = $<HTMLDivElement>("alert-banner-body");
-  const list = $<HTMLUListElement>("alert-banner-list");
+  const banner = $<HTMLButtonElement>("alert-banner");
+  const body = $<HTMLSpanElement>("alert-banner-body");
+  const time = $<HTMLSpanElement>("alert-banner-time");
 
-  let open = false;
-
-  const paintOpen = () => {
-    body.classList.toggle("hidden", !open);
-    toggle.setAttribute("aria-expanded", String(open));
-    caret.textContent = open ? "▴" : "▾";
-  };
-
-  toggle.addEventListener("click", () => {
-    open = !open;
-    paintOpen();
-  });
+  banner.addEventListener("click", () => openUpdatesPanel());
 
   function render() {
-    const blocked = groupReports(getReports(), reportFreshAt).filter((group) =>
-      isBlocked(group.status),
-    );
+    // `data/updates` keeps the cache sorted newest first.
+    const latest = getUpdates()[0];
 
-    banner.classList.toggle("hidden", blocked.length === 0);
-    if (blocked.length === 0) {
-      // Si se destraba el último punto, el detalle no debe quedar abierto para
-      // la próxima vez que aparezca uno.
-      open = false;
-      paintOpen();
-      return;
-    }
+    banner.classList.toggle("hidden", !latest);
+    if (!latest) return;
 
-    summary.textContent =
-      blocked.length === 1
-        ? "1 punto saturado o cerrado. No te desplaces sin confirmar"
-        : `${blocked.length} puntos saturados o cerrados. No te desplaces sin confirmar`;
-
-    list.replaceChildren(
-      ...blocked.map((group) => {
-        const item = document.createElement("li");
-
-        const button = document.createElement("button");
-        button.type = "button";
-        button.className =
-          "w-full text-left text-xs leading-snug hover:underline";
-        button.addEventListener("click", () => {
-          closeSheet();
-          void flyTo(group.lat, group.lng);
-        });
-
-        const name = document.createElement("span");
-        name.className = "font-semibold";
-        name.textContent = group.lead.name;
-
-        const detail = document.createElement("span");
-        detail.className = "text-amber-800";
-        // El encabezado del banner ya dijo qué son estos puntos y qué hacer con
-        // ellos; la fila solo aporta cuál y desde cuándo.
-        detail.textContent = ` · ${relativeTime(group.latestAt)}`;
-
-        button.append(name, detail);
-        item.append(button);
-        return item;
-      }),
-    );
+    body.textContent = latest.body;
+    paintTime(time, latest.createdAt);
   }
 
-  const scheduled = scheduleRender(render);
-  onChange(scheduled);
-  onUpdates(scheduled);
+  onUpdates(scheduleRender(render));
   render();
 }
