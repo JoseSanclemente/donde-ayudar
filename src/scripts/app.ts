@@ -6,7 +6,7 @@ import { initMapFilter } from "./features/map-filter";
 import { initHeaderOffset } from "./features/header-offset";
 import { initMarkerActions } from "./features/marker-actions";
 import { initMarkerSheet } from "./features/marker-sheet";
-import { initMentalHealthPanel } from "./features/mental-health-panel";
+import { initVolunteerPanels } from "./features/volunteer-panel";
 import { initOffersPanel } from "./features/offers-panel";
 import { initCenterForm } from "./features/center-form";
 import { initReportForm } from "./features/report-form";
@@ -43,7 +43,7 @@ initCenterForm();
 initReportList();
 initUpdatesFeed();
 initOffersPanel();
-initMentalHealthPanel();
+initVolunteerPanels();
 initSyncBadge();
 
 // «Hace 2 minutos» congelado media hora miente sobre la frescura del dato.

@@ -1,24 +1,31 @@
 import { MISSING_ENV_MESSAGE, supabase } from "../supabase";
+import type { VolunteerKind } from "../volunteers";
 import { createEmitter } from "./emitter";
 import { errorMessage, reportError } from "./errors";
 import { bindTable, type RealtimePayload } from "./live";
 import { getUserId } from "./session";
 
 /**
- * Quien se ofrece a acompañar a la comunidad: un nombre, cómo escribirle y —si
- * quiere— en qué puede ayudar.
+ * Whoever offers their own time to the community: a name, how to write to them
+ * and — if they want — what they can help with.
  *
- * Es `offers` en su forma, sin la parte comunitaria: una inscripción no se
- * despacha a ningún punto ni se marca como finalizada, así que no hay RPC. Está
- * en pie o la retira quien la publicó. La diferencia con `offers` es el
- * contacto: acá puede ser un WhatsApp o un Instagram, y basta con uno —quien
- * acompaña no siempre quiere dar su número—, y la base lo exige con un CHECK.
+ * It is `offers` in shape, without the communal part: a signup is not dispatched
+ * to any point and is never marked finished, so there is no RPC. It stands, or
+ * whoever published it withdraws it. What differs from `offers` is the contact:
+ * here it can be a WhatsApp or an Instagram, and one of the two is enough —
+ * whoever listens does not always hand out their number — and the database
+ * demands it with a CHECK.
+ *
+ * One table for every panel, told apart by `kind`: the cache, the initial load
+ * and the realtime channel are single, and each panel keeps its own part by
+ * asking for a `volunteerStore(kind)`.
  */
 export type Volunteer = {
   id: string;
+  kind: VolunteerKind;
   name: string;
   contactPhone: string | null;
-  /** El handle sin `@` ni url: lo normaliza el formulario antes de guardarlo. */
+  /** The handle with no `@` and no url: the form normalises it before saving. */
   contactInstagram: string | null;
   notes: string | null;
   createdAt: string;
@@ -27,6 +34,7 @@ export type Volunteer = {
 
 type Row = {
   id: string;
+  kind: string;
   user_id: string;
   name: string;
   contact_phone: string | null;
@@ -35,7 +43,7 @@ type Row = {
   created_at: string;
 };
 
-const TABLE = "mental_health_volunteers";
+const TABLE = "volunteers";
 
 let cache: Volunteer[] = [];
 const changes = createEmitter<Volunteer[]>();
@@ -53,6 +61,7 @@ function isRow(value: unknown): value is Row {
   return (
     !!r &&
     typeof r.id === "string" &&
+    typeof r.kind === "string" &&
     typeof r.user_id === "string" &&
     typeof r.name === "string" &&
     typeof r.created_at === "string"
@@ -62,6 +71,7 @@ function isRow(value: unknown): value is Row {
 function fromRow(row: Row): Volunteer {
   return {
     id: row.id,
+    kind: row.kind as VolunteerKind,
     name: row.name,
     contactPhone: text(row.contact_phone),
     contactInstagram: text(row.contact_instagram),
@@ -71,27 +81,24 @@ function fromRow(row: Row): Volunteer {
   };
 }
 
-/** Lo más reciente arriba, y nada más: acá no hay estados que ordenar. */
+/** Newest first, and nothing else: there are no statuses to order here. */
 function sorted(volunteers: Volunteer[]): Volunteer[] {
   return [...volunteers].sort(
     (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
   );
 }
 
-export function getVolunteers(): Volunteer[] {
-  return cache;
-}
-
-export const onVolunteers = changes.on;
-
-export function addVolunteer(input: {
+type VolunteerInput = {
   name: string;
   contactPhone: string | null;
   contactInstagram: string | null;
   notes: string | null;
-}): Volunteer {
+};
+
+function addVolunteer(kind: VolunteerKind, input: VolunteerInput): Volunteer {
   const volunteer: Volunteer = {
     ...input,
+    kind,
     id: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
     userId: getUserId() ?? "",
@@ -118,6 +125,7 @@ async function push(volunteer: Volunteer): Promise<void> {
     .from(TABLE)
     .insert({
       id: volunteer.id,
+      kind: volunteer.kind,
       user_id: volunteer.userId,
       name: volunteer.name,
       contact_phone: volunteer.contactPhone,
@@ -145,7 +153,7 @@ function dropLocally(id: string): void {
   emit();
 }
 
-export function removeVolunteer(id: string): void {
+function removeVolunteer(id: string): void {
   const previous = cache.find((volunteer) => volunteer.id === id);
   dropLocally(id);
   if (!previous) return;
@@ -161,13 +169,31 @@ export function removeVolunteer(id: string): void {
   })();
 }
 
+/**
+ * What a panel sees: its own `kind` and nothing else. The load limit is for the
+ * whole table, so it grows with every panel added.
+ */
+export function volunteerStore(kind: VolunteerKind) {
+  return {
+    getVolunteers: (): Volunteer[] =>
+      cache.filter((volunteer) => volunteer.kind === kind),
+    onVolunteers: (listener: (volunteers: Volunteer[]) => void) =>
+      changes.on((volunteers) =>
+        listener(volunteers.filter((volunteer) => volunteer.kind === kind)),
+      ),
+    addVolunteer: (input: VolunteerInput): Volunteer =>
+      addVolunteer(kind, input),
+    removeVolunteer,
+  };
+}
+
 export async function loadVolunteers(): Promise<void> {
   if (!supabase) return;
   const { data, error } = await supabase
     .from(TABLE)
     .select("*")
     .order("created_at", { ascending: false })
-    .limit(200);
+    .limit(400);
   if (error) throw error;
   cache = sorted((data ?? []).filter(isRow).map(fromRow));
   emit();

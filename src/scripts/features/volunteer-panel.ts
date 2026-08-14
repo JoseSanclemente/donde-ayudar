@@ -1,10 +1,6 @@
-import {
-  addVolunteer,
-  getVolunteers,
-  onVolunteers,
-  removeVolunteer,
-} from "../data/mental-health";
 import { isMine } from "../data/session";
+import { volunteerStore } from "../data/volunteers";
+import { initAccordion } from "../ui/accordion";
 import {
   buildContactCta,
   buildInstagramCta,
@@ -14,24 +10,30 @@ import {
 } from "../ui/contact";
 import { $, clearError, scheduleRender, showError } from "../ui/dom";
 import { paintTime } from "../ui/time";
+import { VOLUNTEER_PANELS, type VolunteerPanel } from "../volunteers";
 
-/** Cuántas inscripciones se ven antes de «Ver más». */
+/** How many signups are shown before «Ver más». */
 const PAGE = 10;
 
-export function initMentalHealthPanel(): void {
-  const form = $<HTMLFormElement>("mental-form");
-  const name = $<HTMLInputElement>("mental-name");
-  const phone = $<HTMLInputElement>("mental-phone");
-  const instagram = $<HTMLInputElement>("mental-instagram");
-  const notes = $<HTMLTextAreaElement>("mental-notes");
-  const error = $<HTMLParagraphElement>("mental-error");
-  const list = $<HTMLUListElement>("mental-list");
-  const empty = $<HTMLParagraphElement>("mental-empty");
-  const total = $<HTMLSpanElement>("mental-count");
-  const more = $<HTMLButtonElement>("mental-more");
-  const card = $<HTMLElement>("mental-panel-card");
-  const toggle = $<HTMLButtonElement>("mental-toggle");
-  const caret = $<HTMLSpanElement>("mental-caret");
+/**
+ * One panel per kind of volunteer, all of them the same: the form on top, the
+ * list below. What changes between them is the copy, and that lives in
+ * `scripts/volunteers.ts` — this only reads it.
+ */
+function createVolunteerPanel(panel: VolunteerPanel): void {
+  const { getVolunteers, onVolunteers, addVolunteer, removeVolunteer } =
+    volunteerStore(panel.kind);
+
+  const form = $<HTMLFormElement>(`${panel.prefix}-form`);
+  const name = $<HTMLInputElement>(`${panel.prefix}-name`);
+  const phone = $<HTMLInputElement>(`${panel.prefix}-phone`);
+  const instagram = $<HTMLInputElement>(`${panel.prefix}-instagram`);
+  const notes = $<HTMLTextAreaElement>(`${panel.prefix}-notes`);
+  const error = $<HTMLParagraphElement>(`${panel.prefix}-error`);
+  const list = $<HTMLUListElement>(`${panel.prefix}-list`);
+  const empty = $<HTMLParagraphElement>(`${panel.prefix}-empty`);
+  const total = $<HTMLSpanElement>(`${panel.prefix}-count`);
+  const more = $<HTMLButtonElement>(`${panel.prefix}-more`);
   let limit = PAGE;
 
   more.addEventListener("click", () => {
@@ -55,7 +57,7 @@ export function initMentalHealthPanel(): void {
         head.className = "flex items-start justify-between gap-2";
 
         const who = document.createElement("p");
-        who.className = "text-sm font-semibold text-slate-900";
+        who.className = "text-base font-semibold text-slate-900";
         who.textContent = volunteer.name;
         head.append(who);
 
@@ -82,8 +84,8 @@ export function initMentalHealthPanel(): void {
           item.append(text);
         }
 
-        // Los dos cuando hay los dos: el CHECK de la base garantiza que al
-        // menos uno esté, así que la ficha nunca queda sin manera de responder.
+        // Both when there are both: the CHECK in the database guarantees at
+        // least one of them, so a card is never left with no way to answer.
         if (volunteer.contactPhone) {
           const call = buildContactCta(volunteer.name, volunteer.contactPhone);
           call.classList.add("mt-2");
@@ -109,19 +111,31 @@ export function initMentalHealthPanel(): void {
     const handle = instagram.value.trim();
 
     if (who.length < 2) {
-      showError(error, "Escribe tu nombre: sin él nadie sabe por quién preguntar.");
+      showError(
+        error,
+        "Escribe tu nombre: sin él nadie sabe por quién preguntar.",
+      );
       return;
     }
     if (!tel && !handle) {
-      showError(error, "Deja un WhatsApp o un Instagram para que puedan escribirte.");
+      showError(
+        error,
+        "Deja un WhatsApp o un Instagram para que puedan escribirte.",
+      );
       return;
     }
     if (tel && !isValidPhone(tel)) {
-      showError(error, "Escribe un teléfono válido, con indicativo si es fijo.");
+      showError(
+        error,
+        "Escribe un teléfono válido, con indicativo si es fijo.",
+      );
       return;
     }
     if (handle && !isValidInstagram(handle)) {
-      showError(error, "Escribe un usuario de Instagram válido. Ej: @nombre.apellido");
+      showError(
+        error,
+        "Escribe un usuario de Instagram válido. Ej: @nombre.apellido",
+      );
       return;
     }
     clearError(error);
@@ -129,8 +143,8 @@ export function initMentalHealthPanel(): void {
     addVolunteer({
       name: who,
       contactPhone: tel || null,
-      // Normalizado acá y no en la ficha: la base guarda el handle a secas, que
-      // es lo que el CHECK acepta y lo que arma la url.
+      // Normalised here and not in the card: the database saves the bare
+      // handle, which is what the CHECK accepts and what builds the url.
       contactInstagram: handle ? instagramHandle(handle) : null,
       notes: notes.value.trim() || null,
     });
@@ -142,17 +156,10 @@ export function initMentalHealthPanel(): void {
   });
 
   onVolunteers(scheduleRender(renderList));
-
-  // El acordeón es solo de escritorio y arranca cerrado, como las otras dos
-  // tarjetas: la barra lateral abre en el mapa, no en un formulario. La regla
-  // vive detrás del `lg`, así que en móvil `data-collapsed` no hace nada.
-  card.dataset.collapsed = "true";
-  toggle.addEventListener("click", () => {
-    const open = card.dataset.collapsed === "true";
-    card.dataset.collapsed = String(!open);
-    toggle.setAttribute("aria-expanded", String(open));
-    caret.textContent = open ? "▴" : "▾";
-  });
-
+  initAccordion(panel.prefix);
   renderList();
+}
+
+export function initVolunteerPanels(): void {
+  for (const panel of VOLUNTEER_PANELS) createVolunteerPanel(panel);
 }

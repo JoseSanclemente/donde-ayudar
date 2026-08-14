@@ -1,12 +1,12 @@
 import { MISSING_ENV_MESSAGE, supabase } from "../supabase";
 import { loadCenters } from "./centers";
 import { onReconnect, startLive } from "./live";
-import { loadVolunteers } from "./mental-health";
 import { loadOffers } from "./offers";
 import { loadReports, setReportsState, startRetireSweep } from "./reports";
 import { ensureSession, restoreSession } from "./session";
 import { initSync, markSynced, resyncAll } from "./sync";
 import { loadUpdates } from "./updates";
+import { loadVolunteers } from "./volunteers";
 
 /**
  * Sesión anónima, carga inicial y realtime. Va una sola vez, en el boot: el

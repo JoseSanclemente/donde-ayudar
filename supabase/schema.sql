@@ -1,5 +1,5 @@
 -- Full schema. Four tables anyone can write to — reports, updates, offers,
--- mental_health_volunteers — plus `centers`, where only a collection point can
+-- volunteers — plus `centers`, where only a collection point can
 -- be written from the browser and everything else takes a maintainer with
 -- `service_role`.
 --
@@ -335,48 +335,59 @@ revoke execute on function public.set_offer_finished(uuid, boolean) from anon;
 grant  execute on function public.set_offer_finished(uuid, boolean) to authenticated;
 
 /* ================================================================== */
-/* Salud mental — quien se ofrece a acompañar a la comunidad           */
+/* Volunteers — whoever offers their own time to the community         */
 /* ================================================================== */
 
--- Igual que `offers` en su forma —cualquiera inserta, todos leen, solo el autor
--- retira— con una diferencia: acá el contacto puede ser un WhatsApp o un
--- Instagram, y basta con uno. Quien acompaña no siempre quiere dar su número.
-create table public.mental_health_volunteers (
+-- `offers` in shape — anyone inserts, everyone reads, only the author withdraws
+-- — with one difference: here the contact can be a WhatsApp or an Instagram, and
+-- one of the two is enough. Whoever listens does not always hand out their
+-- number.
+--
+-- One table for every panel of this kind, told apart by `kind`: «Salud mental»
+-- and «Asesoría Jurídica» are the same signup with different copy, so adding a
+-- third panel is a value in the CHECK and an entry in `scripts/volunteers.ts`.
+create table public.volunteers (
   id                uuid primary key default gen_random_uuid(),
+  kind              text not null default 'salud_mental',
   user_id           uuid not null default auth.uid() references auth.users on delete cascade,
   name              text not null check (char_length(name) between 2 and 60),
   contact_phone     text check (contact_phone is null or contact_phone ~ '^[0-9+][0-9 ()+-]{6,19}$'),
   contact_instagram text check (contact_instagram is null or contact_instagram ~ '^[A-Za-z0-9._]{1,30}$'),
   notes             text check (notes is null or char_length(notes) <= 200),
   created_at        timestamptz not null default now(),
-  -- Quien se inscribe tiene que ser alcanzable: un nombre sin manera de
-  -- responderle no es un voluntario, es una línea de texto.
+  constraint volunteers_kind_check check (kind in ('salud_mental', 'juridica')),
+  -- Whoever signs up has to be reachable: a name with no way to answer it is not
+  -- a volunteer, it is a line of text.
   constraint mental_health_volunteers_contact_check
     check (contact_phone is not null or contact_instagram is not null)
 );
 
+-- The names of the first two carry the old table: they were renamed with it, and
+-- renaming an index changes nothing that is read.
 create index mental_health_volunteers_created_at_idx
-  on public.mental_health_volunteers (created_at desc);
+  on public.volunteers (created_at desc);
 create index mental_health_volunteers_user_created_idx
-  on public.mental_health_volunteers (user_id, created_at desc);
+  on public.volunteers (user_id, created_at desc);
+create index volunteers_kind_created_at_idx
+  on public.volunteers (kind, created_at desc);
 
-alter table public.mental_health_volunteers replica identity full;
-alter table public.mental_health_volunteers enable row level security;
-alter publication supabase_realtime add table public.mental_health_volunteers;
+alter table public.volunteers replica identity full;
+alter table public.volunteers enable row level security;
+alter publication supabase_realtime add table public.volunteers;
 
 create policy "inscripciones visibles para todas"
-  on public.mental_health_volunteers for select to anon, authenticated using (true);
+  on public.volunteers for select to anon, authenticated using (true);
 
 create policy "cada quien se inscribe a sí misma"
-  on public.mental_health_volunteers for insert to authenticated
+  on public.volunteers for insert to authenticated
   with check ((select auth.uid()) = user_id);
 
 create policy "cada quien retira su inscripción"
-  on public.mental_health_volunteers for delete to authenticated
+  on public.volunteers for delete to authenticated
   using ((select auth.uid()) = user_id);
 
--- Sin policy de UPDATE y sin RPC: una inscripción está en pie o se retira. No
--- hay nada comunitario que tocar en la ficha de otra persona.
+-- No UPDATE policy and no RPC: a signup either stands or is withdrawn. There is
+-- nothing communal to touch on someone else's card.
 
 /* ================================================================== */
 /* Centers — donation points, shelters, blood banks, healthcare        */
@@ -574,7 +585,7 @@ create trigger offers_throttle before insert on public.offers
   for each row execute function public.throttle_inserts(4);
 
 create trigger mental_health_volunteers_throttle
-  before insert on public.mental_health_volunteers
+  before insert on public.volunteers
   for each row execute function public.throttle_inserts(4);
 
 -- The lowest of the four: a collection point is an answer, not a report, and

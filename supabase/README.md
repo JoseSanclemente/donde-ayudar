@@ -17,12 +17,15 @@ eso nadie puede insertar, porque toda escritura pasa por una sesión anónima.
 ## Qué puede escribir un visitante
 
 Cinco tablas abiertas a escritura anónima — `reports`, `updates`, `offers`,
-`mental_health_volunteers` y, solo en parte, `centers` — con la misma forma:
-cualquiera lee todo, cualquiera inserta lo suyo, y solo el autor borra lo suyo
-(`auth.uid() = user_id`).
+`volunteers` y, solo en parte, `centers` — con la misma forma: cualquiera lee
+todo, cualquiera inserta lo suyo, y solo el autor borra lo suyo (`auth.uid() =
+user_id`).
 
-`mental_health_volunteers` es la inscripción de quien se ofrece a acompañar a la
-comunidad. No tiene nada comunitario —ni RPC, ni policy de UPDATE: está en pie o
+`volunteers` es la inscripción de quien ofrece su tiempo a la comunidad, y una
+columna `kind` separa los paneles que la usan: `salud_mental` (acompañar) y
+`juridica` (asesorar). Agregar un panel es agregar un valor al CHECK y una
+entrada en `src/scripts/volunteers.ts`; no hace falta otra tabla ni otras
+policies. No tiene nada comunitario —ni RPC, ni policy de UPDATE: está en pie o
 se retira— y su única particularidad es el contacto: `contact_phone` y
 `contact_instagram` son opcionales por separado, pero un CHECK exige que al menos
 uno esté.

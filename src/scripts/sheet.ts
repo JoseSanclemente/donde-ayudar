@@ -230,13 +230,22 @@ export function closeSheet(): void {
   moveTo("closed");
 }
 
-// El pill activo se marca acá y no en CSS: una regla por pestaña obliga a tocar
-// el stylesheet cada vez que se agrega una, y `aria-selected` además es lo que
-// anuncia el lector de pantalla.
+// The active pill is marked here and not in CSS: one rule per tab means
+// touching the stylesheet every time one is added, and `aria-selected` is also
+// what the screen reader announces. The visible panel goes the same way —
+// `data-active` on the one that matches — so the stylesheet keeps a single rule
+// however many tabs there are. The height too: every tab of the tablist shares
+// one, and only the two panels that are reached from outside it —the form and
+// the filter— are left out.
 function paintTabs() {
   for (const button of tabs) {
     button.setAttribute("aria-selected", String(button.dataset.tabBtn === sheet.dataset.tab));
   }
+  for (const panel of sheet.querySelectorAll<HTMLElement>("[data-tab-panel]")) {
+    panel.toggleAttribute("data-active", panel.dataset.tabPanel === sheet.dataset.tab);
+  }
+  const tab = sheet.dataset.tab;
+  sheet.dataset.tall = String(tab !== "reportar" && tab !== "filtros");
   paintControls();
   notifyTabWatchers();
 }

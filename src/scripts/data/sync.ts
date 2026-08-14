@@ -2,10 +2,10 @@ import { supabase } from "../supabase";
 import { loadCenters } from "./centers";
 import { createEmitter } from "./emitter";
 import { reportError } from "./errors";
-import { loadVolunteers } from "./mental-health";
 import { loadOffers } from "./offers";
 import { loadReports } from "./reports";
 import { loadUpdates } from "./updates";
+import { loadVolunteers } from "./volunteers";
 
 /**
  * Frescura del dato: cuándo se leyó la base por última vez y si hay una lectura

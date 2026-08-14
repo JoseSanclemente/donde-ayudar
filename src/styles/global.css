@@ -819,22 +819,13 @@ option {
     box-shadow: 0 8px 30px rgb(0 0 0 / 0.12);
   }
 
-  /* The list is an accordion here, and `features/report-list.ts` opens it
-     closed: the sidebar opens on the map, not on forty cards. The rule lives
-     behind this media query on purpose — on mobile «Puntos» is a whole tab of
-     the sheet, and a tab that hides its own list would show nothing. */
-  #report-card[data-collapsed="true"] #report-card-body {
-    display: none;
-  }
-
-  /* Same accordion, same reason: the offers form is long, and the sidebar
-     should not open on it. Mobile is untouched — «Voluntarios» is a whole tab
-     there. */
-  #offers-panel-card[data-collapsed="true"] #offers-card-body {
-    display: none;
-  }
-
-  #mental-panel-card[data-collapsed="true"] #mental-card-body {
+  /* Every sidebar card folds, and `ui/accordion.ts` opens them all closed: the
+     sidebar opens on the map, not on forty cards and three long forms. One rule
+     for all of them — a card is a `[data-panel-card]` and what folds is its
+     `[data-card-body]`, so a new card needs no line here. It lives behind this
+     media query on purpose: on mobile each card is a whole tab of the sheet,
+     and a tab that hides its own content would show nothing. */
+  [data-panel-card][data-collapsed="true"] [data-card-body] {
     display: none;
   }
 
@@ -924,26 +915,22 @@ option {
     display: none;
   }
 
-  #sheet[data-tab="reportar"] [data-tab-panel="reportar"],
-  #sheet[data-tab="detalle"] [data-tab-panel="detalle"],
-  #sheet[data-tab="filtros"] [data-tab-panel="filtros"],
-  #sheet[data-tab="puntos"] [data-tab-panel="puntos"],
-  #sheet[data-tab="ayuda"] [data-tab-panel="ayuda"],
-  #sheet[data-tab="salud"] [data-tab-panel="salud"],
-  #sheet[data-tab="novedades"] [data-tab-panel="novedades"] {
+  /* Which one shows is not read from `data-tab` here: CSS cannot compare two
+     attribute values, so a pair of selectors per tab was the price of adding
+     one. `sheet.ts` marks the matching panel instead, and this stays a single
+     rule. */
+  #sheet [data-tab-panel][data-active] {
     display: block;
   }
 
-  /* The three tabs of the tablist share one height, the one «Puntos» reaches
-     with the list full. Letting each panel size the sheet made it jump — the
-     tabs move under the thumb between «Novedades» and «Ayuda». `detalle` joins
-     them: a point's detail deserves the same room as the list it came from.
-     `reportar` stays out — a form as tall as the screen only adds empty space. */
-  #sheet[data-tab="puntos"],
-  #sheet[data-tab="novedades"],
-  #sheet[data-tab="ayuda"],
-  #sheet[data-tab="salud"],
-  #sheet[data-tab="detalle"] {
+  /* The tabs of the tablist share one height, the one «Puntos» reaches with the
+     list full. Letting each panel size the sheet made it jump — the tabs move
+     under the thumb between «Novedades» and «Ayuda». `detalle` joins them: a
+     point's detail deserves the same room as the list it came from. The form
+     and the filter stay out — a form as tall as the screen only adds empty
+     space — and `sheet.ts` is what decides it, again so that a new tab is not a
+     new line here. */
+  #sheet[data-tall="true"] {
     height: 86svh;
   }
 

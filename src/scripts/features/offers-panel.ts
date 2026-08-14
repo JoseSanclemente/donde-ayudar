@@ -10,6 +10,7 @@ import { isMine } from "../data/session";
 import { flyTo } from "../map";
 import { categoryChip, categoryTitle } from "../resources";
 import { closeSheet, setTabDot } from "../sheet";
+import { initAccordion } from "../ui/accordion";
 import { CHIP_SHAPE } from "../ui/chips";
 import { buildContactCta, isValidPhone } from "../ui/contact";
 import { $, clearError, scheduleRender, showError } from "../ui/dom";
@@ -33,9 +34,6 @@ export function initOffersPanel(): void {
   const empty = $<HTMLParagraphElement>("offers-empty");
   const total = $<HTMLSpanElement>("offers-count");
   const more = $<HTMLButtonElement>("offers-more");
-  const card = $<HTMLElement>("offers-panel-card");
-  const toggle = $<HTMLButtonElement>("offers-toggle");
-  const caret = $<HTMLSpanElement>("offers-caret");
   let limit = PAGE;
 
   more.addEventListener("click", () => {
@@ -220,17 +218,7 @@ export function initOffersPanel(): void {
   // «↦ Ver punto» button has to be repainted too.
   onChange(scheduled);
 
-  // The accordion is desktop only, and it starts closed, like the report list:
-  // the sidebar opens on the map and on what is happening, not on a form. The
-  // CSS rule lives behind the `lg` media query, so `data-collapsed` is inert on
-  // mobile and the tab keeps showing its content whatever this says.
-  card.dataset.collapsed = "true";
-  toggle.addEventListener("click", () => {
-    const open = card.dataset.collapsed === "true";
-    card.dataset.collapsed = String(!open);
-    toggle.setAttribute("aria-expanded", String(open));
-    caret.textContent = open ? "▴" : "▾";
-  });
+  initAccordion("offers");
 
   renderList();
 }

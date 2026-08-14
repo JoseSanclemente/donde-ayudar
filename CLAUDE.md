@@ -41,10 +41,15 @@ Two kinds of data, and they must not mix:
   `updates` (the city log) and `offers` (help someone has available): anyone inserts, only
   the author deletes, and the communal bit — assigning an offer to a point — goes through
   the `assign_offer` RPC, which touches only `report_id` and `assigned_at`.
-  `mental_health_volunteers` is the same shape with nothing communal at all — no RPC and
+  `volunteers` is the same shape with nothing communal at all — no RPC and
   no update policy, a signup stands or is withdrawn. Its one particularity is the contact:
   `contact_phone` and `contact_instagram` are each optional, and a CHECK demands at least
   one of the two, because whoever offers to listen does not always hand out their number.
+  One table serves every panel where somebody offers their own time, split by a `kind`
+  discriminator — `salud_mental` and `juridica` — because they are the same signup with
+  different copy: one set of policies, one throttle, one realtime binding. The panels are
+  declared in `src/scripts/volunteers.ts` and nowhere else; adding one is an entry there
+  plus its value in the CHECK.
 - **Puntos de donación** — the table with the narrowest write surface, in Supabase too
   (`centers`). Four kinds, split by a `type` discriminator: `acopio` (collection centers),
   `albergue` (shelters), `sangre` (blood banks) and `healthcare` (where the injured are
@@ -82,19 +87,22 @@ false` greys the marker out, `accepting_donations: false` only writes a line in 
   warms it from an idle callback, for the visitor who never opens a form.
 - **`features/`** — one UI piece per file, each with its `init…()`: `alert-banner`,
   `center-form`, `centers-layer`, `header-offset`, `location-picker`, `marker-actions`,
-  `marker-sheet`, `mental-health-panel`, `offers-panel`, `report-form`, `report-list`, `report-tabs`,
-  `resource-picker`, `share`, `sync-badge`, `updates-feed`, `user-location`. They
+  `marker-sheet`, `offers-panel`, `report-form`, `report-list`, `report-tabs`,
+  `resource-picker`, `share`, `sync-badge`, `updates-feed`, `user-location`,
+  `volunteer-panel`. They
   subscribe to the stores; they never call Supabase directly. `marker-actions` is the odd
   one: the marker detail is HTML built by `map.ts`, which cannot touch the stores, so the
-  wiring for its controls is delegated on `document` from there. `location-picker` and
-  `resource-picker` are the exception to "one
+  wiring for its controls is delegated on `document` from there. `location-picker`,
+  `resource-picker` and `volunteer-panel` are the exception to "one
   UI piece": they are factories, and the two forms — a need and a collection point — each
   create one of each over their own copy of `LocationField.astro` and
-  `ResourcePicker.astro`, keyed by an id prefix. The
+  `ResourcePicker.astro`, keyed by an id prefix; `volunteer-panel` does the same over
+  `VolunteerPanel.astro`, one per entry of `scripts/volunteers.ts`. The
   draft pin and the click-to-pick mode are single, so `report-tabs` hands them over
   between the two with `suspend()`/`resume()`.
 - **`data/`** — everything that talks to Supabase. One store per table (`reports.ts`,
-  `updates.ts`, `offers.ts`, `mental-health.ts`, `centers.ts` — this last one insert-only, and only for a
+  `updates.ts`, `offers.ts`, `volunteers.ts` — this one shared by every panel, handed out
+  per `kind` by `volunteerStore()` —, `centers.ts` — this last one insert-only, and only for a
   community `acopio`, plus the one communal bit, `confirmCenter()`), each with its
   `emitter.ts` to announce changes and its
   `bindTable()` in `live.ts`, which merges every table into a single realtime channel.
@@ -113,6 +121,10 @@ false` greys the marker out, `accepting_donations: false` only writes a line in 
   - `resources.ts` / `status.ts` — the catalogs (resource categories and chips, point
     statuses). Tailwind classes are spelled out literally here: the scanner reads these
     files as plain text, so an interpolated class name never gets compiled.
+  - `volunteers.ts` — the catalog of volunteer panels: one entry per `kind`, with its id
+    prefix, its sheet tab, its icon path and its copy. `index.astro` loops over it to
+    build both the tab buttons and the cards, and `features/volunteer-panel.ts` loops
+    over it to wire them, so a new panel is declared once.
   - `address.ts`, `grid.ts`, `geo-index.ts`, `geocode.ts` — the Colombian address
     pipeline: parse the nomenclature, compute the point off the street grid, read the
     prebuilt indexes from `public/geo/`, and resolve through the four fallback levels.
@@ -148,9 +160,11 @@ false` greys the marker out, `accepting_donations: false` only writes a line in 
     chip colours are spelled out in hex here — the canvas twin of the Tailwind classes in
     `resources.ts`, and a new category has to be added to both.
   - `supabase.ts` — the client; `null` when the env vars are missing.
-- **`ui/`** — stateless helpers with no domain knowledge (`breakpoint`, `chips`, `contact`,
-  `dom`, `html`, `pick-hint`, `select`, `status-select`, `time`, `toast`). They know
-  neither the stores nor the features. `select` is the one select of the site in its two
+- **`ui/`** — stateless helpers with no domain knowledge (`accordion`, `breakpoint`,
+  `chips`, `contact`, `dom`, `html`, `pick-hint`, `select`, `status-select`, `time`,
+  `toast`). They know neither the stores nor the features. `accordion` is the fold of the
+  three sidebar cards: it takes an id prefix, opens closed and flips `data-collapsed`,
+  which the one CSS rule for `[data-panel-card]` reads behind the `lg` media query. `select` is the one select of the site in its two
   variants — `field`, the white form control, and `chip`, the status pill painted with the
   colour of the state — as class constants plus the caret, so the five places that build a
   select (two as HTML strings, two as elements, two as markup) share one look;

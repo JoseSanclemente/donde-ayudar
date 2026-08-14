@@ -28,6 +28,7 @@ import {
   STATUSES,
   type ReportStatus,
 } from "../status";
+import { initAccordion } from "../ui/accordion";
 import { buildResourceChip } from "../ui/chips";
 import { buildContactCta } from "../ui/contact";
 import { $, scheduleRender } from "../ui/dom";
@@ -71,9 +72,6 @@ export function initReportList(): void {
   const reportCount = $<HTMLSpanElement>("report-count");
   const filterRow = $<HTMLDivElement>("report-filter");
   const emptyState = $<HTMLParagraphElement>("empty-state");
-  const card = $<HTMLElement>("report-card");
-  const toggle = $<HTMLButtonElement>("report-toggle");
-  const caret = $<HTMLSpanElement>("report-caret");
 
   /** Chips de la zona: cada uno alterna «cubierto» en todos los que lo piden. */
   function buildGroupChips(group: ReportGroup): HTMLDivElement {
@@ -497,17 +495,9 @@ export function initReportList(): void {
     scheduled();
   });
 
-  // The accordion is desktop only, and it starts closed: the sidebar opens on
-  // the map and on what is happening, not on a list forty cards long. The CSS
-  // rule lives behind the `lg` media query, so `data-collapsed` is inert on
-  // mobile and the sheet keeps showing its list whatever this says.
-  card.dataset.collapsed = "true";
-  toggle.addEventListener("click", () => {
-    const open = card.dataset.collapsed === "true";
-    card.dataset.collapsed = String(!open);
-    toggle.setAttribute("aria-expanded", String(open));
-    caret.textContent = open ? "▴" : "▾";
-  });
+  // The card of the list is `report-card`, not `report-panel-card`: it is the
+  // one that predates the shared shell.
+  initAccordion("report", "report-card");
 
   paintFilterChips();
   render();

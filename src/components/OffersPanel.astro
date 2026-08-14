@@ -7,7 +7,11 @@ import { CARET } from "../scripts/ui/select";
 import Select from "./Select.astro";
 ---
 
-<section id="offers-panel-card" class="border-b border-slate-200 pb-5 pt-3">
+<section
+  id="offers-panel-card"
+  data-panel-card
+  class="border-b border-slate-200 pb-5 pt-3"
+>
   <div class="flex items-baseline justify-start gap-2">
     <h2 class="text-lg font-semibold text-slate-900">¿Tienes algo para donar?</h2>
     <span
@@ -29,7 +33,7 @@ import Select from "./Select.astro";
     </button>
   </div>
 
-  <div id="offers-card-body">
+  <div id="offers-card-body" data-card-body>
     <form id="offer-form" novalidate class="mt-3 flex flex-col gap-4">
       <input
         id="offer-title"
