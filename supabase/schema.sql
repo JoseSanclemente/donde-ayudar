@@ -1,6 +1,7 @@
--- Full schema. Three tables anyone can write to — reports, updates, offers —
--- plus `centers`, where only a collection point can be written from the
--- browser and everything else takes a maintainer with `service_role`.
+-- Full schema. Four tables anyone can write to — reports, updates, offers,
+-- mental_health_volunteers — plus `centers`, where only a collection point can
+-- be written from the browser and everything else takes a maintainer with
+-- `service_role`.
 --
 -- This file is the FULL SNAPSHOT: it runs as is in the SQL Editor of a new
 -- project. A project already up runs the delta in `supabase/migrations/`
@@ -334,6 +335,50 @@ revoke execute on function public.set_offer_finished(uuid, boolean) from anon;
 grant  execute on function public.set_offer_finished(uuid, boolean) to authenticated;
 
 /* ================================================================== */
+/* Salud mental — quien se ofrece a acompañar a la comunidad           */
+/* ================================================================== */
+
+-- Igual que `offers` en su forma —cualquiera inserta, todos leen, solo el autor
+-- retira— con una diferencia: acá el contacto puede ser un WhatsApp o un
+-- Instagram, y basta con uno. Quien acompaña no siempre quiere dar su número.
+create table public.mental_health_volunteers (
+  id                uuid primary key default gen_random_uuid(),
+  user_id           uuid not null default auth.uid() references auth.users on delete cascade,
+  name              text not null check (char_length(name) between 2 and 60),
+  contact_phone     text check (contact_phone is null or contact_phone ~ '^[0-9+][0-9 ()+-]{6,19}$'),
+  contact_instagram text check (contact_instagram is null or contact_instagram ~ '^[A-Za-z0-9._]{1,30}$'),
+  notes             text check (notes is null or char_length(notes) <= 200),
+  created_at        timestamptz not null default now(),
+  -- Quien se inscribe tiene que ser alcanzable: un nombre sin manera de
+  -- responderle no es un voluntario, es una línea de texto.
+  constraint mental_health_volunteers_contact_check
+    check (contact_phone is not null or contact_instagram is not null)
+);
+
+create index mental_health_volunteers_created_at_idx
+  on public.mental_health_volunteers (created_at desc);
+create index mental_health_volunteers_user_created_idx
+  on public.mental_health_volunteers (user_id, created_at desc);
+
+alter table public.mental_health_volunteers replica identity full;
+alter table public.mental_health_volunteers enable row level security;
+alter publication supabase_realtime add table public.mental_health_volunteers;
+
+create policy "inscripciones visibles para todas"
+  on public.mental_health_volunteers for select to anon, authenticated using (true);
+
+create policy "cada quien se inscribe a sí misma"
+  on public.mental_health_volunteers for insert to authenticated
+  with check ((select auth.uid()) = user_id);
+
+create policy "cada quien retira su inscripción"
+  on public.mental_health_volunteers for delete to authenticated
+  using ((select auth.uid()) = user_id);
+
+-- Sin policy de UPDATE y sin RPC: una inscripción está en pie o se retira. No
+-- hay nada comunitario que tocar en la ficha de otra persona.
+
+/* ================================================================== */
 /* Centers — donation points, shelters, blood banks, healthcare        */
 /* ================================================================== */
 
@@ -526,6 +571,10 @@ create trigger updates_throttle before insert on public.updates
   for each row execute function public.throttle_inserts(10);
 
 create trigger offers_throttle before insert on public.offers
+  for each row execute function public.throttle_inserts(4);
+
+create trigger mental_health_volunteers_throttle
+  before insert on public.mental_health_volunteers
   for each row execute function public.throttle_inserts(4);
 
 -- The lowest of the four: a collection point is an answer, not a report, and

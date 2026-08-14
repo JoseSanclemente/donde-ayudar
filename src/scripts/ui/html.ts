@@ -88,6 +88,10 @@ export const SHARE_ICON = `<svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fil
 // número no arma un chat, y el icono no puede prometer una app que no se abre.
 export const PHONE_ICON = `<svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6.6 10.8a15.1 15.1 0 0 0 6.6 6.6l2.2-2.2a1 1 0 0 1 1-.24 11.4 11.4 0 0 0 3.6.58 1 1 0 0 1 1 1V20a1 1 0 0 1-1 1A17 17 0 0 1 3 4a1 1 0 0 1 1-1h3.5a1 1 0 0 1 1 1c0 1.25.2 2.46.58 3.6a1 1 0 0 1-.25 1l-2.23 2.2Z"/></svg>`;
 
+// La cámara de Instagram, del mismo tamaño que `PHONE_ICON`: los dos botones de
+// contacto caen uno debajo del otro en la misma ficha.
+export const INSTAGRAM_ICON = `<svg class="h-4 w-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="18" height="18" rx="5"/><circle cx="12" cy="12" r="4"/><path d="M17.5 6.5v.01"/></svg>`;
+
 /**
  * Ruta en Google Maps hasta el punto exacto. Va por coordenadas y no por nombre
  * porque varias direcciones curadas son aproximadas ("Torre 2 piso 4") y una

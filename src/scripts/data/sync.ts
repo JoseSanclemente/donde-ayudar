@@ -2,6 +2,7 @@ import { supabase } from "../supabase";
 import { loadCenters } from "./centers";
 import { createEmitter } from "./emitter";
 import { reportError } from "./errors";
+import { loadVolunteers } from "./mental-health";
 import { loadOffers } from "./offers";
 import { loadReports } from "./reports";
 import { loadUpdates } from "./updates";
@@ -67,7 +68,13 @@ export async function resyncAll(options: { force?: boolean } = {}): Promise<void
   emit();
 
   try {
-    await Promise.all([loadReports(), loadUpdates(), loadOffers(), loadCenters()]);
+    await Promise.all([
+      loadReports(),
+      loadUpdates(),
+      loadOffers(),
+      loadCenters(),
+      loadVolunteers(),
+    ]);
     state = { lastSyncAt: new Date().toISOString(), syncing: false, failed: false };
     emit();
   } catch {

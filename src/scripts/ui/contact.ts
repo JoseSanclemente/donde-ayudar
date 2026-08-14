@@ -5,7 +5,7 @@
  * llaman.
  */
 
-import { escapeHtml, PHONE_ICON } from "./html";
+import { escapeHtml, INSTAGRAM_ICON, PHONE_ICON } from "./html";
 
 /** Mismo patrón que el CHECK de la base. Validar dos veces es a propósito. */
 export const PHONE_PATTERN = /^[0-9+][0-9 ()+-]{6,19}$/;
@@ -126,6 +126,35 @@ export function contactCtaHtml(
       href="${escapeHtml(href)}"
       ${external ? 'target="_blank" rel="noopener noreferrer"' : ""}
     >${PHONE_ICON}<span>${escapeHtml(contactLabel(name, phone))}</span></a>`;
+}
+
+/**
+ * El gemelo del CTA verde para quien deja un Instagram en vez de un teléfono.
+ * Mismas clases, otro color: dos botones idénticos en la misma ficha no dirían
+ * a cuál app abre cada uno. Van literales por lo mismo que `CONTACT_CTA`.
+ *
+ * Sin variante de string: hoy nadie arma este botón como HTML — el popup del
+ * mapa sigue con `contactLinksHtml`.
+ */
+export const INSTAGRAM_CTA =
+  "flex w-full text-center items-center justify-center gap-1.5 rounded-lg bg-fuchsia-600 p-3 text-sm font-semibold text-white no-underline shadow-sm transition hover:bg-fuchsia-700";
+
+export function buildInstagramCta(handle: string): HTMLAnchorElement {
+  const profile = document.createElement("a");
+  profile.className = INSTAGRAM_CTA;
+  profile.href = instagramUrl(handle);
+  profile.target = "_blank";
+  profile.rel = "noopener noreferrer";
+
+  const icon = document.createElement("span");
+  icon.className = "contents";
+  icon.innerHTML = INSTAGRAM_ICON;
+
+  const who = document.createElement("span");
+  who.textContent = `@${instagramHandle(handle)}`;
+
+  profile.append(icon, who);
+  return profile;
 }
 
 /** El mismo CTA como elemento, para los paneles que arman DOM. */

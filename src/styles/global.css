@@ -827,6 +827,17 @@ option {
     display: none;
   }
 
+  /* Same accordion, same reason: the offers form is long, and the sidebar
+     should not open on it. Mobile is untouched — «Voluntarios» is a whole tab
+     there. */
+  #offers-panel-card[data-collapsed="true"] #offers-card-body {
+    display: none;
+  }
+
+  #mental-panel-card[data-collapsed="true"] #mental-card-body {
+    display: none;
+  }
+
   /* The city log is not one more card at the bottom of a 26rem column: it is the
      third column, to the right of the map. It cannot be a third flex child of
      the page container — on mobile it is a tab of the sheet, so it has to stay
@@ -874,6 +885,20 @@ option {
     touch-action: none;
   }
 
+  /* The tab strip lives inside the handle, so it inherits a `touch-action` that
+     kills its own horizontal pan: it opts back in, and only for that axis —
+     dragging up or down over the tabs still moves the sheet. The bar itself is
+     hidden because the strip is one row of pills in a panel that already has
+     its own scroll. */
+  .sheet-tabs-scroll {
+    touch-action: pan-x;
+    scrollbar-width: none;
+  }
+
+  .sheet-tabs-scroll::-webkit-scrollbar {
+    display: none;
+  }
+
   /* Un panel por pestaña. La regla es genérica a propósito: agregar una
      pestaña es agregar un `data-tab-panel` en el HTML, no cuatro selectores. */
   #sheet [data-tab-panel] {
@@ -904,6 +929,7 @@ option {
   #sheet[data-tab="filtros"] [data-tab-panel="filtros"],
   #sheet[data-tab="puntos"] [data-tab-panel="puntos"],
   #sheet[data-tab="ayuda"] [data-tab-panel="ayuda"],
+  #sheet[data-tab="salud"] [data-tab-panel="salud"],
   #sheet[data-tab="novedades"] [data-tab-panel="novedades"] {
     display: block;
   }
@@ -916,6 +942,7 @@ option {
   #sheet[data-tab="puntos"],
   #sheet[data-tab="novedades"],
   #sheet[data-tab="ayuda"],
+  #sheet[data-tab="salud"],
   #sheet[data-tab="detalle"] {
     height: 86svh;
   }
@@ -930,6 +957,7 @@ option {
 
   #sheet-grab [data-tab-btn] {
     color: #475569;
+    background: #f1f5f9;
   }
 
   #sheet-grab [data-tab-btn][aria-selected="true"] {

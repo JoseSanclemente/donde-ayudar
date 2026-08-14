@@ -332,7 +332,9 @@ function initDrag() {
   grab.addEventListener("pointerdown", (event: PointerEvent) => {
     if (!isMobile()) return;
     // Los botones del encabezado (pestañas, ✕) se manejan con su propio click.
-    if ((event.target as HTMLElement).closest("button")) return;
+    // The tablist goes with them: it scrolls horizontally, and a swipe that
+    // starts in the gap between two pills would otherwise drag the sheet.
+    if ((event.target as HTMLElement).closest('button, [role="tablist"]')) return;
 
     dragging = true;
     moved = 0;

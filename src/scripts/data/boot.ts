@@ -1,6 +1,7 @@
 import { MISSING_ENV_MESSAGE, supabase } from "../supabase";
 import { loadCenters } from "./centers";
 import { onReconnect, startLive } from "./live";
+import { loadVolunteers } from "./mental-health";
 import { loadOffers } from "./offers";
 import { loadReports, setReportsState, startRetireSweep } from "./reports";
 import { ensureSession, restoreSession } from "./session";
@@ -31,7 +32,13 @@ export async function initData(): Promise<void> {
     // fila que se dibuja. El orden de las dos líneas importa: pedir los datos
     // antes deja los `fetch` emitidos ya; al revés, el candado de auth que toma
     // el registro los volvería a poner en fila.
-    const loaded = Promise.all([loadReports(), loadUpdates(), loadOffers(), loadCenters()]);
+    const loaded = Promise.all([
+      loadReports(),
+      loadUpdates(),
+      loadOffers(),
+      loadCenters(),
+      loadVolunteers(),
+    ]);
     // Sigue siendo obligatoria antes de `ready`: sin `uid` no se puede escribir
     // nada, y quien entra por primera vez no tiene todavía nada propio que el
     // pintado pueda equivocar mientras llega.

@@ -16,9 +16,16 @@ eso nadie puede insertar, porque toda escritura pasa por una sesión anónima.
 
 ## Qué puede escribir un visitante
 
-Cuatro tablas abiertas a escritura anónima — `reports`, `updates`, `offers` y,
-solo en parte, `centers` — con la misma forma: cualquiera lee todo, cualquiera
-inserta lo suyo, y solo el autor borra lo suyo (`auth.uid() = user_id`).
+Cinco tablas abiertas a escritura anónima — `reports`, `updates`, `offers`,
+`mental_health_volunteers` y, solo en parte, `centers` — con la misma forma:
+cualquiera lee todo, cualquiera inserta lo suyo, y solo el autor borra lo suyo
+(`auth.uid() = user_id`).
+
+`mental_health_volunteers` es la inscripción de quien se ofrece a acompañar a la
+comunidad. No tiene nada comunitario —ni RPC, ni policy de UPDATE: está en pie o
+se retira— y su única particularidad es el contacto: `contact_phone` y
+`contact_instagram` son opcionales por separado, pero un CHECK exige que al menos
+uno esté.
 
 **Ninguna tiene policy de UPDATE.** Lo que sí es comunitario pasa por funciones
 `security definer` que tocan una sola columna cada una:
@@ -35,7 +42,7 @@ Las que reciben listas topan en 50 ids por llamada, y todas levantan `errcode
 22023` con un mensaje en español, que el cliente muestra tal cual en el toast.
 
 Además, un trigger `throttle_inserts` limita las inserciones por autor y por
-minuto: 6 reportes, 10 novedades, 4 ofertas, 3 puntos.
+minuto: 6 reportes, 10 novedades, 4 ofertas, 4 inscripciones, 3 puntos.
 
 ## Los puntos de donación
 

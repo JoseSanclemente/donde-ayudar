@@ -41,6 +41,10 @@ Two kinds of data, and they must not mix:
   `updates` (the city log) and `offers` (help someone has available): anyone inserts, only
   the author deletes, and the communal bit — assigning an offer to a point — goes through
   the `assign_offer` RPC, which touches only `report_id` and `assigned_at`.
+  `mental_health_volunteers` is the same shape with nothing communal at all — no RPC and
+  no update policy, a signup stands or is withdrawn. Its one particularity is the contact:
+  `contact_phone` and `contact_instagram` are each optional, and a CHECK demands at least
+  one of the two, because whoever offers to listen does not always hand out their number.
 - **Puntos de donación** — the table with the narrowest write surface, in Supabase too
   (`centers`). Four kinds, split by a `type` discriminator: `acopio` (collection centers),
   `albergue` (shelters), `sangre` (blood banks) and `healthcare` (where the injured are
@@ -78,7 +82,7 @@ false` greys the marker out, `accepting_donations: false` only writes a line in 
   warms it from an idle callback, for the visitor who never opens a form.
 - **`features/`** — one UI piece per file, each with its `init…()`: `alert-banner`,
   `center-form`, `centers-layer`, `header-offset`, `location-picker`, `marker-actions`,
-  `marker-sheet`, `offers-panel`, `report-form`, `report-list`, `report-tabs`,
+  `marker-sheet`, `mental-health-panel`, `offers-panel`, `report-form`, `report-list`, `report-tabs`,
   `resource-picker`, `share`, `sync-badge`, `updates-feed`, `user-location`. They
   subscribe to the stores; they never call Supabase directly. `marker-actions` is the odd
   one: the marker detail is HTML built by `map.ts`, which cannot touch the stores, so the
@@ -90,7 +94,7 @@ false` greys the marker out, `accepting_donations: false` only writes a line in 
   draft pin and the click-to-pick mode are single, so `report-tabs` hands them over
   between the two with `suspend()`/`resume()`.
 - **`data/`** — everything that talks to Supabase. One store per table (`reports.ts`,
-  `updates.ts`, `offers.ts`, `centers.ts` — this last one insert-only, and only for a
+  `updates.ts`, `offers.ts`, `mental-health.ts`, `centers.ts` — this last one insert-only, and only for a
   community `acopio`, plus the one communal bit, `confirmCenter()`), each with its
   `emitter.ts` to announce changes and its
   `bindTable()` in `live.ts`, which merges every table into a single realtime channel.
