@@ -1,0 +1,14 @@
+[
+  {
+    "image_url": "https://ejemplo.com/perrita.jpg",
+    "kind": "dog",
+    "sex": "female",
+    "instagram": "https://www.instagram.com/p/ABCdef12345/"
+  },
+  {
+    "image_url": "https://ejemplo.com/gato.jpg",
+    "kind": "cat",
+    "sex": null,
+    "instagram": "https://www.instagram.com/reel/XYZghi67890/"
+  }
+]

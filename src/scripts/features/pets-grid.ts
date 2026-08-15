@@ -14,7 +14,11 @@ import {
 } from "../pets-filter";
 import { openPetSheet } from "../pet-sheet";
 import { isMobile, onBreakpointChange } from "../ui/breakpoint";
-import { buildPhoneCta, buildUsernameCta } from "../ui/contact";
+import {
+  buildInstagramPostCta,
+  buildPhoneCta,
+  buildUsernameCta,
+} from "../ui/contact";
 import { $, scheduleRender } from "../ui/dom";
 import { paintTime } from "../ui/time";
 
@@ -87,15 +91,69 @@ function buildPhoto(
 }
 
 /**
- * The green button of a pet. The contact is one of the two and never both:
+ * El marco de la foto de la ficha, con su altura puesta de antemano y la ruedita
+ * girando debajo. Los 800×800 de la ficha son una transformación aparte de la
+ * que ya se bajó para la tarjeta: se piden recién al tocar, y hasta que
+ * contestan la `img` no mide nada. Sin marco el panel abría del alto de los
+ * chips y daba un salto cuando llegaban los bytes, justo encima del botón de
+ * contacto, que es lo único que hay que tocar ahí.
+ *
+ * La ruedita es la misma de `mascotas.astro`, clase por clase: dos esperas de la
+ * misma página no tienen por qué verse distinto.
+ */
+const PHOTO_FRAME =
+  "relative flex h-[50svh] w-full items-center justify-center overflow-hidden rounded-xl bg-slate-100";
+const PHOTO_SPINNER =
+  "h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-red-600";
+
+function buildDetailPhoto(pet: Pet): HTMLDivElement {
+  const frame = document.createElement("div");
+  frame.className = PHOTO_FRAME;
+
+  const spinner = document.createElement("span");
+  spinner.className = PHOTO_SPINNER;
+  spinner.setAttribute("aria-hidden", "true");
+
+  const photo = buildPhoto(
+    pet,
+    pet.photoUrl,
+    "absolute inset-0 h-full w-full object-contain opacity-0 transition-opacity duration-300",
+  );
+  // La ficha se abre porque alguien la tocó: la foto es lo que vino a ver y no
+  // hay nada más abajo que pueda entrar antes.
+  photo.loading = "eager";
+
+  // Que falle también termina la espera. Una ruedita que gira para siempre dice
+  // «ya casi» de una foto que no va a llegar.
+  const settle = () => {
+    spinner.remove();
+    photo.classList.replace("opacity-0", "opacity-100");
+  };
+  photo.addEventListener("load", settle);
+  photo.addEventListener("error", () => spinner.remove());
+  // Una foto que ya está en caché puede completarse antes de que se escuche el
+  // `load`, y entonces el evento no vuelve a dispararse.
+  if (photo.complete && photo.naturalWidth > 0) settle();
+
+  frame.append(spinner, photo);
+  return frame;
+}
+
+/**
+ * The button of a pet. The contact is one of the three and never several:
  * somebody who hides their number behind a WhatsApp username has no phone to
- * publish, and `wa.me` opens that chat just the same. The button reads the same
- * either way because it does the same thing. `null` from both is a row the store
- * does not accept, so there is nothing to draw for it.
+ * publish, and `wa.me` opens that chat just the same, so the first two buttons
+ * read alike because they do the same thing. The third does not: a pet that came
+ * off Instagram is reached at the post it appeared in, and the button wears
+ * another colour so two identical buttons never leave it unsaid which app opens.
+ * `null` from all three is a row the store does not accept, so there is nothing
+ * to draw for it.
  */
 function buildPetCta(pet: Pet): HTMLAnchorElement | null {
   if (pet.contactPhone) return buildPhoneCta(pet.contactPhone);
   if (pet.contactUsername) return buildUsernameCta(pet.contactUsername);
+  if (pet.contactInstagramUrl)
+    return buildInstagramPostCta(pet.contactInstagramUrl);
   return null;
 }
 
@@ -104,13 +162,7 @@ function buildDetail(pet: Pet): HTMLElement {
   const detail = document.createElement("div");
   detail.className = "space-y-3";
 
-  detail.append(
-    buildPhoto(
-      pet,
-      pet.photoUrl,
-      "max-h-[50svh] w-full rounded-xl object-contain",
-    ),
-  );
+  detail.append(buildDetailPhoto(pet));
 
   // Cuándo apareció va arriba y solo: es lo primero que decide si vale la pena
   // escribir —un perro visto hace tres días ya no está donde lo vieron— y

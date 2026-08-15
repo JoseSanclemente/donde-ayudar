@@ -571,19 +571,26 @@ create table public.pets (
   -- How to write to whoever found it. No name next to it — whoever writes is
   -- asking about the animal, not about a person.
   --
-  -- Two columns and not one, because WhatsApp lets a person put a username in
+  -- Three columns and not one, because WhatsApp lets a person put a username in
   -- front of their number: to the business the phone then does not exist at all
   -- —the webhook carries a business-scoped user id and the handle, and nothing
   -- else— so a phone cannot be demanded of everyone. `wa.me/<username>` opens
-  -- that chat the same as a number does. The CHECK below asks for one of the two
-  -- and the row is worthless without either: a photo nobody can be written about
-  -- is a photo nobody can claim.
+  -- that chat the same as a number does. The CHECK below asks for one of the
+  -- three and the row is worthless without any: a photo nobody can be written
+  -- about is a photo nobody can claim.
+  -- A third address, and the one a pet that came off Instagram carries: the
+  -- permalink of the post it was published in, which is all there is of whoever
+  -- has it. Not `contact_instagram` — `centers` and `volunteers` keep a bare
+  -- handle under that name and link to a profile; this points at one post.
   contact_phone    text check (contact_phone ~ '^[0-9+][0-9 ()+-]{6,19}$'),
   contact_username text check (contact_username ~ '^[A-Za-z0-9._-]{3,30}$'),
+  contact_instagram_url text check (contact_instagram_url ~ '^https://(www\.)?instagram\.com/(p|reel)/[A-Za-z0-9_-]{5,30}/?$'),
   created_at    timestamptz not null default now(),
   constraint pets_kind_check check (kind in ('dog', 'cat', 'other')),
   constraint pets_contact_check
-    check (contact_phone is not null or contact_username is not null)
+    check (contact_phone is not null
+        or contact_username is not null
+        or contact_instagram_url is not null)
 );
 
 create index pets_created_at_idx on public.pets (created_at desc);

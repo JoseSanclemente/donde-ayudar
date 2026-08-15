@@ -39,14 +39,18 @@ export type Pet = {
   /** The sheet. Same object, an order of magnitude more bytes. */
   photoUrl: string;
   /**
-   * How to write to whoever found it, and it is one of the two — never both,
-   * never neither. WhatsApp lets a person put a username in front of their
-   * number, and to whoever receives the message the phone then does not exist:
-   * a pet published from the WhatsApp bot by such a sender carries the handle
-   * and no phone. `wa.me` opens the chat from either.
+   * How to write to whoever found it, and it is one of the three — never
+   * several, never none. WhatsApp lets a person put a username in front of
+   * their number, and to whoever receives the message the phone then does not
+   * exist: a pet published from the WhatsApp bot by such a sender carries the
+   * handle and no phone. `wa.me` opens the chat from either.
+   *
+   * The third is neither: a pet seeded off Instagram carries the permalink of
+   * the post it appeared in, and the button opens that post.
    */
   contactPhone: string | null;
   contactUsername: string | null;
+  contactInstagramUrl: string | null;
   createdAt: string;
   userId: string;
 };
@@ -59,6 +63,7 @@ type Row = {
   photo_path: string;
   contact_phone: string | null;
   contact_username: string | null;
+  contact_instagram_url: string | null;
   created_at: string;
 };
 
@@ -112,10 +117,11 @@ function isRow(value: unknown): value is Row {
     typeof r.kind === "string" &&
     (r.sex === null || r.sex === undefined || typeof r.sex === "string") &&
     typeof r.photo_path === "string" &&
-    // One of the two is enough, which is what the CHECK in the base demands: a
-    // row with neither is a pet nobody can ask about.
+    // One of the three is enough, which is what the CHECK in the base demands:
+    // a row with none of them is a pet nobody can ask about.
     (typeof r.contact_phone === "string" ||
-      typeof r.contact_username === "string") &&
+      typeof r.contact_username === "string" ||
+      typeof r.contact_instagram_url === "string") &&
     typeof r.created_at === "string"
   );
 }
@@ -158,6 +164,7 @@ function fromRow(row: Row): Pet {
     photoUrl: photoUrl(row.photo_path, FULL),
     contactPhone: row.contact_phone ?? null,
     contactUsername: row.contact_username ?? null,
+    contactInstagramUrl: row.contact_instagram_url ?? null,
     createdAt: row.created_at,
     userId: row.user_id,
   };
@@ -245,6 +252,7 @@ export async function addPet(input: PetInput): Promise<Pet | null> {
     // only arrive through the bot, which is what receives the message.
     contactPhone: input.contactPhone,
     contactUsername: null,
+    contactInstagramUrl: null,
     createdAt: new Date().toISOString(),
     userId,
   };

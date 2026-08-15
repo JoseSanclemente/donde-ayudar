@@ -19,7 +19,8 @@
     "astro": "astro",
     "geo:build": "node scripts/build-geo-index.mjs",
     "geo:eval": "node scripts/eval-geo.mjs",
-    "og": "node scripts/build-og.mjs"
+    "og": "node scripts/build-og.mjs",
+    "pets:seed": "node --env-file=.env scripts/seed-pets.mjs"
   },
   "dependencies": {
     "@fontsource-variable/figtree": "^5.3.0",

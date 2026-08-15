@@ -1,0 +1,247 @@
+/**
+ * Publishes a batch of found pets from a JSON file.
+ *
+ * The site has two writers for `pets` and neither takes a list: the form in the
+ * browser publishes one pet at a time under an anonymous session, and the
+ * WhatsApp function publishes what a message brought. This is the third, and it
+ * is the only one that runs from a terminal: a batch collected off Instagram —
+ * an image url, what animal it is, whether it is a male or a female, and the
+ * post it appeared in.
+ *
+ * It writes with the `service_role` key, like the WhatsApp function and for the
+ * same two reasons: RLS pins `user_id` to the caller's session, and the insert
+ * throttle allows four rows a minute per author. Both are right for a browser
+ * and neither applies here. The rows are authored by the same bot user the
+ * function publishes under, which is what `pets.user_id` needs — the column is
+ * NOT NULL and points at `auth.users`.
+ *
+ * Run:
+ *   pnpm pets:seed
+ *   pnpm pets:seed -- --dry-run
+ *   pnpm pets:seed -- --file scripts/otra-tanda.json
+ */
+
+import { readFile, writeFile } from "node:fs/promises";
+import { createClient } from "@supabase/supabase-js";
+
+/** The bucket's own `allowed_mime_types`, and the extension each one is saved as. */
+const PHOTO_TYPES = {
+  "image/jpeg": "jpg",
+  "image/png": "png",
+  "image/webp": "webp",
+};
+
+/** The bucket's `file_size_limit`. Checked here first for a better message. */
+const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
+
+const KINDS = ["dog", "cat", "other"];
+const SEXES = ["male", "female"];
+
+/** The same pattern as the CHECK in the base. Validating twice is on purpose. */
+const INSTAGRAM_POST =
+  /^https:\/\/(www\.)?instagram\.com\/(p|reel)\/[A-Za-z0-9_-]{5,30}\/?$/;
+
+/**
+ * What «copiar enlace» hands over and what gets stored are not the same string.
+ * Instagram tacks its own tracking onto every copy — `?utm_source=ig_web_copy_link`,
+ * an `igsh` that changes each time — and some links carry the account in front of
+ * the code. None of that identifies the post: two copies of the same publication
+ * would go in as two different values, and the query string would ride along into
+ * the `href` of the button. So the entry is read loosely and only the permalink is
+ * kept, which is what the CHECK in the base then demands.
+ */
+const INSTAGRAM_ANY =
+  /^https?:\/\/(?:www\.)?instagram\.com\/(?:[A-Za-z0-9._]+\/)?(p|reel)\/([A-Za-z0-9_-]{5,30})\/?(?:[?#].*)?$/;
+
+function normalizeInstagram(value) {
+  const match = INSTAGRAM_ANY.exec(String(value ?? "").trim());
+  if (!match) return null;
+  return `https://www.instagram.com/${match[1]}/${match[2]}/`;
+}
+
+const BUCKET = "pets";
+const TABLE = "pets";
+
+function parseArgs(argv) {
+  const args = { file: "scripts/pets-seed.json", dryRun: false };
+  for (let i = 0; i < argv.length; i += 1) {
+    if (argv[i] === "--dry-run") args.dryRun = true;
+    else if (argv[i] === "--file") {
+      args.file = argv[i + 1];
+      i += 1;
+    }
+  }
+  if (!args.file) fail("--file needs a path.");
+  return args;
+}
+
+function fail(message) {
+  console.error(`✗ ${message}`);
+  process.exit(1);
+}
+
+/**
+ * Missing credentials stop the run before anything is touched, the same posture
+ * as `headers.mjs`: half a batch published under the wrong identity is worse
+ * than a batch that never started.
+ */
+function required(name) {
+  const value = process.env[name];
+  if (!value) {
+    fail(
+      `Falta ${name}. Ponelo en .env (sin commitear) y corré con --env-file=.env.`,
+    );
+  }
+  return value;
+}
+
+/** What the row cannot be fixed for: everything the base would reject anyway. */
+function validate(entry, index) {
+  const where = `entrada ${index + 1}`;
+  if (typeof entry?.image_url !== "string" || !entry.image_url) {
+    return `${where}: falta image_url.`;
+  }
+  if (!KINDS.includes(entry.kind)) {
+    return `${where}: kind "${entry.kind}" no es ${KINDS.join(", ")}.`;
+  }
+  const sex = entry.sex ?? null;
+  if (sex !== null && !SEXES.includes(sex)) {
+    return `${where}: sex "${sex}" no es male, female ni null.`;
+  }
+  const instagram = normalizeInstagram(entry.instagram);
+  if (!instagram) {
+    return `${where}: instagram "${entry.instagram}" no es el enlace de una publicación.`;
+  }
+  // Lo que se guarda es lo normalizado, no lo que vino: si eso no pasa el patrón
+  // de la base, el que está mal es `normalizeInstagram` y no la entrada.
+  if (!INSTAGRAM_POST.test(instagram)) {
+    return `${where}: "${instagram}" quedó fuera de lo que acepta la base.`;
+  }
+  return null;
+}
+
+/** The photo as it will go to the bucket, or the reason it cannot. */
+async function fetchPhoto(url) {
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`la foto respondió ${response.status}`);
+
+  const type = (response.headers.get("content-type") ?? "")
+    .split(";")[0]
+    .trim()
+    .toLowerCase();
+  const extension = PHOTO_TYPES[type];
+  if (!extension) throw new Error(`tipo de foto no admitido: "${type}"`);
+
+  const bytes = await response.arrayBuffer();
+  if (bytes.byteLength > MAX_PHOTO_BYTES) {
+    throw new Error(
+      `la foto pesa ${Math.round(bytes.byteLength / 1024)} KB, el máximo es 5 MB`,
+    );
+  }
+
+  return { blob: new Blob([bytes], { type }), extension, type };
+}
+
+/**
+ * Photo first, row second, and the object comes back down if the insert fails —
+ * the same order as the WhatsApp function, and for the same reason: a pet that
+ * never finishes publishing must not leave bytes behind in the bucket.
+ */
+async function publish(admin, entry, botUserId) {
+  const { blob, extension, type } = await fetchPhoto(entry.image_url);
+
+  // The id is minted here so the object key and the row it belongs to stay in
+  // sync: with the default the row would learn its id after the upload.
+  const id = crypto.randomUUID();
+  const path = `${botUserId}/${id}.${extension}`;
+
+  const uploaded = await admin.storage.from(BUCKET).upload(path, blob, {
+    contentType: type,
+    cacheControl: "31536000",
+  });
+  if (uploaded.error) throw uploaded.error;
+
+  const inserted = await admin.from(TABLE).insert({
+    id,
+    user_id: botUserId,
+    kind: entry.kind,
+    sex: entry.sex ?? null,
+    photo_path: path,
+    contact_instagram_url: normalizeInstagram(entry.instagram),
+  });
+  if (inserted.error) {
+    await admin.storage.from(BUCKET).remove([path]);
+    throw inserted.error;
+  }
+
+  return id;
+}
+
+async function main() {
+  const args = parseArgs(process.argv.slice(2));
+
+  const url = required("PUBLIC_SUPABASE_URL");
+  const serviceKey = required("SUPABASE_SERVICE_ROLE_KEY");
+  const botUserId = required("PETS_BOT_USER_ID");
+
+  let entries;
+  try {
+    entries = JSON.parse(await readFile(args.file, "utf8"));
+  } catch (error) {
+    fail(`No se pudo leer ${args.file}: ${error.message}`);
+  }
+  if (!Array.isArray(entries)) fail(`${args.file} tiene que ser un arreglo.`);
+
+  const admin = createClient(url, serviceKey, {
+    auth: { persistSession: false },
+  });
+
+  let published = 0;
+  let skipped = 0;
+  let failed = 0;
+
+  // One at a time: the batch is small, the file is rewritten as it goes, and a
+  // report read from top to bottom says which entry is which.
+  for (const [index, entry] of entries.entries()) {
+    const label = `${index + 1}/${entries.length}`;
+
+    // An entry that already carries an id was published on an earlier run. That
+    // is what makes a second run after a partial failure safe.
+    if (entry.id) {
+      console.log(`· ${label} ya estaba publicada (${entry.id})`);
+      skipped += 1;
+      continue;
+    }
+
+    const invalid = validate(entry, index);
+    if (invalid) {
+      console.error(`✗ ${label} ${invalid}`);
+      failed += 1;
+      continue;
+    }
+
+    if (args.dryRun) {
+      console.log(`· ${label} lista para publicar (${entry.kind})`);
+      continue;
+    }
+
+    try {
+      entry.id = await publish(admin, entry, botUserId);
+      await writeFile(args.file, `${JSON.stringify(entries, null, 2)}\n`);
+      console.log(`✓ ${label} publicada (${entry.id})`);
+      published += 1;
+    } catch (error) {
+      console.error(`✗ ${label} ${error.message}`);
+      failed += 1;
+    }
+  }
+
+  console.log(
+    args.dryRun
+      ? `\nPrueba en seco: ${entries.length - skipped - failed} para publicar, ${skipped} omitidas, ${failed} con error.`
+      : `\n${published} publicadas, ${skipped} omitidas, ${failed} con error.`,
+  );
+  if (failed > 0) process.exit(1);
+}
+
+await main();

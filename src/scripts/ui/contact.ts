@@ -153,14 +153,20 @@ export function contactCtaHtml(
 
 /**
  * El gemelo del CTA verde para quien deja un Instagram en vez de un teléfono.
- * Mismas clases, otro color: dos botones idénticos en la misma ficha no dirían
- * a cuál app abre cada uno. Van literales por lo mismo que `CONTACT_CTA`.
+ * Misma forma, otro fondo: dos botones idénticos en la misma ficha no dirían a
+ * cuál app abre cada uno. Van literales por lo mismo que `CONTACT_CTA`.
+ *
+ * El fondo es la rampa de la propia marca —ámbar, rosado, morado— y no un color
+ * plano: al lado del verde de WhatsApp, un degradado se lee como «Instagram» sin
+ * que el logo tenga que hacer todo el trabajo, que es justo lo que se le pide al
+ * botón antes de que alguien lea la etiqueta. `bg-linear-to-*` es el nombre de
+ * la utilidad en Tailwind v4; `bg-gradient-to-*` es el de v3 y está deprecado.
  *
  * Sin variante de string: hoy nadie arma este botón como HTML — el popup del
  * mapa sigue con `contactLinksHtml`.
  */
 export const INSTAGRAM_CTA =
-  "flex w-full text-center items-center justify-center gap-1.5 rounded-lg bg-fuchsia-600 p-3 text-sm font-semibold text-white no-underline shadow-sm transition hover:bg-fuchsia-700";
+  "flex w-full text-center items-center justify-center gap-1.5 rounded-lg bg-linear-to-tr from-amber-500 via-pink-600 to-purple-600 p-4 text-sm font-semibold text-white no-underline shadow-sm transition hover:from-amber-600 hover:via-pink-700 hover:to-purple-700";
 
 export function buildInstagramCta(handle: string): HTMLAnchorElement {
   const profile = document.createElement("a");
@@ -178,6 +184,31 @@ export function buildInstagramCta(handle: string): HTMLAnchorElement {
 
   profile.append(icon, who);
   return profile;
+}
+
+/**
+ * The same fuchsia button for a pet that came off Instagram, where the contact
+ * is a single post and not an account. The url goes verbatim — it is a
+ * permalink, and `instagramHandle` would chew it down to «p» — and the label
+ * says where it lands: an `@handle` printed here would name an account the
+ * button does not open.
+ */
+export function buildInstagramPostCta(url: string): HTMLAnchorElement {
+  const post = document.createElement("a");
+  post.className = INSTAGRAM_CTA;
+  post.href = url;
+  post.target = "_blank";
+  post.rel = "noopener noreferrer";
+
+  const icon = document.createElement("span");
+  icon.className = "contents";
+  icon.innerHTML = INSTAGRAM_ICON;
+
+  const label = document.createElement("span");
+  label.textContent = "Ver publicación";
+
+  post.append(icon, label);
+  return post;
 }
 
 /**

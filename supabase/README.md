@@ -75,8 +75,11 @@ romper la Edge Function de WhatsApp, cuyas filas llevan todas el mismo autor.
 `pets` es la tabla más pequeña del esquema y la única con un archivo detrás: una
 foto, un teléfono y qué animal es (`kind`: `dog`, `cat` u `other`). No lleva
 nombre ni dirección — un perro encontrado no tiene dirección, y quien lo perdió
-lo reconoce o no —, y el teléfono es obligatorio: es para lo que existe la
-página. Sin RPC y sin policy de UPDATE, como `volunteers`.
+lo reconoce o no —, y el contacto es obligatorio: es para lo que existe la
+página. Son tres columnas y el CHECK pide una — `contact_phone`, que es lo único
+que escribe el formulario; `contact_username`, que solo llega por el bot; y
+`contact_instagram_url`, que solo llega por `scripts/seed-pets.mjs`. Sin RPC y
+sin policy de UPDATE, como `volunteers`.
 
 **La foto no está en la fila.** Va al bucket `pets` de Storage y la fila guarda
 solo su llave (`photo_path`); los bytes en una columna viajarían en cada evento
@@ -172,6 +175,44 @@ vuelva a prender. La callback url es
 
 **Cerrar la entrada** es quitar la callback url en Meta, o borrar la función. Lo
 ya publicado no se toca.
+
+## Las mascotas de una tanda
+
+`pets` tiene un tercer escritor y es el único que corre desde una terminal:
+`scripts/seed-pets.mjs`, para una tanda recogida por fuera del sitio —de
+Instagram— que ni el formulario ni el bot pueden recibir. Se corre a mano:
+
+```
+pnpm pets:seed -- --dry-run   # valida y no toca nada
+pnpm pets:seed                # publica
+```
+
+**El contacto es un enlace, no un teléfono.** Ni `contact_phone` ni
+`contact_username` admiten una URL —los dos patrones prohíben `:` y `/`— y el
+segundo se dibuja como `wa.me/<usuario>`, así que un valor de Instagram ahí
+abriría un chat que no existe. Por eso `contact_instagram_url`, que guarda el
+permalink de la publicación, y el botón de la tarjeta la abre. El nombre no es
+`contact_instagram` a propósito: en `centers` y `volunteers` esa columna guarda
+un usuario pelado y sus helpers arman un enlace al perfil, que es otra cosa. El
+CHECK de contacto ahora pide **una de las tres**.
+
+**El autor** es el mismo usuario del bot (`PETS_BOT_USER_ID`), por lo mismo que
+la función: `pets.user_id` es obligatorio y apunta a `auth.users`. Estas filas
+quedan igual de intocables desde el navegador —el objeto no tiene `owner`—, así
+que bajarlas es el SQL de «Bajar una foto publicada», más abajo.
+
+**Las credenciales** van en `.env`, que no se commitea, y no en `.env.example`,
+que solo lleva las dos públicas: `SUPABASE_SERVICE_ROLE_KEY` (Dashboard →
+Project Settings → API) y `PETS_BOT_USER_ID`. Con `service_role` el script se
+salta RLS y también el trigger `pets_throttle`, que si no dejaría pasar cuatro
+filas por minuto.
+
+**La tanda** es `scripts/pets-seed.json`, un arreglo de
+`{ image_url, kind, sex, instagram }` — `scripts/pets-seed.example.json` tiene la
+forma. Está en `.gitignore`. El script escribe el `id` de vuelta en cada entrada
+publicada y salta las que ya lo tienen, así que volver a correrlo después de una
+falla a mitad de camino no duplica nada. La foto se sube antes que la fila y el
+objeto se borra si el insert falla, igual que en los otros dos escritores.
 
 ## Los puntos de donación
 
