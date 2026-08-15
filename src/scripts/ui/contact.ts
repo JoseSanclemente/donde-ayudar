@@ -181,7 +181,7 @@ export function buildPhoneCta(phone: string): HTMLAnchorElement {
   icon.innerHTML = PHONE_ICON;
 
   const who = document.createElement("span");
-  who.textContent = external ? "Escribir a WhatsApp" : phone;
+  who.textContent = external ? "Escribir al WhatsApp" : phone;
 
   call.append(icon, who);
   return call;

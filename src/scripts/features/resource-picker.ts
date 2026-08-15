@@ -136,7 +136,7 @@ export function createResourcePicker(
     selectedResources.replaceChildren();
     for (const resource of resources) {
       const tag = document.createElement("span");
-      tag.className = `inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-medium ${chipClass(resource)}`;
+      tag.className = `inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium ${chipClass(resource)}`;
       tag.textContent = resource;
 
       const remove = document.createElement("button");

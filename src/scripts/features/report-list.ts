@@ -116,7 +116,7 @@ export function initReportList(): void {
   function buildStatusChip(group: ReportGroup): HTMLSpanElement {
     const info = statusInfo(group.status);
     const chip = document.createElement("span");
-    chip.className = `inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-semibold ${info.chip}`;
+    chip.className = `inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-semibold ${info.chip}`;
     chip.title = "Cómo está el punto ahora mismo";
 
     const select = document.createElement("select");
@@ -255,7 +255,7 @@ export function initReportList(): void {
     if (count > 1) {
       const badge = document.createElement("span");
       badge.className =
-        "rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700";
+        "rounded-full border border-red-700 bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700";
       badge.textContent = `${count} reportes`;
       badges.append(badge);
     }
@@ -263,7 +263,7 @@ export function initReportList(): void {
     if (resolved) {
       const badge = document.createElement("span");
       badge.className =
-        "rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700";
+        "rounded-full border border-emerald-700 bg-emerald-50 px-2 py-0.5 text-xs font-semibold text-emerald-700";
       badge.textContent = "Cubierto";
       badges.append(badge);
     }

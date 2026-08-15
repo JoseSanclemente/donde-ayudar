@@ -23,19 +23,28 @@ import { paintTime } from "../ui/time";
 
 /** Las clases van literales: el escáner de Tailwind lee este archivo como texto. */
 const KINDS: Record<PetKind, { label: string; chip: string }> = {
-  dog: { label: "Perro", chip: "bg-amber-100 text-amber-800" },
-  cat: { label: "Gato", chip: "bg-violet-100 text-violet-800" },
-  other: { label: "Otra", chip: "bg-slate-100 text-slate-700" },
+  dog: { label: "Perro", chip: "border-amber-800 bg-amber-100 text-amber-800" },
+  cat: {
+    label: "Gato",
+    chip: "border-violet-800 bg-violet-100 text-violet-800",
+  },
+  other: {
+    label: "Otra",
+    chip: "border-slate-700 bg-slate-100 text-slate-700",
+  },
 };
 
 const SEXES: Record<PetSex, { label: string; chip: string }> = {
-  male: { label: "Macho", chip: "bg-sky-100 text-sky-800" },
-  female: { label: "Hembra", chip: "bg-pink-100 text-pink-800" },
+  male: { label: "Macho", chip: "border-sky-800 bg-sky-100 text-sky-800" },
+  female: {
+    label: "Hembra",
+    chip: "border-pink-800 bg-pink-100 text-pink-800",
+  },
 };
 
 /** Esta página se lee en un celular y a un brazo de distancia: los chips van en
  *  el tamaño del cuerpo del texto, no en el de una nota al pie. */
-const CHIP = "rounded-full px-2.5 py-0.5 text-sm font-medium";
+const CHIP = "rounded-full border px-2.5 py-0.5 text-sm font-medium";
 
 function kindOf(pet: Pet) {
   return KINDS[pet.kind] ?? KINDS.other;
@@ -75,7 +84,11 @@ function buildChips(pet: Pet): HTMLSpanElement[] {
  * bajarse la foto entera, que sale de WhatsApp en 1200×1600. Los bytes grandes
  * los paga quien toca.
  */
-function buildPhoto(pet: Pet, url: string, className: string): HTMLImageElement {
+function buildPhoto(
+  pet: Pet,
+  url: string,
+  className: string,
+): HTMLImageElement {
   const photo = document.createElement("img");
   photo.src = url;
   const sex = sexOf(pet);
@@ -163,9 +176,9 @@ export function initPetsGrid(): void {
 
         const footer = document.createElement("div");
         footer.className =
-          "flex flex-wrap items-center justify-between gap-3 p-3";
+          "flex flex-col items-start justify-between gap-4 p-3";
         const when = document.createElement("span");
-        when.className = "text-sm text-slate-400";
+        when.className = "text-xs text-slate-400";
         paintTime(when, pet.createdAt);
         // Los chips van juntos en su propia caja: con `justify-between` sobre
         // tres hijos el sexo se iría al centro, lejos de la clase de animal.

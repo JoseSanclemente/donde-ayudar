@@ -32,7 +32,7 @@ export const STATUSES: StatusInfo[] = [
   {
     id: "activo",
     label: "Activo",
-    chip: "bg-slate-100 text-slate-700",
+    chip: "border-slate-700 bg-slate-100 text-slate-700",
     chipOn: "border-slate-600 bg-slate-600 text-white",
     card: "border-slate-200 bg-white",
     bloqueado: false,
@@ -40,7 +40,7 @@ export const STATUSES: StatusInfo[] = [
   {
     id: "urgente",
     label: "Urgente",
-    chip: "bg-red-50 text-red-700",
+    chip: "border-red-700 bg-red-50 text-red-700",
     chipOn: "border-red-600 bg-red-600 text-white",
     card: "border-red-200 bg-red-50",
     bloqueado: false,
@@ -48,7 +48,7 @@ export const STATUSES: StatusInfo[] = [
   {
     id: "saturado",
     label: "Saturado",
-    chip: "bg-amber-50 text-amber-800",
+    chip: "border-amber-800 bg-amber-50 text-amber-800",
     chipOn: "border-amber-600 bg-amber-600 text-white",
     card: "border-amber-200 bg-amber-50",
     bloqueado: true,
@@ -56,7 +56,7 @@ export const STATUSES: StatusInfo[] = [
   {
     id: "cerrado",
     label: "Cerrado",
-    chip: "bg-slate-200 text-slate-600",
+    chip: "border-slate-600 bg-slate-200 text-slate-600",
     chipOn: "border-slate-700 bg-slate-700 text-white",
     card: "border-slate-300 bg-slate-100",
     bloqueado: true,

@@ -33,7 +33,7 @@ export const CATEGORIES: ResourceCategory[] = [
     label: "Protección personal",
     emoji: "🧤",
     items: ["Guantes de construcción", "Gafas", "Tapabocas N95", "Cascos"],
-    chip: "bg-amber-50 text-amber-800",
+    chip: "border-amber-800 bg-amber-50 text-amber-800",
     chipOn: "border-amber-500 bg-amber-500 text-white",
   },
   {
@@ -54,7 +54,7 @@ export const CATEGORIES: ResourceCategory[] = [
       "Porras",
       "Seguetas",
     ],
-    chip: "bg-orange-50 text-orange-800",
+    chip: "border-orange-800 bg-orange-50 text-orange-800",
     chipOn: "border-orange-600 bg-orange-600 text-white",
   },
   {
@@ -78,7 +78,7 @@ export const CATEGORIES: ResourceCategory[] = [
       "Pilas AA",
       "Plantas eléctricas",
     ],
-    chip: "bg-cyan-50 text-cyan-800",
+    chip: "border-cyan-800 bg-cyan-50 text-cyan-800",
     chipOn: "border-cyan-600 bg-cyan-600 text-white",
   },
   {
@@ -92,7 +92,7 @@ export const CATEGORIES: ResourceCategory[] = [
       "Suplementos nutricionales (Ensure)",
       "Toallitas húmedas",
     ],
-    chip: "bg-pink-50 text-pink-800",
+    chip: "border-pink-800 bg-pink-50 text-pink-800",
     chipOn: "border-pink-500 bg-pink-500 text-white",
   },
   {
@@ -110,7 +110,7 @@ export const CATEGORIES: ResourceCategory[] = [
       "Granos",
       "Jugos",
     ],
-    chip: "bg-emerald-50 text-emerald-800",
+    chip: "border-emerald-800 bg-emerald-50 text-emerald-800",
     chipOn: "border-emerald-600 bg-emerald-600 text-white",
   },
   {
@@ -127,7 +127,7 @@ export const CATEGORIES: ResourceCategory[] = [
       "Micropore",
       "Tijeras",
     ],
-    chip: "bg-sky-50 text-sky-800",
+    chip: "border-sky-800 bg-sky-50 text-sky-800",
     chipOn: "border-sky-600 bg-sky-600 text-white",
   },
   {
@@ -151,7 +151,7 @@ export const CATEGORIES: ResourceCategory[] = [
       "Piroxicam",
       "Solución salina",
     ],
-    chip: "bg-teal-50 text-teal-800",
+    chip: "border-teal-800 bg-teal-50 text-teal-800",
     chipOn: "border-teal-600 bg-teal-600 text-white",
   },
   {
@@ -165,7 +165,7 @@ export const CATEGORIES: ResourceCategory[] = [
       "Papel higiénico",
       "Shampoo",
     ],
-    chip: "bg-blue-50 text-blue-800",
+    chip: "border-blue-800 bg-blue-50 text-blue-800",
     chipOn: "border-blue-600 bg-blue-600 text-white",
   },
   {
@@ -188,7 +188,7 @@ export const CATEGORIES: ResourceCategory[] = [
       "Tapones heparinizados",
       "Tazobactam",
     ],
-    chip: "bg-fuchsia-50 text-fuchsia-800",
+    chip: "border-fuchsia-800 bg-fuchsia-50 text-fuchsia-800",
     chipOn: "border-fuchsia-600 bg-fuchsia-600 text-white",
   },
   {
@@ -205,7 +205,7 @@ export const CATEGORIES: ResourceCategory[] = [
       "Transporte de insumos",
     ],
     itemsEnPunto: ["Transporte de insumos", "Ayuda para organizar donaciones"],
-    chip: "bg-violet-50 text-violet-800",
+    chip: "border-violet-800 bg-violet-50 text-violet-800",
     chipOn: "border-violet-600 bg-violet-600 text-white",
   },
 ];
@@ -269,11 +269,12 @@ export function assertUniqueItems(): void {
 if (import.meta.env.DEV) assertUniqueItems();
 
 /** Recursos escritos a mano y reportes viejos con recursos fuera del catálogo. */
-export const OTHER_CHIP = "bg-slate-100 text-slate-700";
+export const OTHER_CHIP = "border-slate-700 bg-slate-100 text-slate-700";
 const OTHER_CHIP_ON = "border-slate-600 bg-slate-600 text-white";
 
 /** Recurso que la zona ya no necesita: se ve, pero apagado. */
-export const COVERED_CHIP = "bg-slate-100 text-slate-400 line-through";
+export const COVERED_CHIP =
+  "border-slate-400 bg-slate-100 text-slate-400 line-through";
 
 /**
  * Ni los bancos de sangre ni los albergues son categorías del catálogo — no son
@@ -282,7 +283,7 @@ export const COVERED_CHIP = "bg-slate-100 text-slate-400 line-through";
  * necesita entonces su propio par de clases.
  */
 export const SANGRE_FILTER = "sangre";
-export const SANGRE_CHIP = "bg-rose-50 text-rose-800";
+export const SANGRE_CHIP = "border-rose-800 bg-rose-50 text-rose-800";
 const SANGRE_CHIP_ON = "border-rose-600 bg-rose-600 text-white";
 
 export const ALBERGUE_FILTER = "albergue";

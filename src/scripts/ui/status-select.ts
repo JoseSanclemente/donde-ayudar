@@ -28,7 +28,7 @@ export function statusSelectHtml(
   // cierre hay que devolver el `<select>` a donde estaba, y el DOM ya perdió el
   // valor anterior para cuando llega el `change`.
   return `<span
-      class="inline-flex items-center gap-1 rounded-full px-3 py-2 text-sm font-semibold ${statusInfo(status).chip}"
+      class="inline-flex items-center gap-1 rounded-full border px-3 py-2 text-sm font-semibold ${statusInfo(status).chip}"
       title="Cómo está el punto ahora mismo"
     ><select
         data-status-select
