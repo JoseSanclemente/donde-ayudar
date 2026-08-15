@@ -161,6 +161,17 @@ const HEART_ICON = {
               <VolunteerPanel panel={panel} />
             </div>
           ))}
+
+          <!-- Sin `data-tab-panel`: no es una pestaña. Por eso mismo se esconde en
+               móvil, donde ese atributo es lo que decide qué se ve y esto saldría
+               debajo de todas; en escritorio el sheet es `display: contents` y cae
+               al final de la barra lateral, que es donde va un pie. En móvil el
+               enlace vive en `/mascotas`. -->
+          <footer class="hidden pt-1 text-xs text-slate-400 lg:block">
+            <a href="/privacidad" class="transition hover:text-slate-600">
+              Privacidad
+            </a>
+          </footer>
         </div>
       </div>
     </div>

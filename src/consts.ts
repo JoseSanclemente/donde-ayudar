@@ -25,6 +25,14 @@ export const PETS_TITLE = "¿Dónde está mi mascota? — Mascotas encontradas";
 export const PETS_DESCRIPTION =
   "Fotos de mascotas encontradas en la calle después del sismo, con el teléfono de quien las tiene.";
 
+/** La página de privacidad, exigida por Meta para publicar la app de WhatsApp. */
+export const PRIVACY_NAME = "Privacidad";
+
+export const PRIVACY_TITLE = "Privacidad — ¿Dónde puedo ayudar?";
+
+export const PRIVACY_DESCRIPTION =
+  "Qué se publica en este sitio, quién lo ve y cómo borrarlo.";
+
 export const SITE_DESCRIPTION =
   "Mapa colaborativo de edificios afectados por el sismo en Colombia, los recursos que necesitan y los puntos donde donar.";
 

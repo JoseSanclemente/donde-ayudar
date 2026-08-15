@@ -68,7 +68,7 @@ const INTAKE_TTL_HOURS = 24;
 
 const HELP =
   "Manda la foto de la mascota que encontraste y te pregunto qué animal es. " +
-  "Sale publicada en dondeayudarcali.com/mascotas.";
+  "Sale publicada en donde-ayudar.netlify.app/mascotas.";
 
 /* ------------------------------------------------------------------ */
 /* The webhook                                                         */
@@ -218,7 +218,7 @@ async function askKind(
       body: {
         text:
           "¡Gracias! ¿Qué animal es? Al responder, la foto y este número quedan " +
-          "publicados en dondeayudarcali.com/mascotas para que quien la perdió " +
+          "publicados en donde-ayudar.netlify.app/mascotas para que quien la perdió " +
           "te escriba.",
       },
       action: {
@@ -315,7 +315,7 @@ async function publish(message: Message, button: string): Promise<void> {
   await admin.from(INTAKES).delete().eq("id", intake.id);
   await sendText(
     message.from,
-    `Listo, ya está publicada en dondeayudarcali.com/mascotas. ` +
+    `Listo, ya está publicada en donde-ayudar.netlify.app/mascotas. ` +
       `Quien la perdió te escribirá a este número.`,
   );
 }
