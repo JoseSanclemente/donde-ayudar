@@ -216,8 +216,9 @@ objeto se borra si el insert falla, igual que en los otros dos escritores.
 
 ## Los puntos de donación
 
-`centers` es la cuarta tabla: acopios, albergues, bancos de sangre y puntos de
-atención de heridos. Dos orígenes conviven ahí, y la columna `origin` los separa.
+`centers` es la cuarta tabla: acopios, albergues, bancos de sangre, puntos de
+atención de heridos y municipios que piden ayuda. Dos orígenes conviven ahí, y la
+columna `origin` los separa.
 
 - **`curado`** — lo escribe un mantenedor con SQL, que corre como `service_role`
   y se salta RLS. `user_id` va nulo.
@@ -228,7 +229,7 @@ atención de heridos. Dos orígenes conviven ahí, y la columna `origin` los sep
 
 La policy de `insert` es la superficie de escritura entera, y es estrecha a
 propósito: `origin = 'comunidad'`, `type = 'acopio'`, `is_active`, y `user_id =
-auth.uid()`. Los otros tres tipos no se pueden crear desde el navegador: se
+auth.uid()`. Los otros cuatro tipos no se pueden crear desde el navegador: se
 insertan a mano hasta que exista un panel de administración.
 
 ```sql
@@ -246,12 +247,12 @@ policy de UPDATE**: ni el autor edita su punto después de publicarlo.
 | Campo | Qué cuidar |
 | --- | --- |
 | `id` | Llave primaria. Slug kebab-case en los curados; uuid en los comunitarios, que pasa el mismo patrón |
-| `type` | `acopio`, `albergue`, `sangre` o `healthcare` |
+| `type` | `acopio`, `albergue`, `sangre`, `healthcare` o `municipio` |
 | `origin` | `curado` o `comunidad`. Con `curado`, `user_id` tiene que ir nulo; con `comunidad`, obligatorio (`centers_origin_author`) |
 | `donations` | Nombres de insumo del catálogo de `src/scripts/resources.ts`, los mismos de `reports.resources`. Opcional en los cuatro tipos, hasta 80 |
 | `accepting_donations` | `false` = sigue abierto pero no recibe. Solo escribe una línea en el popup; el color del pin no cambia |
 | `is_active` | `false` = el pin se pinta gris. El punto sigue en el mapa: quien lo vio ayer necesita saber por qué no ir. Retirarlo de verdad es borrar la fila |
-| `updated_at` | También el reloj de vencimiento. Solo cuenta en los acopios comunitarios: a las 24 horas se pintan grises hasta que alguien toque «Sigue abierto» |
+| `updated_at` | También el reloj de vencimiento, y se lee de dos maneras. En un acopio comunitario: a las 24 horas se pinta gris hasta que alguien toque «Sigue abierto». En un `municipio`: a los 30 días se cae del mapa (ver más abajo) |
 | `contact_whatsapp` / `contact_instagram` | Opcionales. El usuario de Instagram va sin `@` |
 | `lat` / `lng` | Dentro del bounding box de Colombia, igual que un reporte |
 
@@ -301,6 +302,150 @@ migración. El precio es que un nombre mal escrito a mano sale gris, bajo
 Las filas viejas guardadas por categoría siguen funcionando: `data/centers.ts`
 expande al leer cualquier id del catálogo que encuentre, así que escribir
 `salud` publica lo mismo de siempre.
+
+### Los municipios que piden ayuda
+
+`type = 'municipio'` es el único punto que no es una puerta. No es un lugar al
+que alguien camina: es un pueblo entero que quedó necesitando algo, leído de la
+prensa y publicado por un mantenedor. La coordenada es la cabecera, no una
+dirección, y por eso el pin es más grande y más redondo que el del acopio —
+prometer la precisión de una esquina sería mentir sobre lo que la fila sostiene.
+`hours` va vacío: un municipio no tiene horario. El popup no dice «Recibe» sino
+«Necesita»: los chips son de lo que le hace falta, no de lo que reparte.
+
+Solo se escribe con SQL. La policy de `insert` ya fija `type = 'acopio'`, así que
+el navegador no puede crear uno, y `confirm_center` ya exige un acopio
+comunitario, así que ningún visitante puede alargarle la vida a un municipio. Eso
+último es el punto entero: lo que envejece acá es la noticia de la que salió la
+fila, y quien camina por el frente no puede contestar por un pueblo.
+
+**Un municipio dura 30 días y después se cae del mapa.** No se pone gris —eso
+hace un acopio vencido— porque el cuadrito gris dice «este lugar existe, no
+vayas todavía», y acá lo que envejeció es la afirmación misma: que este municipio
+sigue necesitando lo que necesitaba hace un mes. El umbral es `MUNICIPIO_DAYS` en
+`src/scripts/centers.ts` y se calcula en el navegador, igual que el de los
+acopios: no hay `pg_cron` ni trabajo agendado.
+
+**La barrida, cada 30 días.** Es la única tarea recurrente del proyecto. Primero,
+qué está por caerse:
+
+```sql
+select id, name, updated_at, now() - updated_at as edad
+  from public.centers
+ where type = 'municipio'
+ order by updated_at;
+```
+
+Después se vuelve a buscar en la prensa y, municipio por municipio, se decide:
+
+```sql
+-- Sigue necesitando: otros 30 días.
+update public.centers set updated_at = now() where id = 'municipio-el-cairo';
+
+-- Ya no: se retira del todo.
+delete from public.centers where id = 'municipio-vijes';
+```
+
+Acá el trigger `centers_touch_updated_at` juega a favor y no en contra: tocar la
+fila para corregir una tilde también le da 30 días más, y que un mantenedor la
+toque es evidencia de que volvió a mirar la noticia. Es lo contrario de lo que
+pasa con un acopio, donde el mismo trigger reinicia un reloj que nadie quería
+mover.
+
+**La tanda del terremoto del 10 de agosto de 2026.** Coordenadas tomadas de los
+nodos `place` de OSM (la cabecera, no el centroide del municipio), y `donations`
+con nombres exactos del catálogo de `src/scripts/resources.ts`. `notes` lleva la
+cifra y la fuente: los puntos curados pasan por `linkifyHtml`, así que la URL
+queda cliqueable en el popup.
+
+```sql
+insert into public.centers (id, type, name, address, lat, lng, donations, notes)
+values
+  ('municipio-el-cairo', 'municipio', 'El Cairo',
+   'Cabecera municipal, El Cairo, Valle del Cauca', 4.7622, -76.2208,
+   array['Agua','Enlatados','Arroz','Aceite','Colchonetas','Cobijas','Carpas','Jabón de cuerpo','Papel higiénico','Pañales','Baños portátiles','Plantas eléctricas','Linternas'],
+   'Se perdió cerca del 80% del casco urbano. Fuente: El País — https://www.elpais.com.co/valle/el-aguila-el-cairo-buenaventura-y-roldanillo-entre-los-mas-afectados-asi-puede-ayudar-1233.html'),
+
+  ('municipio-el-aguila', 'municipio', 'El Águila',
+   'Cabecera municipal, El Águila, Valle del Cauca', 4.9078, -76.0422,
+   array['Agua','Enlatados','Arroz','Aceite','Colchonetas','Cobijas','Carpas','Jabón de cuerpo','Papel higiénico','Pañales','Crema dental','Cepillo de dientes'],
+   'Cerca del 70% de la infraestructura municipal con afectaciones graves. Fuente: El País — https://www.elpais.com.co/valle/el-aguila-el-cairo-buenaventura-y-roldanillo-entre-los-mas-afectados-asi-puede-ayudar-1233.html'),
+
+  ('municipio-roldanillo', 'municipio', 'Roldanillo',
+   'Cabecera municipal, Roldanillo, Valle del Cauca', 4.4091, -76.1544,
+   array['Agua','Enlatados','Arroz','Aceite','Colchonetas','Cobijas','Carpas','Jabón de cuerpo','Papel higiénico','Pañales','Gasas','Solución salina','Acetaminofén','Baños portátiles'],
+   'Cerca de 1.200 viviendas afectadas, unas 500 destruidas; el hospital principal quedó con el 60% de su estructura comprometida. Fuente: El Colombiano — https://www.elcolombiano.com/inicio/afectaciones-terremoto-roldanillo-valle-del-cauca-danos-DF39870021'),
+
+  ('municipio-versalles', 'municipio', 'Versalles',
+   'Cabecera municipal, Versalles, Valle del Cauca', 4.5748, -76.1997,
+   array['Agua','Enlatados','Arroz','Aceite','Colchonetas','Cobijas','Carpas','Jabón de cuerpo','Papel higiénico','Pañales','Linternas','Pilas AA','Leche en polvo'],
+   'El puente entre Versalles y La Unión quedó destruido y complicó la movilidad en el norte del Valle. Fuente: La FM — https://www.lafm.com.co/actualidad/terremoto-colombia-estos-son-los-municipios-mas-afectados-en-el-valle-del-cauca-407751'),
+
+  ('municipio-la-victoria', 'municipio', 'La Victoria',
+   'Cabecera municipal, La Victoria, Valle del Cauca', 4.5233, -76.0358,
+   array['Agua','Enlatados','Arroz','Aceite','Colchonetas','Cobijas','Carpas','Jabón de cuerpo','Papel higiénico','Pañales'],
+   'Más de 600 viviendas con algún tipo de afectación. Fuente: El País — https://www.elpais.com.co/valle/el-aguila-el-cairo-buenaventura-y-roldanillo-entre-los-mas-afectados-asi-puede-ayudar-1233.html'),
+
+  ('municipio-buenaventura', 'municipio', 'Buenaventura',
+   'Cabecera municipal, Buenaventura, Valle del Cauca', 3.8882, -77.0738,
+   array['Agua','Enlatados','Arroz','Aceite','Colchonetas','Cobijas','Carpas','Jabón de cuerpo','Papel higiénico','Pañales'],
+   'Entre los municipios con especial afectación por el terremoto. Fuente: El País — https://www.elpais.com.co/valle/el-aguila-el-cairo-buenaventura-y-roldanillo-entre-los-mas-afectados-asi-puede-ayudar-1233.html'),
+
+  ('municipio-argelia', 'municipio', 'Argelia',
+   'Cabecera municipal, Argelia, Valle del Cauca', 4.7266, -76.1215,
+   array['Agua','Enlatados','Arroz','Aceite','Colchonetas','Cobijas','Carpas','Jabón de cuerpo','Papel higiénico','Pañales'],
+   'Alta afectación por el terremoto del 10 de agosto; tiene padrino en el Plan Padrino entre Alcaldes. Fuente: El País — https://www.elpais.com.co/valle/seis-municipios-del-valle-del-cauca-tendran-padrinos-de-otras-regiones-del-pais-tras-el-terremoto-fedemunicipios-1422.html'),
+
+  ('municipio-calima-darien', 'municipio', 'Calima (El Darién)',
+   'Cabecera municipal, Calima, Valle del Cauca', 3.9318, -76.4842,
+   array['Agua','Enlatados','Arroz','Aceite','Colchonetas','Cobijas','Carpas','Jabón de cuerpo','Papel higiénico','Pañales'],
+   'Alta afectación por el terremoto del 10 de agosto; tiene padrino en el Plan Padrino entre Alcaldes. Fuente: El País — https://www.elpais.com.co/valle/seis-municipios-del-valle-del-cauca-tendran-padrinos-de-otras-regiones-del-pais-tras-el-terremoto-fedemunicipios-1422.html'),
+
+  ('municipio-vijes', 'municipio', 'Vijes',
+   'Cabecera municipal, Vijes, Valle del Cauca', 3.7004, -76.4429,
+   array['Agua','Enlatados','Arroz','Aceite','Colchonetas','Cobijas','Carpas','Jabón de cuerpo','Papel higiénico','Pañales'],
+   'Alta afectación por el terremoto del 10 de agosto; tiene padrino en el Plan Padrino entre Alcaldes. Fuente: El País — https://www.elpais.com.co/valle/seis-municipios-del-valle-del-cauca-tendran-padrinos-de-otras-regiones-del-pais-tras-el-terremoto-fedemunicipios-1422.html'),
+
+  ('municipio-san-pedro', 'municipio', 'San Pedro',
+   'Cabecera municipal, San Pedro, Valle del Cauca', 3.9956, -76.2280,
+   array['Agua','Enlatados','Arroz','Aceite','Colchonetas','Cobijas','Carpas','Jabón de cuerpo','Papel higiénico','Pañales'],
+   'Alta afectación por el terremoto del 10 de agosto; tiene padrino en el Plan Padrino entre Alcaldes. Fuente: El País — https://www.elpais.com.co/valle/seis-municipios-del-valle-del-cauca-tendran-padrinos-de-otras-regiones-del-pais-tras-el-terremoto-fedemunicipios-1422.html'),
+
+  ('municipio-zarzal', 'municipio', 'Zarzal',
+   'Cabecera municipal, Zarzal, Valle del Cauca', 4.3939, -76.0706,
+   array['Agua','Enlatados','Arroz','Aceite','Colchonetas','Cobijas','Carpas','Jabón de cuerpo','Papel higiénico','Pañales'],
+   'Nombrado entre los municipios más afectados por el terremoto del 10 de agosto. Fuente: La FM — https://www.lafm.com.co/actualidad/terremoto-colombia-estos-son-los-municipios-mas-afectados-en-el-valle-del-cauca-407751'),
+
+  ('municipio-sevilla', 'municipio', 'Sevilla',
+   'Cabecera municipal, Sevilla, Valle del Cauca', 4.2645, -75.9344,
+   array['Agua','Enlatados','Arroz','Aceite','Colchonetas','Cobijas','Carpas','Jabón de cuerpo','Papel higiénico','Pañales'],
+   'Nombrado entre los municipios más afectados por el terremoto del 10 de agosto. Fuente: La FM — https://www.lafm.com.co/actualidad/terremoto-colombia-estos-son-los-municipios-mas-afectados-en-el-valle-del-cauca-407751'),
+
+  ('municipio-ulloa', 'municipio', 'Ulloa',
+   'Cabecera municipal, Ulloa, Valle del Cauca', 4.7037, -75.7379,
+   array['Agua','Enlatados','Arroz','Aceite','Colchonetas','Cobijas','Carpas','Jabón de cuerpo','Papel higiénico','Pañales'],
+   'Nombrado entre los municipios más afectados por el terremoto del 10 de agosto. Fuente: La FM — https://www.lafm.com.co/actualidad/terremoto-colombia-estos-son-los-municipios-mas-afectados-en-el-valle-del-cauca-407751'),
+
+  ('municipio-la-union', 'municipio', 'La Unión',
+   'Cabecera municipal, La Unión, Valle del Cauca', 4.5319, -76.1032,
+   array['Agua','Enlatados','Arroz','Aceite','Colchonetas','Cobijas','Carpas','Jabón de cuerpo','Papel higiénico','Pañales'],
+   'Nombrado entre los municipios más afectados por el terremoto del 10 de agosto. Fuente: La FM — https://www.lafm.com.co/actualidad/terremoto-colombia-estos-son-los-municipios-mas-afectados-en-el-valle-del-cauca-407751'),
+
+  ('municipio-yotoco', 'municipio', 'Yotoco',
+   'Cabecera municipal, Yotoco, Valle del Cauca', 3.8611, -76.3852,
+   array['Agua','Enlatados','Arroz','Aceite','Colchonetas','Cobijas','Carpas','Jabón de cuerpo','Papel higiénico','Pañales'],
+   'Nombrado entre los municipios más afectados por el terremoto del 10 de agosto. Fuente: La FM — https://www.lafm.com.co/actualidad/terremoto-colombia-estos-son-los-municipios-mas-afectados-en-el-valle-del-cauca-407751'),
+
+  ('municipio-la-cumbre', 'municipio', 'La Cumbre',
+   'Cabecera municipal, La Cumbre, Valle del Cauca', 3.6506, -76.5699,
+   array['Agua','Enlatados','Arroz','Aceite','Colchonetas','Cobijas','Carpas','Jabón de cuerpo','Papel higiénico','Pañales'],
+   'Nombrado entre los municipios más afectados por el terremoto del 10 de agosto. Fuente: La FM — https://www.lafm.com.co/actualidad/terremoto-colombia-estos-son-los-municipios-mas-afectados-en-el-valle-del-cauca-407751'),
+
+  ('municipio-riofrio', 'municipio', 'Riofrío',
+   'Cabecera municipal, Riofrío, Valle del Cauca', 4.1558, -76.2876,
+   array['Agua','Enlatados','Arroz','Aceite','Colchonetas','Cobijas','Carpas','Jabón de cuerpo','Papel higiénico','Pañales'],
+   'Nombrado entre los municipios más afectados por el terremoto del 10 de agosto. Fuente: La FM — https://www.lafm.com.co/actualidad/terremoto-colombia-estos-son-los-municipios-mas-afectados-en-el-valle-del-cauca-407751');
+```
 
 Cualquier cambio sale al aire de inmediato, sin deploy: la tabla va en el canal
 de realtime y el mapa de quien ya está mirando se repinta solo.

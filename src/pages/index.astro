@@ -285,6 +285,36 @@ const HEART_ICON = {
       </svg>
     </button>
 
+    <!-- El otro lado de la pregunta que contesta el botón de arriba: no dónde
+         estoy yo, sino dónde está todo. El mapa abre encima de quien lo mira, y
+         un municipio del norte queda a doscientos kilómetros de ahí — sin esto
+         no existe hasta que alguien arrastre. Tampoco lleva posición:
+         `features/valle-view.ts` lo monta debajo de «Centrar en mí», en la misma
+         esquina, y el orden lo decide en qué orden se montan.
+
+         Las cuatro esquinas son la figura de «encuadrar todo» en cualquier mapa,
+         y no se parecen ni a la mira de arriba ni al +/- de Leaflet encima: los
+         tres botones de la pila se leen aparte de un vistazo. -->
+    <button
+      type="button"
+      id="see-valle"
+      aria-label="Alejar el mapa para ver todo el Valle del Cauca"
+      class="inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-4 text-slate-700 shadow-lg transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300"
+    >
+      <svg
+        viewBox="0 0 20 20"
+        aria-hidden="true"
+        class="h-4 w-4"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M3 7V3h4M13 3h4v4M17 13v4h-4M7 17H3v-4"></path>
+      </svg>
+    </button>
+
     <!-- Las mascotas encontradas no están en el mapa: no tienen dirección. La
          única puerta a esa página es este botón, y va de último en el marcado
          porque es el escalón de más arriba de la pila y las reglas que la bajan

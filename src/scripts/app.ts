@@ -18,6 +18,7 @@ import { initShare } from "./features/share";
 import { initSyncBadge } from "./features/sync-badge";
 import { initUpdatesFeed } from "./features/updates-feed";
 import { initUserLocation } from "./features/user-location";
+import { initValleView } from "./features/valle-view";
 import { loadAddresses } from "./geo-index";
 import { initMap } from "./map";
 import { initSheet } from "./sheet";
@@ -27,6 +28,9 @@ import { showToast } from "./ui/toast";
 initMap("map");
 // Justo detrás del mapa: el permiso se pide cuanto antes y nadie lo espera.
 initUserLocation();
+// Después de «Centrar en mí» y por eso: los dos se montan en la misma esquina
+// con `mountControl`, que agrega al final, así que este orden es el de la pila.
+initValleView();
 initSheet();
 initMarkerSheet();
 initMarkerActions();

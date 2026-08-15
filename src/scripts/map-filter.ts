@@ -79,6 +79,14 @@ export const MARKER_KINDS: KindInfo[] = [
     pin: "filter-pin-healthcare",
     chipOn: "border-blue-300 bg-blue-50 text-blue-800",
   },
+  // El chip va más oscuro que el de «Reportes», que es el otro rojo: ahí las dos
+  // figuras miden lo mismo y el color del chip es lo que las separa.
+  {
+    id: "municipio",
+    label: "Municipios que piden ayuda",
+    pin: "filter-pin-municipio",
+    chipOn: "border-red-800 bg-red-100 text-red-900",
+  },
 ];
 
 export const CENTER_KINDS = MARKER_KINDS.map(({ id }) => id).filter(

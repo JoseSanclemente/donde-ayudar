@@ -19,9 +19,10 @@ function paint(list: Center[]): void {
 }
 
 /**
- * How often it repaints without the store having changed. A community point
- * expires by clock and not by event: without this, the tab left open last night
- * still shows as open, at nine in the morning, a point that expired at three.
+ * How often it repaints without the store having changed. Two things age by
+ * clock and not by event: a community point expires, and a `municipio` lapses
+ * after its month. Without this, the tab left open last night still shows as
+ * open, at nine in the morning, a point that expired at three.
  */
 const REPAINT_MS = 5 * 60_000;
 

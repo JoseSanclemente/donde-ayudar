@@ -1,13 +1,19 @@
 /**
- * Centers — collection points, shelters, blood banks and healthcare points.
- * Never editable from the interface, whoever published them.
+ * Centers — collection points, shelters, blood banks, healthcare points and
+ * municipalities asking for help. Never editable from the interface, whoever
+ * published them.
  *
  * This module is only the shape of one. They live in the `centers` table;
  * reading them is `data/centers.ts`, and drawing them is `map.ts`.
  */
 import { hoursSince } from "./ui/time";
 
-export type CenterType = "acopio" | "albergue" | "sangre" | "healthcare";
+export type CenterType =
+  | "acopio"
+  | "albergue"
+  | "sangre"
+  | "healthcare"
+  | "municipio";
 
 export type Origin = "curado" | "comunidad";
 
@@ -62,5 +68,29 @@ export const EXPIRY_HOURS = 24;
 export function isExpired(center: Center): boolean {
   return (
     center.type === "acopio" && isCommunity(center) && hoursSince(center.updatedAt) >= EXPIRY_HOURS
+  );
+}
+
+/**
+ * How long a `municipio` stays on the map. It is not `EXPIRY_HOURS` because it
+ * does not measure the same thing: a collection point expires because nobody
+ * closed it and anyone walking past can reopen it, while a municipality expires
+ * because the reporting it was read out of gets old, and nobody walks past a
+ * municipality. Only a maintainer redoing the news sweep can answer for it.
+ */
+export const MUNICIPIO_DAYS = 30;
+
+/**
+ * The month is up and nobody re-ran the sweep, so the point comes off the map.
+ *
+ * It disappears instead of going grey, which is what an expired collection
+ * point does. A grey square says «this place exists, do not walk over there
+ * yet», and that is true of a warehouse; here what aged is the claim itself —
+ * that this municipality still needs what it needed a month ago — and a map
+ * that cannot back a claim should stop making it.
+ */
+export function isLapsed(center: Center): boolean {
+  return (
+    center.type === "municipio" && hoursSince(center.updatedAt) >= MUNICIPIO_DAYS * 24
   );
 }

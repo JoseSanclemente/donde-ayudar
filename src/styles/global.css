@@ -280,6 +280,58 @@ button:not(:disabled) {
   right: 3px;
 }
 
+/* ---- Municipality asking for help: a heavy dark red square ----
+   The same figure as the collection point, six pixels wider and rounder: this
+   coordinate is a cabecera, not a door, and the halo spreading past the border
+   is the only thing on the map that says "around here" about a pin.
+
+   It joins the red family instead of taking a colour of its own, and it is the
+   gravest member of it. The reports are the light red that beats; a municipality
+   is the dark red that sits still — a whole town, not one address. Three reds do
+   live on this map now, and none of them is told apart by hue: the report is a
+   14px circle that pulses, the blood bank an 18px drop, and this a 22px square
+   with a halo no other pin has. */
+
+.municipio-marker .municipio-pin {
+  display: block;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  border: 2px solid #ffffff;
+  background: #991b1b;
+  box-shadow:
+    0 1px 4px rgba(15, 23, 42, 0.45),
+    0 0 0 5px rgba(185, 28, 28, 0.3);
+}
+
+/* Paused: only a maintainer setting `is_active = false` gets here — a
+   municipality never expires, it lapses and comes off the map. Grey with the two
+   bars, the same as every other type. */
+.municipio-marker .municipio-pin[data-paused] {
+  position: relative;
+  background: #64748b;
+  box-shadow: 0 1px 4px rgba(15, 23, 42, 0.45);
+}
+
+.municipio-marker .municipio-pin[data-paused]::before,
+.municipio-marker .municipio-pin[data-paused]::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  width: 3px;
+  height: 8px;
+  background: #ffffff;
+  border-radius: 1px;
+}
+
+.municipio-marker .municipio-pin[data-paused]::before {
+  left: 4px;
+}
+
+.municipio-marker .municipio-pin[data-paused]::after {
+  right: 4px;
+}
+
 /* ---- Blood bank: a red drop ----
    The tip points up, so the icon anchors above its box in `map.ts` — rotating
    about the centre pushes the sharp corner past the edge. The rotation is what
@@ -424,6 +476,19 @@ button:not(:disabled) {
   border: 2px solid #ffffff;
   background: #4f46e5;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.4);
+}
+
+/* El cuadrado del municipio: más redondo que el del acopio y con el halo que
+   lleva en el mapa, encogido para no empujar la línea del chip. Es el rojo
+   oscuro, no el de los reportes: acá, donde las figuras van todas del mismo
+   tamaño, el halo es lo único que los separa. */
+.filter-pin-municipio {
+  border-radius: 5px;
+  border: 2px solid #ffffff;
+  background: #991b1b;
+  box-shadow:
+    0 1px 3px rgba(15, 23, 42, 0.4),
+    0 0 0 3px rgba(185, 28, 28, 0.3);
 }
 
 /* La gota del banco de sangre: la punta sale de la esquina sin redondear, y la

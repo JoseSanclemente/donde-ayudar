@@ -32,6 +32,26 @@ import { relativeTime } from "./ui/time";
 /** El respaldo: sin ubicación, el mapa abre donde empezó todo. */
 export const CALI_CENTER: [number, number] = [3.4516, -76.532];
 
+/**
+ * The department, corner to corner. It is the floor of «ver todo el Valle» and
+ * not its answer: what the button actually frames is what is drawn — the
+ * municipality pins and the damage zones — and this only takes over when none of
+ * that is on the map, so the button still moves and still shows the department
+ * it names. Southwest and northeast, wide enough to hold Buenaventura on the
+ * coast and Ulloa against the Quindío line.
+ */
+const VALLE_BOUNDS: [[number, number], [number, number]] = [
+  [3.0, -77.6],
+  [5.1, -75.65],
+];
+
+/**
+ * How close «ver todo el Valle» is allowed to get. Fitting two municipality pins
+ * that happen to be neighbours would otherwise fly the map down to a street, and
+ * the whole request was to pull back.
+ */
+const VALLE_MAX_ZOOM = 11;
+
 /** Zoom para la vista inicial sobre la persona: su ciudad entera, no su calle. */
 const USER_ZOOM = 14;
 
@@ -769,6 +789,37 @@ export function flyTo(
   });
 }
 
+/**
+ * Pulls back until the whole emergency fits in the frame.
+ *
+ * What it frames is what is drawn and not a fixed rectangle: the municipality
+ * pins and the damage zones, which are the two layers that answer «where is this
+ * bad». A fixed rectangle would keep showing the same department after the last
+ * municipality lapsed off the map, and the point of the button is to show what
+ * is there. `VALLE_BOUNDS` is the floor for exactly that case — nothing drawn,
+ * so it frames the department it promised.
+ *
+ * The circles go in whole (`getBounds()`) and not as their centres: a zone is
+ * its radius, and half of one hanging off the edge would be the button failing
+ * at its one job.
+ */
+export function flyToValle(): void {
+  claimView();
+  const bounds = L.latLngBounds([]);
+  for (const { data, marker } of centers.values())
+    if (data.type === "municipio") bounds.extend(marker.getLatLng());
+  for (const circle of zoneCircles) bounds.extend(circle.getBounds());
+
+  map.flyToBounds(bounds.isValid() ? bounds : L.latLngBounds(VALLE_BOUNDS), {
+    // The pins sit under the header on desktop and over the sheet's handle on
+    // mobile; without the padding the outermost municipality lands beneath one
+    // of the two.
+    padding: [48, 48],
+    maxZoom: VALLE_MAX_ZOOM,
+    duration: 1.2,
+  });
+}
+
 /* ---- Reports: their own layer, so the filter can empty it ---- */
 
 /**
@@ -953,12 +1004,36 @@ const healthcarePausedIcon = L.divIcon({
   popupAnchor: [0, -11],
 });
 
+// A wide dark red square, softer at the edges than the collection point's and
+// noticeably bigger. The size is the claim: every other pin is a door somebody
+// walks to, and this one is a town — the coordinate is its cabecera and not an
+// address, so a pin drawn at the same weight as an acopio would promise a
+// precision the row does not have. The colour is the urgency: it belongs to the
+// same red as the reports and sits a shade under it, which is the right reading
+// — one address in trouble is a report, a whole municipality is this.
+const municipioIcon = L.divIcon({
+  className: "municipio-marker",
+  html: '<span class="municipio-pin"></span>',
+  iconSize: [22, 22],
+  iconAnchor: [11, 11],
+  popupAnchor: [0, -13],
+});
+
+const municipioPausedIcon = L.divIcon({
+  className: "municipio-marker",
+  html: '<span class="municipio-pin" data-paused></span>',
+  iconSize: [22, 22],
+  iconAnchor: [11, 11],
+  popupAnchor: [0, -13],
+});
+
 /** Icon per type with its paused variant. */
 const ICON: Record<Center["type"], { normal: L.DivIcon; paused: L.DivIcon }> = {
   acopio: { normal: collectionIcon, paused: collectionPausedIcon },
   sangre: { normal: bloodIcon, paused: bloodPausedIcon },
   albergue: { normal: shelterIcon, paused: shelterPausedIcon },
   healthcare: { normal: healthcareIcon, paused: healthcarePausedIcon },
+  municipio: { normal: municipioIcon, paused: municipioPausedIcon },
 };
 
 /**
@@ -1016,7 +1091,21 @@ const KICKER: Record<
     color: "text-blue-700",
     accent: "#1d4ed8",
   },
+  municipio: {
+    label: "Municipio que pide ayuda",
+    color: "text-red-800",
+    accent: "#991b1b",
+  },
 };
+
+/**
+ * The title over the chips. Every other type lists what it takes in; a
+ * municipality lists what it is short of, and calling that «Recibe» would read
+ * as an invitation to drive supplies to a town square that may not have one.
+ */
+function chipsTitleFor(center: Center): string {
+  return center.type === "municipio" ? "Necesita" : "Recibe";
+}
 
 /**
  * What a point takes, a chip per supply and the category as a title — the same
@@ -1046,7 +1135,7 @@ function donationsHtml(center: Center, paused: boolean): string {
   // brings.
   return `
     <div class="space-y-2">
-      <p class="text-xs m-0 font-semibold uppercase tracking-wide text-slate-500">Recibe</p>
+      <p class="text-xs m-0 font-semibold uppercase tracking-wide text-slate-500">${escapeHtml(chipsTitleFor(center))}</p>
       ${blocks.join("")}
     </div>`;
 }
@@ -1173,7 +1262,7 @@ function centerPopupHtml(center: Center, mine: boolean): string {
     notes: [center.notes]
       .map((note) => (note ? stripUrls(note) : ""))
       .filter(Boolean),
-    chipsTitle: "Recibe",
+    chipsTitle: chipsTitleFor(center),
     chips: center.donations.map((item) => ({
       label: item,
       category: categoryIdOf(item) ?? null,

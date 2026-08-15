@@ -1,4 +1,4 @@
-import type { Center, CenterType, Origin } from "../centers";
+import { isLapsed, type Center, type CenterType, type Origin } from "../centers";
 import { categoryItemsEnPunto, isCategoryId } from "../resources";
 import { MISSING_ENV_MESSAGE, supabase } from "../supabase";
 import { createEmitter } from "./emitter";
@@ -7,12 +7,13 @@ import { bindTable, type RealtimePayload } from "./live";
 import { getUserId } from "./session";
 
 /**
- * Centers — collection points, shelters, blood banks and healthcare points.
+ * Centers — collection points, shelters, blood banks, healthcare points and
+ * municipalities asking for help.
  *
  * The narrowest write path of the four stores, and on purpose. There is no
  * update policy at all, so nothing here edits a point once it is published, and
  * the insert only accepts a collection point registered by the community
- * (`origin: "comunidad"`, `user_id` the current session). The other three types
+ * (`origin: "comunidad"`, `user_id` the current session). The other four types
  * are a maintainer's, written with SQL, which runs as `service_role` and
  * bypasses RLS.
  */
@@ -50,13 +51,29 @@ export type NewCollectionCenter = {
 
 const TABLE = "centers";
 
-const TYPES: CenterType[] = ["acopio", "albergue", "sangre", "healthcare"];
+const TYPES: CenterType[] = [
+  "acopio",
+  "albergue",
+  "sangre",
+  "healthcare",
+  "municipio",
+];
 
 let cache: Center[] = [];
 const changes = createEmitter<Center[]>();
 
+/**
+ * What leaves this module. The cache keeps every row it read, and a lapsed
+ * `municipio` is filtered here and not on load, because it lapses by clock: the
+ * tab open since last month has to stop drawing it without a new payload, and
+ * the repaint in `features/centers-layer.ts` asks again every five minutes.
+ */
+function visible(): Center[] {
+  return cache.filter((center) => !isLapsed(center));
+}
+
 function emit(): void {
-  changes.emit(cache);
+  changes.emit(visible());
 }
 
 /** The domain type uses `?: string`, not `| null`: an empty column is dropped. */
@@ -127,7 +144,7 @@ function sorted(list: Center[]): Center[] {
 }
 
 export function getCenters(): Center[] {
-  return cache;
+  return visible();
 }
 
 export const onCenters = changes.on;

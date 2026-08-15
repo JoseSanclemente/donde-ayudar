@@ -406,11 +406,18 @@ create table public.centers (
   -- A slug for the curated ones, a uuid for the community ones: 36 characters
   -- of hex and dashes, which pass this same pattern untouched.
   id          text primary key check (id ~ '^[a-z0-9-]{3,60}$'),
+  -- `municipio` is the odd one and the only one that is not a door: a whole
+  -- municipality asking for help, its coordinate at the cabecera, published by a
+  -- maintainer out of the reporting. It is here and not in a table of its own
+  -- because on the map it is the same question every other row answers — what
+  -- pin, and what does it need — and `updated_at` is read as its validity
+  -- anchor: 30 days (`MUNICIPIO_DAYS` in `src/scripts/centers.ts`), after which
+  -- the browser stops drawing it.
   type        text not null
               constraint centers_type_check
-              check (type in ('acopio','albergue','sangre','healthcare')),
+              check (type in ('acopio','albergue','sangre','healthcare','municipio')),
   -- Who published it. The form only registers collection points; the other
-  -- three types are a maintainer's (see the insert policy).
+  -- four types are a maintainer's (see the insert policy).
   origin      text not null default 'curado'
               constraint centers_origin_check
               check (origin in ('curado','comunidad')),
@@ -446,11 +453,14 @@ create table public.centers (
   -- row.
   is_active   boolean not null default true,
   created_at  timestamptz not null default now(),
-  -- Also the expiry clock. A community collection point publishes with no
-  -- maintainer behind it and nothing ever retires it, so a day untouched is
-  -- read in the browser as expired — `EXPIRY_HOURS` in `src/scripts/centers.ts`
-  -- is the threshold — and `confirm_center` brings it back. Every other row
-  -- carries the column and ignores it.
+  -- Also the expiry clock, and it is read two different ways. A community
+  -- collection point publishes with no maintainer behind it and nothing ever
+  -- retires it, so a day untouched is read in the browser as expired —
+  -- `EXPIRY_HOURS` in `src/scripts/centers.ts` — and `confirm_center` brings it
+  -- back. A `municipio` reads the same column over 30 days (`MUNICIPIO_DAYS`)
+  -- and comes off the map instead of greying, because no visitor can confirm a
+  -- town: only a maintainer redoing the news sweep, with `set updated_at =
+  -- now()`. Every other row carries the column and ignores it.
   updated_at  timestamptz not null default now(),
 
   -- A curated point has no author; a community one has exactly one. Without
@@ -473,7 +483,7 @@ create policy "centers are public"
   on public.centers for select to anon, authenticated using (true);
 
 -- The whole write surface of the table, this narrow on purpose: a collection
--- point, community origin, in the name of whoever inserts it. The other three
+-- point, community origin, in the name of whoever inserts it. The other four
 -- types cannot be created from the browser by accident or on purpose.
 create policy "the community registers collection points"
   on public.centers for insert to authenticated
