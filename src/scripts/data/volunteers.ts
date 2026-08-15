@@ -16,9 +16,9 @@ import { getUserId } from "./session";
  * whoever listens does not always hand out their number — and the database
  * demands it with a CHECK.
  *
- * One table for every panel, told apart by `kind`: the cache, the initial load
- * and the realtime channel are single, and each panel keeps its own part by
- * asking for a `volunteerStore(kind)`.
+ * One table and one panel. `kind` is the trade of whoever signs up — a column,
+ * not a panel of its own — so the cache is the whole roster and the filtering by
+ * trade is a question the list asks, not a slice the store hands out.
  */
 export type Volunteer = {
   id: string;
@@ -88,17 +88,17 @@ function sorted(volunteers: Volunteer[]): Volunteer[] {
   );
 }
 
-type VolunteerInput = {
+export type VolunteerInput = {
+  kind: VolunteerKind;
   name: string;
   contactPhone: string | null;
   contactInstagram: string | null;
   notes: string | null;
 };
 
-function addVolunteer(kind: VolunteerKind, input: VolunteerInput): Volunteer {
+export function addVolunteer(input: VolunteerInput): Volunteer {
   const volunteer: Volunteer = {
     ...input,
-    kind,
     id: crypto.randomUUID(),
     createdAt: new Date().toISOString(),
     userId: getUserId() ?? "",
@@ -153,7 +153,7 @@ function dropLocally(id: string): void {
   emit();
 }
 
-function removeVolunteer(id: string): void {
+export function removeVolunteer(id: string): void {
   const previous = cache.find((volunteer) => volunteer.id === id);
   dropLocally(id);
   if (!previous) return;
@@ -169,22 +169,15 @@ function removeVolunteer(id: string): void {
   })();
 }
 
-/**
- * What a panel sees: its own `kind` and nothing else. The load limit is for the
- * whole table, so it grows with every panel added.
- */
-export function volunteerStore(kind: VolunteerKind) {
-  return {
-    getVolunteers: (): Volunteer[] =>
-      cache.filter((volunteer) => volunteer.kind === kind),
-    onVolunteers: (listener: (volunteers: Volunteer[]) => void) =>
-      changes.on((volunteers) =>
-        listener(volunteers.filter((volunteer) => volunteer.kind === kind)),
-      ),
-    addVolunteer: (input: VolunteerInput): Volunteer =>
-      addVolunteer(kind, input),
-    removeVolunteer,
-  };
+/** The whole roster, every trade: filtering by `kind` is the panel's business. */
+export function getVolunteers(): Volunteer[] {
+  return cache;
+}
+
+export function onVolunteers(
+  listener: (volunteers: Volunteer[]) => void,
+): () => void {
+  return changes.on(listener);
 }
 
 export async function loadVolunteers(): Promise<void> {

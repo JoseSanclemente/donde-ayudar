@@ -343,9 +343,13 @@ grant  execute on function public.set_offer_finished(uuid, boolean) to authentic
 -- one of the two is enough. Whoever listens does not always hand out their
 -- number.
 --
--- One table for every panel of this kind, told apart by `kind`: «Salud mental»
--- and «Asesoría Jurídica» are the same signup with different copy, so adding a
--- third panel is a value in the CHECK and an entry in `scripts/volunteers.ts`.
+-- `kind` is the trade of whoever signs up, and it is a column and not a panel of
+-- its own: there is one panel, the person picks their trade in it, and the
+-- roster filters by it. It used to be one panel per value, with its own tab, and
+-- that is what filed the signups wrong — a trade nobody had added went into
+-- whichever tab was nearest. Adding one is a value here and an entry in
+-- `scripts/volunteers.ts`. `otra` is the escape valve for the trade that is not
+-- listed yet.
 create table public.volunteers (
   id                uuid primary key default gen_random_uuid(),
   kind              text not null default 'salud_mental',
@@ -355,7 +359,8 @@ create table public.volunteers (
   contact_instagram text check (contact_instagram is null or contact_instagram ~ '^[A-Za-z0-9._]{1,30}$'),
   notes             text check (notes is null or char_length(notes) <= 200),
   created_at        timestamptz not null default now(),
-  constraint volunteers_kind_check check (kind in ('salud_mental', 'juridica')),
+  constraint volunteers_kind_check
+    check (kind in ('salud_mental', 'juridica', 'construccion', 'funeraria', 'otra')),
   -- Whoever signs up has to be reachable: a name with no way to answer it is not
   -- a volunteer, it is a line of text.
   constraint mental_health_volunteers_contact_check

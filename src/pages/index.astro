@@ -11,7 +11,7 @@ import SheetTab from "../components/SheetTab.astro";
 import UpdatesFeed from "../components/UpdatesFeed.astro";
 import NewDot from "../components/NewDot.astro";
 import { SITE_NAME, SITE_TITLE } from "../consts";
-import { VOLUNTEER_PANELS } from "../scripts/volunteers";
+import { VOLUNTEER_ICON } from "../scripts/volunteers";
 
 const PIN_ICON = {
   path: "M10 17.5c3.4-3.6 5.1-6.3 5.1-8.3a5.1 5.1 0 10-10.2 0c0 2 1.7 4.7 5.1 8.3z",
@@ -108,15 +108,21 @@ const HEART_ICON = {
                 icon={BELL_ICON}
                 dot="novedades-dot"
               />
+              <!-- `tab="ayuda"` es el id de siempre: lo que cambió es la
+                   etiqueta. Esta pestaña es la de las cosas —«¿Tienes algo para
+                   donar?»— y se llamaba «Voluntarios», que era el nombre de la
+                   de al lado. -->
               <SheetTab
                 tab="ayuda"
-                label="Voluntarios"
+                label="Donaciones"
                 icon={HEART_ICON}
                 dot="ayuda-dot"
               />
-              {VOLUNTEER_PANELS.map((panel) => (
-                <SheetTab tab={panel.tab} label={panel.tabLabel} icon={panel.icon} />
-              ))}
+              <SheetTab
+                tab="voluntarios"
+                label="Voluntarios"
+                icon={VOLUNTEER_ICON}
+              />
             </div>
           </div>
         </div>
@@ -156,11 +162,9 @@ const HEART_ICON = {
 
           <div id="offers-card" data-tab-panel="ayuda"><OffersPanel /></div>
 
-          {VOLUNTEER_PANELS.map((panel) => (
-            <div id={`${panel.prefix}-card`} data-tab-panel={panel.tab}>
-              <VolunteerPanel panel={panel} />
-            </div>
-          ))}
+          <div id="volunteer-card" data-tab-panel="voluntarios">
+            <VolunteerPanel />
+          </div>
 
           <!-- Sin `data-tab-panel`: no es una pestaña. Por eso mismo se esconde en
                móvil, donde ese atributo es lo que decide qué se ve y esto saldría
@@ -194,7 +198,7 @@ const HEART_ICON = {
       class="fab-report fixed right-4 z-1050 inline-flex items-center gap-2 rounded-full bg-red-600 px-4 py-3 text-base font-semibold text-white shadow-lg transition-colors hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-300 lg:absolute lg:right-[calc(var(--right-column)+1.5rem)]"
     >
       <span aria-hidden="true" class="text-2xl leading-none">+</span>
-      Pedir ayuda
+      Publicar
     </button>
 
     <!-- Con el sheet cerrado del todo, este es el único modo de volver a abrirlo

@@ -45,11 +45,16 @@ Two kinds of data, and they must not mix:
   no update policy, a signup stands or is withdrawn. Its one particularity is the contact:
   `contact_phone` and `contact_instagram` are each optional, and a CHECK demands at least
   one of the two, because whoever offers to listen does not always hand out their number.
-  One table serves every panel where somebody offers their own time, split by a `kind`
-  discriminator — `salud_mental` and `juridica` — because they are the same signup with
-  different copy: one set of policies, one throttle, one realtime binding. The panels are
-  declared in `src/scripts/volunteers.ts` and nowhere else; adding one is an entry there
-  plus its value in the CHECK.
+  `kind` is the trade of whoever signs up — `salud_mental`, `juridica`, `construccion`,
+  `funeraria`, `otra` — and it is a **column, not a panel**: there is one panel, one tab,
+  the person picks their trade in a select and a row of chips narrows the roster. It used
+  to be one panel per value, each with its own tab, and that is exactly what misfiled the
+  signups: adding a trade meant adding a tab, so a trade nobody had added went into
+  whichever tab was nearest — construction and funerary advice landed under mental health.
+  `otra` is the escape valve, without which the next unlisted trade repeats it. The trades
+  are declared in `src/scripts/volunteers.ts` and nowhere else; adding one is an entry
+  there plus its value in the CHECK. Reclassifying an existing row is maintainer SQL —
+  there is no update policy — and it is in `supabase/README.md`.
 - **Mascotas encontradas** — `pets`, the smallest table and the only one with a file behind
   it: a `kind` (`dog`, `cat`, `other`), an optional `sex` (`male`, `female` — «no sé» is
   `null`, and so is every row published before the column), a mandatory `photo_path` and a
@@ -151,16 +156,15 @@ false` greys the marker out, `accepting_donations: false` only writes a line in 
   subscribe to the stores; they never call Supabase directly. `marker-actions` is the odd
   one: the marker detail is HTML built by `map.ts`, which cannot touch the stores, so the
   wiring for its controls is delegated on `document` from there. `location-picker`,
-  `resource-picker` and `volunteer-panel` are the exception to "one
+  `resource-picker` are the exception to "one
   UI piece": they are factories, and the two forms — a need and a collection point — each
   create one of each over their own copy of `LocationField.astro` and
-  `ResourcePicker.astro`, keyed by an id prefix; `volunteer-panel` does the same over
-  `VolunteerPanel.astro`, one per entry of `scripts/volunteers.ts`. The
+  `ResourcePicker.astro`, keyed by an id prefix. The
   draft pin and the click-to-pick mode are single, so `report-tabs` hands them over
   between the two with `suspend()`/`resume()`.
 - **`data/`** — everything that talks to Supabase. One store per table (`reports.ts`,
-  `updates.ts`, `offers.ts`, `volunteers.ts` — this one shared by every panel, handed out
-  per `kind` by `volunteerStore()` —, `centers.ts` — this last one insert-only, and only for a
+  `updates.ts`, `offers.ts`, `volunteers.ts` — this one hands out the whole roster, and
+  narrowing it by trade is the panel's business —, `centers.ts` — this last one insert-only, and only for a
   community `acopio`, plus the one communal bit, `confirmCenter()`), each with its
   `emitter.ts` to announce changes and its
   `bindTable()` in `live.ts`, which merges every table into a single realtime channel.
@@ -200,10 +204,14 @@ false` greys the marker out, `accepting_donations: false` only writes a line in 
     pins and ship marked, so unticking one hides a kind; here an empty row asks for nothing
     and tapping «Perro» leaves the dogs. Within a row the marked chips add up, between rows
     they narrow.
-  - `volunteers.ts` — the catalog of volunteer panels: one entry per `kind`, with its id
-    prefix, its sheet tab, its icon path and its copy. `index.astro` loops over it to
-    build both the tab buttons and the cards, and `features/volunteer-panel.ts` loops
-    over it to wire them, so a new panel is declared once.
+  - `volunteers.ts` — the catalog of trades someone can sign up with: one entry per
+    `kind`, with its label, its chip colour and the notes placeholder it asks for. It is
+    read three times — `VolunteerPanel.astro` builds the select and the filter chips off
+    it, and `features/volunteer-panel.ts` paints the chip on a card — so the chip on a
+    card and its chip in the filter can never disagree. It also owns the tab icon, which
+    is generic on purpose: the tab fronts every trade now. It reads like `pets-filter.ts`
+    and not like `map-filter.ts` — an empty chip row asks for nothing and shows the whole
+    roster, tapping «Jurídica» leaves the lawyers.
   - `address.ts`, `grid.ts`, `geo-index.ts`, `geocode.ts` — the Colombian address
     pipeline: parse the nomenclature, compute the point off the street grid, read the
     prebuilt indexes from `public/geo/`, and resolve through the four fallback levels.

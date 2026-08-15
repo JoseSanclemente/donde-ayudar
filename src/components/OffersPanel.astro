@@ -26,7 +26,7 @@ import Select from "./Select.astro";
       id="offers-toggle"
       aria-expanded="false"
       aria-controls="offers-card-body"
-      aria-label="Mostrar u ocultar la ayuda disponible"
+      aria-label="Mostrar u ocultar las donaciones disponibles"
       class="ml-auto hidden shrink-0 rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 lg:inline-flex"
     >
       <span id="offers-caret" aria-hidden="true">{CARET}</span>
@@ -108,10 +108,12 @@ import Select from "./Select.astro";
       </button>
     </form>
 
-    <h3 class="mt-6 text-lg font-semibold text-slate-900">Ayuda disponible</h3>
+    <h3 class="mt-6 text-lg font-semibold text-slate-900">
+      Donaciones disponibles
+    </h3>
 
     <p id="offers-empty" class="mt-2 text-sm text-slate-500">
-      Todavía nadie ha publicado ayuda disponible.
+      Todavía nadie ha publicado una donación.
     </p>
 
     <ul id="offers-list" class="mt-3 space-y-3"></ul>

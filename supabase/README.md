@@ -25,14 +25,30 @@ Seis tablas abiertas a escritura anónima — `reports`, `updates`, `offers`,
 todo, cualquiera inserta lo suyo, y solo el autor borra lo suyo (`auth.uid() =
 user_id`).
 
-`volunteers` es la inscripción de quien ofrece su tiempo a la comunidad, y una
-columna `kind` separa los paneles que la usan: `salud_mental` (acompañar) y
-`juridica` (asesorar). Agregar un panel es agregar un valor al CHECK y una
-entrada en `src/scripts/volunteers.ts`; no hace falta otra tabla ni otras
+`volunteers` es la inscripción de quien ofrece su tiempo a la comunidad, y `kind`
+es su oficio: `salud_mental`, `juridica`, `construccion`, `funeraria` y `otra`.
+Es una columna, no un panel: hay **un** panel, quien se inscribe elige su oficio
+ahí y la lista se filtra por él. Antes era un panel —y una pestaña— por valor, y
+eso fue lo que clasificó mal las inscripciones: un oficio que nadie había
+agregado entraba por la pestaña más cercana. `otra` es la válvula de escape para
+el que todavía no está en la lista. Agregar un oficio es un valor en el CHECK y
+una entrada en `src/scripts/volunteers.ts`; no hace falta otra tabla ni otras
 policies. No tiene nada comunitario —ni RPC, ni policy de UPDATE: está en pie o
 se retira— y su única particularidad es el contacto: `contact_phone` y
 `contact_instagram` son opcionales por separado, pero un CHECK exige que al menos
 uno esté.
+
+Sin policy de UPDATE, **reclasificar una inscripción es SQL de mantenedor**, que
+corre como `service_role`. Se leen las notas una por una: son texto libre y
+adivinar el oficio por palabras sueltas etiqueta mal a una persona.
+
+```sql
+select id, kind, name, notes, created_at
+  from public.volunteers order by created_at desc;
+
+update public.volunteers set kind = 'construccion' where id = '…';
+update public.volunteers set kind = 'funeraria'    where id = '…';
+```
 
 **Ninguna tiene policy de UPDATE.** Lo que sí es comunitario pasa por funciones
 `security definer` que tocan una sola columna cada una:
