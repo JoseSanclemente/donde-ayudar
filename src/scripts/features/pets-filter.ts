@@ -26,8 +26,8 @@ import { $ } from "../ui/dom";
 
 // Literal, like in `resources.ts`: the Tailwind scanner reads this file as plain
 // text and an interpolated class never gets compiled.
-const BUTTON_OFF = "border-slate-200 bg-white text-slate-700";
-const BUTTON_ON = "border-red-300 bg-red-50 text-red-700";
+const BUTTON_OFF = "border-red-200 bg-red-50 text-red-600 hover:border-red-300 hover:bg-red-100";
+const BUTTON_ON = "border-red-600 bg-red-600 text-white hover:border-red-700 hover:bg-red-700";
 
 export function initPetsFilter(apply: (filter: PetsFilter) => void): void {
   const card = $<HTMLElement>("pets-filters-card");

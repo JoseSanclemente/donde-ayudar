@@ -444,9 +444,9 @@ function collapseAttribution(instance: L.Map): void {
       Hecho por
       <a href="https://www.instagram.com/panqueso.sanclemente/" target="_blank"
         rel="noopener noreferrer">@panqueso.sanclemente</a>
-      y
+      ,
       <a href="https://www.instagram.com/manuu6450/" target="_blank"
-        rel="noopener noreferrer">@manuu6450</a>,
+        rel="noopener noreferrer">@manuu6450</a>
       y por la comunidad que reporta, confirma y mantiene al día cada punto del mapa 💚
     </p>`;
   card.append(credits);
