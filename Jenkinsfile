@@ -3,9 +3,11 @@
 // below is gated with `when { branch 'dev' }` so a push to any other branch
 // (including `main`) shows as skipped, not failed.
 //
-// No VPS detail is hardcoded here: DEPLOY_USER, DEPLOY_DIR and DOCKER_SUBNET
-// come from the Jenkins credential file `donde-ayudar-env-development`, and
-// DEPLOY_HOST is the Docker bridge gateway
+// No VPS detail is hardcoded here: DEPLOY_USER, DEPLOY_DIR, DEPLOY_HOST and
+// DOCKER_SUBNET all come from the Jenkins credential file
+// `donde-ayudar-env-development`. The deploy target does not have to be the
+// same machine Jenkins runs on — every stage after Load Config only talks to
+// it over SSH, so nothing here assumes local/bridge networking.
 pipeline {
     agent any
 
@@ -37,31 +39,11 @@ pipeline {
                                 script: 'grep "^DEPLOY_DIR=" "$SECRET_PATH" | cut -d= -f2- | tr -d \'"\'',
                                 returnStdout: true
                             ).trim()
+                            env.DEPLOY_HOST = sh(
+                                script: 'grep "^DEPLOY_HOST=" "$SECRET_PATH" | cut -d= -f2- | tr -d \'"\'',
+                                returnStdout: true
+                            ).trim()
                         }
-
-                        // Works when Jenkins itself runs inside Docker: the bridge
-                        // gateway is the host's real address from the container's view.
-                        env.DEPLOY_HOST = sh(
-                            script: '''
-                                awk 'function h2d(h,  r,i,c) {
-                                         r=0
-                                         for(i=1;i<=length(h);i++) {
-                                             c=tolower(substr(h,i,1))
-                                             r=r*16+(c~/[0-9]/?c+0:index("abcdef",c)+9)
-                                         }
-                                         return r
-                                     }
-                                     NR>1 && $2=="00000000" {
-                                         printf "%d.%d.%d.%d\\n",
-                                             h2d(substr($3,7,2)),
-                                             h2d(substr($3,5,2)),
-                                             h2d(substr($3,3,2)),
-                                             h2d(substr($3,1,2))
-                                         exit
-                                     }' /proc/net/route
-                            ''',
-                            returnStdout: true
-                        ).trim()
 
                         if (!env.DEPLOY_USER) {
                             error "Missing DEPLOY_USER in .env secret file"
@@ -70,13 +52,13 @@ pipeline {
                             error "Missing DEPLOY_DIR in .env secret file"
                         }
                         if (!env.DEPLOY_HOST) {
-                            error "Could not detect host IP from /proc/net/route"
+                            error "Missing DEPLOY_HOST in .env secret file"
                         }
 
                         echo "═══════════════════════════════════════"
                         echo "Environment: ${env.APP_ENV}"
                         echo "Deploy User: ${env.DEPLOY_USER}"
-                        echo "Deploy Host: ${env.DEPLOY_HOST} (bridge gateway)"
+                        echo "Deploy Host: ${env.DEPLOY_HOST}"
                         echo "Deploy Dir:  ${env.DEPLOY_DIR}"
                         echo "═══════════════════════════════════════"
                     }
