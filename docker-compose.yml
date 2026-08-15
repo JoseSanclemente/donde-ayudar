@@ -1,0 +1,28 @@
+# Docker environment for the `dev` branch only — production stays on Netlify
+# (see netlify.toml). Everything environment-specific (DEPLOY_USER, DEPLOY_DIR,
+# DOCKER_SUBNET, the Supabase keys) lives in the Jenkins credential file for
+# `development`, never in this repo — see Jenkinsfile.
+name: donde-ayudar-${ENV:-development}
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Astro bakes these into the browser bundle at build time — there is
+        # no server to hand them to at runtime, so they must be build args,
+        # not `environment:`.
+        PUBLIC_SUPABASE_URL: ${PUBLIC_SUPABASE_URL}
+        PUBLIC_SUPABASE_ANON_KEY: ${PUBLIC_SUPABASE_ANON_KEY}
+    container_name: donde-ayudar-${ENV:-development}-web
+    restart: unless-stopped
+    networks:
+      - donde-ayudar
+
+networks:
+  donde-ayudar:
+    # Created by the Jenkinsfile's Deploy stage from DOCKER_SUBNET before this
+    # file is applied
+    name: donde-ayudar-${ENV:-development}
+    external: true

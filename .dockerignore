@@ -1,0 +1,16 @@
+.git
+.gitignore
+.env
+.env.*
+!.env.example
+node_modules
+dist
+.astro
+README.md
+AGENTS.md
+CLAUDE.md
+*.md
+.DS_Store
+Thumbs.db
+.claude
+.mcp.json
