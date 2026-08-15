@@ -819,6 +819,23 @@ option {
    pasan a `absolute` contra el contenedor de la página (`lg:absolute` en el
    marcado) y el `bottom` de acá los deja adentro del marco redondeado. */
 
+/* Las cifras de la emergencia, debajo del header. El `top` va acá y no en el
+   marcado porque solo existe en móvil, donde el header flota sobre el mapa.
+
+   Es la misma cuenta que la de `.leaflet-top`, y con el mismo respaldo: la mide
+   `features/header-offset.ts` en `--header-h`, con un `ResizeObserver` sobre el
+   header, así que crece sola con el área segura del notch, con el título
+   partido en dos líneas y —lo que importa acá— con el aviso de novedades, que
+   nace escondido y aparece después con la primera novedad. Las 7.5rem de
+   reserva son para el rato entre el primer pintado y el script: sin ellas la
+   tarjeta arranca debajo de la franja blanca.
+
+   En escritorio la tarjeta es `lg:static` —primera de la columna, debajo del
+   header de verdad— y ahí este `top` no lo lee nadie. */
+#emergency-stats {
+  top: calc(var(--header-h, 7.5rem) + 0.5rem);
+}
+
 .fab-report {
   bottom: calc(1rem + env(safe-area-inset-bottom));
 }

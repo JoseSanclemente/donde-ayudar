@@ -5,6 +5,7 @@ import { loadOffers } from "./offers";
 import { loadPets } from "./pets";
 import { loadReports, setReportsState, startRetireSweep } from "./reports";
 import { ensureSession, restoreSession } from "./session";
+import { loadStats } from "./stats";
 import { initSync, markSynced, resyncAll } from "./sync";
 import { loadUpdates } from "./updates";
 import { loadVolunteers } from "./volunteers";
@@ -40,6 +41,7 @@ export async function initData(): Promise<void> {
       loadCenters(),
       loadVolunteers(),
       loadPets(),
+      loadStats(),
     ]);
     // Sigue siendo obligatoria antes de `ready`: sin `uid` no se puede escribir
     // nada, y quien entra por primera vez no tiene todavía nada propio que el

@@ -33,24 +33,32 @@ import { relativeTime } from "./ui/time";
 export const CALI_CENTER: [number, number] = [3.4516, -76.532];
 
 /**
- * The department, corner to corner. It is the floor of «ver todo el Valle» and
- * not its answer: what the button actually frames is what is drawn — the
- * municipality pins and the damage zones — and this only takes over when none of
- * that is on the map, so the button still moves and still shows the department
- * it names. Southwest and northeast, wide enough to hold Buenaventura on the
- * coast and Ulloa against the Quindío line.
+ * Valle del Cauca and Chocó together, corner to corner. It is the floor of «ver
+ * toda la emergencia» and not its answer: what the button actually frames is
+ * what is drawn — the municipality pins and the damage zones — and this only
+ * takes over when none of that is on the map, so the button still moves and
+ * still shows the region it names.
+ *
+ * It used to be Valle alone, and it has been widened twice by the same mistake:
+ * first west and north for Chocó, where the epicentre was and where 29 of 31
+ * municipalities were hit, then east for Risaralda and Caldas — Pereira sits at
+ * −75.69 and Manizales at −75.52, both outside the old edge. Wide enough now to
+ * hold Docordó on the Pacific, Quibdó in the north and Manizales in the east.
+ *
+ * Every widening has been a correction after the fact, which is the argument for
+ * the function below framing what is drawn instead of trusting this rectangle.
  */
-const VALLE_BOUNDS: [[number, number], [number, number]] = [
-  [3.0, -77.6],
-  [5.1, -75.65],
+const EMERGENCY_BOUNDS: [[number, number], [number, number]] = [
+  [3.0, -77.9],
+  [8.8, -75.3],
 ];
 
 /**
- * How close «ver todo el Valle» is allowed to get. Fitting two municipality pins
- * that happen to be neighbours would otherwise fly the map down to a street, and
- * the whole request was to pull back.
+ * How close «ver toda la emergencia» is allowed to get. Fitting two municipality
+ * pins that happen to be neighbours would otherwise fly the map down to a
+ * street, and the whole request was to pull back.
  */
-const VALLE_MAX_ZOOM = 11;
+const EMERGENCY_MAX_ZOOM = 11;
 
 /** Zoom para la vista inicial sobre la persona: su ciudad entera, no su calle. */
 const USER_ZOOM = 14;
@@ -794,31 +802,54 @@ export function flyTo(
  *
  * What it frames is what is drawn and not a fixed rectangle: the municipality
  * pins and the damage zones, which are the two layers that answer «where is this
- * bad». A fixed rectangle would keep showing the same department after the last
- * municipality lapsed off the map, and the point of the button is to show what
- * is there. `VALLE_BOUNDS` is the floor for exactly that case — nothing drawn,
- * so it frames the department it promised.
+ * bad». That is also what keeps it honest as the emergency moves — the pins
+ * reached into Chocó and the button followed them with nothing to change here.
+ * A fixed rectangle would still be showing Valle. `EMERGENCY_BOUNDS` is the
+ * floor for the one case the layers cannot answer — nothing drawn at all — so
+ * the button still moves and still shows the region it promised.
  *
  * The circles go in whole (`getBounds()`) and not as their centres: a zone is
  * its radius, and half of one hanging off the edge would be the button failing
  * at its one job.
  */
-export function flyToValle(): void {
+export function flyToEmergency(reserveTop = 0): Promise<void> {
   claimView();
   const bounds = L.latLngBounds([]);
   for (const { data, marker } of centers.values())
     if (data.type === "municipio") bounds.extend(marker.getLatLng());
   for (const circle of zoneCircles) bounds.extend(circle.getBounds());
 
-  map.flyToBounds(bounds.isValid() ? bounds : L.latLngBounds(VALLE_BOUNDS), {
-    // The pins sit under the header on desktop and over the sheet's handle on
-    // mobile; without the padding the outermost municipality lands beneath one
-    // of the two.
-    padding: [48, 48],
-    maxZoom: VALLE_MAX_ZOOM,
-    duration: 1.2,
+  return new Promise((resolve) => {
+    let done = false;
+    const finish = () => {
+      if (done) return;
+      done = true;
+      map.off("moveend", finish);
+      resolve();
+    };
+    // The same guard `flyTo` carries, and here it is not an edge case: pressing
+    // the button on an already-framed map emits no `moveend`, and whoever is
+    // waiting on this is what draws the figures.
+    const timer = setTimeout(finish, 1500);
+    map.once("moveend", () => {
+      clearTimeout(timer);
+      finish();
+    });
+
+    map.flyToBounds(bounds.isValid() ? bounds : L.latLngBounds(EMERGENCY_BOUNDS), {
+      // Asymmetric, and that is the whole point of `reserveTop`. A centred fit
+      // puts the northern half of the pins under whatever covers the top of the
+      // map — on mobile that is the figures card, which is opened by the same
+      // tap. The caller measures it, the same deal as `offsetY` in `flyTo`: this
+      // module draws the map and does not get to know what floats over it.
+      paddingTopLeft: [48, 48 + Math.max(reserveTop, 0)],
+      paddingBottomRight: [48, 48],
+      maxZoom: EMERGENCY_MAX_ZOOM,
+      duration: 1.2,
+    });
   });
 }
+
 
 /* ---- Reports: their own layer, so the filter can empty it ---- */
 

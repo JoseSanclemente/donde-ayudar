@@ -18,7 +18,8 @@ import { initShare } from "./features/share";
 import { initSyncBadge } from "./features/sync-badge";
 import { initUpdatesFeed } from "./features/updates-feed";
 import { initUserLocation } from "./features/user-location";
-import { initValleView } from "./features/valle-view";
+import { initEmergencyStats } from "./features/emergency-stats";
+import { initEmergencyView } from "./features/emergency-view";
 import { loadAddresses } from "./geo-index";
 import { initMap } from "./map";
 import { initSheet } from "./sheet";
@@ -26,11 +27,15 @@ import { startTimeTicker } from "./ui/time";
 import { showToast } from "./ui/toast";
 
 initMap("map");
+// Las cifras se arman antes que los dos botones que las mueven: uno las saca y
+// el otro las quita, y ninguna de las tres features importa a las otras — acá se
+// unen, igual que en `pets.ts` la grilla le pasa su `setFilter` al filtro.
+const stats = initEmergencyStats();
 // Justo detrás del mapa: el permiso se pide cuanto antes y nadie lo espera.
-initUserLocation();
+initUserLocation(stats.hide);
 // Después de «Centrar en mí» y por eso: los dos se montan en la misma esquina
 // con `mountControl`, que agrega al final, así que este orden es el de la pila.
-initValleView();
+initEmergencyView(stats);
 initSheet();
 initMarkerSheet();
 initMarkerActions();

@@ -5,6 +5,7 @@ import { reportError } from "./errors";
 import { loadOffers } from "./offers";
 import { loadPets } from "./pets";
 import { loadReports } from "./reports";
+import { loadStats } from "./stats";
 import { loadUpdates } from "./updates";
 import { loadVolunteers } from "./volunteers";
 
@@ -76,6 +77,7 @@ export async function resyncAll(options: { force?: boolean } = {}): Promise<void
       loadCenters(),
       loadVolunteers(),
       loadPets(),
+      loadStats(),
     ]);
     state = { lastSyncAt: new Date().toISOString(), syncing: false, failed: false };
     emit();

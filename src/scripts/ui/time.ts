@@ -26,6 +26,27 @@ export function relativeTimeExact(iso: string): string {
 }
 
 /**
+ * La fecha y la hora, escritas. Es la única función de este archivo que no
+ * cuenta hacia atrás, y existe por una sola cosa: el corte de un balance
+ * oficial.
+ *
+ * Todo lo demás acá es relativo porque todo lo demás es del sitio — un reporte
+ * de hace tres horas, un punto que nadie confirma desde ayer. Una cifra citada
+ * no: «hace 2 días» no se puede comparar contra el boletín de la fuente ni
+ * contra otro corte, y esos números se leen justamente para compararlos. La hora
+ * va incluida porque la UNGRD publica más de un balance el mismo día.
+ */
+export function absoluteTime(iso: string): string {
+  return new Intl.DateTimeFormat("es-CO", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(iso));
+}
+
+/**
  * A partir de acá el dato deja de ser confiable. Seis horas es una guardia
  * completa: en una emergencia el sitio ya cambió de manos, de necesidades y a
  * veces de estado sin que nadie lo haya tocado en la página.

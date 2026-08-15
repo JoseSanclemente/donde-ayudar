@@ -694,6 +694,55 @@ create index pet_intakes_created_at_idx on public.pet_intakes (created_at desc);
 alter table public.pet_intakes enable row level security;
 
 /* ================================================================== */
+/* Las cifras de la emergencia                                         */
+/* ================================================================== */
+
+-- La primera tabla del proyecto cuyas filas son afirmaciones sobre el mundo y no
+-- sobre sus propios usuarios: cuántos muertos, cuántas viviendas, cuánta gente.
+-- Un número equivocado acá es desinformación en una página de emergencia, que no
+-- es lo mismo que un pin equivocado, y de ahí sale todo lo demás — la fuente
+-- única, el corte a la vista y la superficie de escritura más angosta del
+-- proyecto.
+--
+-- **Una fila es un corte entero.** La UNGRD publica un balance nuevo casi cada
+-- día —239 muertos el 12 de agosto, 273 el 13, 294 el 15— y a veces más de uno el
+-- mismo día. Guardando el corte completo en `figures`, ninguna consulta puede
+-- mezclar dos: la fila *es* el corte, y juntar el desglose de un día con el total
+-- de otro sería inventar una consistencia que nadie publicó.
+create table public.stats (
+  id          text primary key check (id ~ '^[a-z0-9-]{3,60}$'),
+  source      text not null check (char_length(source) between 2 and 60),
+  source_url  text check (source_url is null or char_length(source_url) <= 300),
+  -- El corte que estampó la fuente, no cuándo se escribió la fila. Es lo que se
+  -- pinta debajo de los números y lo que los ordena.
+  cut_at      timestamptz not null,
+  -- Las llaves son ids del catálogo de `src/scripts/stats.ts`. Se valida que sea
+  -- un objeto y nada más, igual que `centers.donations` se valida por largo y no
+  -- por contenido: el catálogo vive en el repo y crece sin migración.
+  --
+  -- No hay columna que diga de qué tipo es el corte. Cada uno trae las llaves que
+  -- publicó, y las que no, no están: el balance del 15 de agosto no trae desglose
+  -- por departamento y el del 13 sí. Con eso alcanza para que la página muestre
+  -- cada bloque con su propia fecha, sin una columna que los clasifique.
+  figures     jsonb not null check (jsonb_typeof(figures) = 'object'),
+  created_at  timestamptz not null default now()
+);
+
+create index stats_cut_idx on public.stats (cut_at desc);
+
+alter table public.stats replica identity full;
+alter table public.stats enable row level security;
+alter publication supabase_realtime add table public.stats;
+
+create policy "stats are public"
+  on public.stats for select to anon, authenticated using (true);
+
+-- Y no hay más: **ni insert, ni update, ni delete**. Más angosta todavía que
+-- `centers`, que al menos deja registrar un acopio. Acá escribe solo
+-- `service_role`, o sea un mantenedor en el editor de SQL, y por eso esta tabla
+-- tampoco entra en el freno de inserciones de más abajo: no hay quién la golpee.
+
+/* ================================================================== */
 /* Freno de inserciones                                                */
 /* ================================================================== */
 

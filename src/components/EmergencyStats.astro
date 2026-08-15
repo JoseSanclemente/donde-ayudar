@@ -1,0 +1,88 @@
+---
+import { CARET } from "../scripts/ui/select";
+
+// Las cifras de la emergencia, debajo del header.
+//
+// Aparece al tocar «ver toda la emergencia» y no antes: el momento en que el
+// mapa se aleja hasta que cabe todo es el único en que un total nacional dice
+// algo. Antes de eso la página es sobre una cuadra.
+//
+// Plegada muestra solo las seis grandes; el resto, el desglose por departamento
+// y la fuente viven detrás del triángulo. Dieciocho números del mismo peso no
+// dicen cuál importa, y esta tarjeta tapa el mapa mientras está abierta.
+//
+// No lleva `data-panel-card` ni `data-tab-panel` a propósito: no es una tarjeta
+// de la barra lateral, no la pliega `ui/accordion` —esa regla vive detrás del
+// media query de escritorio y acá hay que plegar también en móvil— y no es una
+// pestaña de la hoja. En escritorio va en el flujo de la columna, debajo del
+// header; en móvil el header es fijo, así que la tarjeta también lo es y el
+// `top` sale de `--header-h` (la regla, en `global.css`).
+//
+// `z-[1060]` la pone encima de los botones flotantes, que van en 1050, y debajo
+// del toast (1100) y de las sugerencias de dirección (1200), que tienen que
+// poder taparla. Mientras baja vale otra cosa: `features/emergency-stats.ts`
+// arranca la animación en 880 —debajo del header, que va en 900— para que salga
+// tapada de verdad, y la devuelve a esta al aterrizar, ya fuera del header.
+//
+// El contenido lo escribe `features/emergency-stats.ts` desde la tienda.
+---
+
+<section
+  id="emergency-stats"
+  hidden
+  aria-labelledby="emergency-stats-title"
+  class="fixed inset-x-4 z-[1060] max-h-[60svh] overflow-y-auto rounded-2xl border border-slate-200 bg-white/95 p-4 shadow-xl backdrop-blur-sm lg:static lg:z-auto lg:max-h-none lg:overflow-visible lg:shadow-sm"
+>
+  <div class="flex items-start gap-2">
+    <h2 id="emergency-stats-title" class="text-base font-semibold leading-tight text-slate-900">
+      Cifras de la emergencia
+    </h2>
+
+    <button
+      type="button"
+      id="emergency-stats-toggle"
+      aria-expanded="false"
+      aria-controls="emergency-stats-details"
+      aria-label="Mostrar u ocultar el detalle de las cifras"
+      class="ml-auto shrink-0 rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-300"
+    >
+      <span id="emergency-stats-caret" aria-hidden="true">{CARET}</span>
+    </button>
+
+    <button
+      type="button"
+      id="emergency-stats-close"
+      aria-label="Cerrar las cifras"
+      class="-mr-1 shrink-0 rounded-lg p-1 text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 focus:outline-none focus:ring-2 focus:ring-slate-300"
+    >
+      <svg viewBox="0 0 20 20" aria-hidden="true" class="h-4 w-4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+        <path d="M5 5l10 10M15 5L5 15"></path>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Las seis grandes: lo único que se ve plegada. -->
+  <dl id="emergency-stats-headline" class="mt-3 grid grid-cols-2 gap-x-3 gap-y-3"></dl>
+
+  <!-- El corte se queda afuera del pliegue a propósito: es la fecha de los seis
+       números de arriba, y un número oficial sin su corte no se puede comparar
+       contra nada. -->
+  <p id="emergency-stats-cut" class="mt-3 text-xs text-slate-500"></p>
+
+  <div id="emergency-stats-details" hidden>
+    <!-- El resto, una línea por cifra. -->
+    <dl id="emergency-stats-rest" class="mt-3 space-y-1 border-t border-slate-200 pt-3"></dl>
+
+    <!-- El desglose por departamento, que sale de otro corte y lleva su propia
+         fecha. Se esconde entero si ningún balance guardado lo trae. -->
+    <div id="emergency-stats-departmental" hidden class="mt-4 border-t border-slate-200 pt-3">
+      <h3 class="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        Fallecidos por departamento
+      </h3>
+      <dl id="emergency-stats-departments" class="mt-2 space-y-1"></dl>
+      <p id="emergency-stats-departmental-cut" class="mt-2 text-xs text-slate-500"></p>
+    </div>
+
+    <p id="emergency-stats-source" class="mt-3 text-xs text-slate-500"></p>
+  </div>
+</section>

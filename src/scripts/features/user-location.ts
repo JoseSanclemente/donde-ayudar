@@ -52,7 +52,16 @@ function locateAndFly(): void {
   });
 }
 
-export function initUserLocation(): void {
+/**
+ * `onLocate` corre al tocar el botón, antes de saber si hay posición. Lo usa la
+ * tarjeta de cifras para quitarse: acercarse al punto propio es lo contrario de
+ * mirar el país entero, y esperar a que el permiso conteste dejaría la tarjeta
+ * puesta encima durante todo ese rato.
+ *
+ * Entra por parámetro y no por import porque una feature no importa otra:
+ * `app.ts` las une.
+ */
+export function initUserLocation(onLocate?: () => void): void {
   void locateUser().then((next) => {
     if (!next) return;
     remember(next);
@@ -65,6 +74,7 @@ export function initUserLocation(): void {
   mountControl(button);
 
   button.addEventListener("click", () => {
+    onLocate?.();
     // Sin posición todavía: el permiso pudo negarse, vencerse o seguir abierto.
     // Un navegador que ya lo tiene contesta de una; uno que lo negó, también.
     if (coords) flyToUser();

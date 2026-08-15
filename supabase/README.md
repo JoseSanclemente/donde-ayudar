@@ -307,7 +307,13 @@ expande al leer cualquier id del catálogo que encuentre, así que escribir
 
 `type = 'municipio'` es el único punto que no es una puerta. No es un lugar al
 que alguien camina: es un pueblo entero que quedó necesitando algo, leído de la
-prensa y publicado por un mantenedor. La coordenada es la cabecera, no una
+prensa y publicado por un mantenedor. **Tampoco es solo del Valle**: el epicentro
+del terremoto quedó en San José del Palmar y 29 de los 31 municipios del Chocó
+resultaron golpeados, así que el mapa se sale del departamento por acá y por
+ningún otro lado. El botón de alejar encuadra lo que haya dibujado —
+`flyToEmergency` en `src/scripts/map.ts` — así que sigue a los pines a donde
+vayan; lo único atado a una región es `EMERGENCY_BOUNDS`, el respaldo para
+cuando no hay nada dibujado, y hoy cubre Valle y Chocó. La coordenada es la cabecera, no una
 dirección, y por eso el pin es más grande y más redondo que el del acopio —
 prometer la precisión de una esquina sería mentir sobre lo que la fila sostiene.
 `hours` va vacío: un municipio no tiene horario. El popup no dice «Recibe» sino
@@ -353,10 +359,12 @@ pasa con un acopio, donde el mismo trigger reinicia un reloj que nadie quería
 mover.
 
 **La tanda del terremoto del 10 de agosto de 2026.** Coordenadas tomadas de los
-nodos `place` de OSM (la cabecera, no el centroide del municipio), y `donations`
-con nombres exactos del catálogo de `src/scripts/resources.ts`. `notes` lleva la
-cifra y la fuente: los puntos curados pasan por `linkifyHtml`, así que la URL
-queda cliqueable en el popup.
+nodos `place` de OSM (la cabecera, no el centroide del municipio: en Chocó los
+dos se separan hasta 15 km), y `donations` con nombres exactos del catálogo de
+`src/scripts/resources.ts`. `notes` lleva la cifra y la fuente: los puntos
+curados pasan por `linkifyHtml`, así que la URL queda cliqueable en el popup.
+
+Primero el Valle:
 
 ```sql
 insert into public.centers (id, type, name, address, lat, lng, donations, notes)
@@ -447,6 +455,103 @@ values
    'Nombrado entre los municipios más afectados por el terremoto del 10 de agosto. Fuente: La FM — https://www.lafm.com.co/actualidad/terremoto-colombia-estos-son-los-municipios-mas-afectados-en-el-valle-del-cauca-407751');
 ```
 
+Y el Chocó, que en proporción quedó peor: el 93% del departamento con daños
+graves, 43.000 damnificados y el epicentro adentro. Los cinco primeros llevan
+cifra propia; Condoto y Nóvita entran por el conteo de 29 de 31 municipios y no
+por un dato suyo.
+
+```sql
+insert into public.centers (id, type, name, address, lat, lng, donations, notes)
+values
+  ('municipio-san-jose-del-palmar', 'municipio', 'San José del Palmar',
+   'Cabecera municipal, San José del Palmar, Chocó', 4.8959, -76.2345,
+   array['Agua','Enlatados','Arroz','Aceite','Colchonetas','Cobijas','Carpas','Jabón de cuerpo','Papel higiénico','Pañales','Linternas','Pilas AA','Plantas eléctricas','Baños portátiles'],
+   'Epicentro del terremoto. 442 viviendas afectadas y cerca de 40 colapsadas; 75 derrumbes en vías terciarias. Fuente: El Tiempo — https://www.eltiempo.com/unidad-investigativa/el-93-del-choco-sufrio-graves-danos-por-terremoto-van-14-muertos-y-43-000-damnificados-3578063'),
+
+  ('municipio-istmina', 'municipio', 'Istmina',
+   'Cabecera municipal, Istmina, Chocó', 5.1593, -76.6855,
+   array['Agua','Enlatados','Arroz','Aceite','Colchonetas','Cobijas','Carpas','Jabón de cuerpo','Papel higiénico','Pañales','Baños portátiles','Leche en polvo'],
+   '550 viviendas afectadas y más de 3.000 damnificados. Fuente: El Tiempo — https://www.eltiempo.com/unidad-investigativa/el-93-del-choco-sufrio-graves-danos-por-terremoto-van-14-muertos-y-43-000-damnificados-3578063'),
+
+  ('municipio-quibdo', 'municipio', 'Quibdó',
+   'Cabecera municipal, Quibdó, Chocó', 5.6913, -76.6531,
+   array['Agua','Enlatados','Arroz','Aceite','Colchonetas','Cobijas','Carpas','Jabón de cuerpo','Papel higiénico','Pañales','Solución salina','Gasas','Esparadrapo','Alcohol','Isodine','Caja de guantes de látex','Acetaminofén','Equipo de macrogoteo'],
+   'El hospital San Francisco de Asís quedó con afectaciones graves y al 300% de su capacidad. Fuente: El Tiempo — https://www.eltiempo.com/unidad-investigativa/fotos-sos-por-el-departamento-del-choco-asi-estan-varios-de-sus-municipios-afectados-tras-el-fuerte-terremoto-3577877'),
+
+  ('municipio-sipi', 'municipio', 'Sipí',
+   'Cabecera municipal, Sipí, Chocó', 4.6532, -76.6441,
+   array['Agua','Enlatados','Arroz','Aceite','Colchonetas','Cobijas','Carpas','Jabón de cuerpo','Papel higiénico','Pañales','Linternas','Pilas AA'],
+   'Varias viviendas colapsadas y establecimientos comerciales destruidos. Fuente: El Tiempo — https://www.eltiempo.com/unidad-investigativa/fotos-sos-por-el-departamento-del-choco-asi-estan-varios-de-sus-municipios-afectados-tras-el-fuerte-terremoto-3577877'),
+
+  ('municipio-litoral-del-san-juan', 'municipio', 'El Litoral del San Juan',
+   'Docordó, El Litoral del San Juan, Chocó', 4.2580, -77.3647,
+   array['Agua','Enlatados','Arroz','Aceite','Colchonetas','Cobijas','Carpas','Jabón de cuerpo','Papel higiénico','Pañales','Linternas','Pilas AA'],
+   'Viviendas completamente destruidas; la alcaldía pide todo el apoyo posible. Fuente: El Tiempo — https://www.eltiempo.com/unidad-investigativa/fotos-sos-por-el-departamento-del-choco-asi-estan-varios-de-sus-municipios-afectados-tras-el-fuerte-terremoto-3577877'),
+
+  ('municipio-condoto', 'municipio', 'Condoto',
+   'Cabecera municipal, Condoto, Chocó', 5.0922, -76.6514,
+   array['Agua','Enlatados','Arroz','Aceite','Colchonetas','Cobijas','Carpas','Jabón de cuerpo','Papel higiénico','Pañales'],
+   'Entre los 29 de 31 municipios del Chocó con afectaciones por el terremoto del 10 de agosto. Fuente: El Tiempo — https://www.eltiempo.com/unidad-investigativa/el-93-del-choco-sufrio-graves-danos-por-terremoto-van-14-muertos-y-43-000-damnificados-3578063'),
+
+  ('municipio-novita', 'municipio', 'Nóvita',
+   'Cabecera municipal, Nóvita, Chocó', 4.9554, -76.6068,
+   array['Agua','Enlatados','Arroz','Aceite','Colchonetas','Cobijas','Carpas','Jabón de cuerpo','Papel higiénico','Pañales'],
+   'Entre los 29 de 31 municipios del Chocó con afectaciones por el terremoto del 10 de agosto. Fuente: El Tiempo — https://www.eltiempo.com/unidad-investigativa/el-93-del-choco-sufrio-graves-danos-por-terremoto-van-14-muertos-y-43-000-damnificados-3578063');
+```
+
+Y Risaralda con Caldas, que entraron después: Risaralda es el segundo
+departamento con más muertos —104 el 13 de agosto, detrás de los 148 del Valle— y
+no tenía un solo pin. Los 14 municipios de Risaralda van completos porque la
+gobernación declaró la calamidad pública sobre los 14; Pereira, Dosquebradas y
+Manizales llevan cifra propia y los otros doce entran con esa declaratoria y la
+lista genérica, que es el mismo escalón donde ya están Zarzal y Sevilla.
+
+⚠ **Ojo con dos nombres.** Hay un municipio llamado *Risaralda* dentro de Caldas,
+distinto del departamento, y hay *Santuario*, *Balboa* y *Pueblo Rico* en más de
+un departamento del país — por eso esos slugs llevan el departamento pegado
+(`municipio-santuario-risaralda`, `municipio-balboa-risaralda`,
+`municipio-pueblo-rico-risaralda`). El nodo `place` de Pueblo Rico también sale
+dos veces en OSM: la vereda de Caldas y el pueblo de Risaralda, que es el de
+16.156 habitantes.
+
+Los tres con cifra propia van con la forma de arriba. Los doce restantes dicen
+todos lo mismo salvo el nombre y las coordenadas, así que van en una sola
+sentencia — menos superficie para una errata que doce bloques copiados:
+
+```sql
+insert into public.centers (id, type, name, address, lat, lng, donations, notes)
+select
+  'municipio-' || slug, 'municipio', nombre,
+  'Cabecera municipal, ' || nombre || ', Risaralda', lat, lng,
+  array['Agua','Enlatados','Arroz','Aceite','Colchonetas','Cobijas','Carpas','Jabón de cuerpo','Papel higiénico','Pañales'],
+  'Cubierto por la calamidad pública que Risaralda declaró para sus 14 municipios. Fuente: Semana — https://www.semana.com/nacion/regionales/articulo/gobernacion-de-risaralda-declara-calamidad-publica-y-urgencia-manifiesta-tras-terremoto-en-colombia/202649/'
+from (values
+  ('santa-rosa-de-cabal',      'Santa Rosa de Cabal', 4.8651, -75.6212),
+  ('la-virginia',              'La Virginia',         4.8996, -75.8826),
+  ('marsella',                 'Marsella',            4.9368, -75.7390),
+  ('belen-de-umbria',          'Belén de Umbría',     5.2009, -75.8690),
+  ('apia',                     'Apía',                5.1066, -75.9425),
+  ('santuario-risaralda',      'Santuario',           5.0732, -75.9625),
+  ('la-celia',                 'La Celia',            5.0034, -76.0032),
+  ('balboa-risaralda',         'Balboa',              4.9511, -75.9591),
+  ('quinchia',                 'Quinchía',            5.3376, -75.7295),
+  ('guatica',                  'Guática',             5.3156, -75.8008),
+  ('mistrato',                 'Mistrató',            5.2958, -75.8826),
+  ('pueblo-rico-risaralda',    'Pueblo Rico',         5.2216, -76.0302)
+) as m(slug, nombre, lat, lng);
+```
+
+Para ver lo que quedó de estos dos departamentos (los paréntesis no sobran: `and`
+amarra más fuerte que `or`, y sin ellos la consulta trae cualquier fila de Caldas
+sea del tipo que sea):
+
+```sql
+select id, name, address, lat, lng from public.centers
+ where type = 'municipio'
+   and (address like '%Risaralda' or address like '%Caldas')
+ order by name;
+```
+
 Cualquier cambio sale al aire de inmediato, sin deploy: la tabla va en el canal
 de realtime y el mapa de quien ya está mirando se repinta solo.
 
@@ -507,4 +612,71 @@ cierra sola:
 
 ```sql
 drop policy "anyone uploads a pet photo" on storage.objects;
+```
+
+## Las cifras de la emergencia
+
+`stats` es la primera tabla del proyecto cuyas filas son **afirmaciones sobre el
+mundo** y no sobre sus propios usuarios: cuántos muertos, cuántas viviendas,
+cuánta gente. Un número equivocado acá es desinformación en una página de
+emergencia, que no es lo mismo que un pin equivocado, y de ahí sale todo lo
+demás.
+
+**No tiene policy de insert, ni de update, ni de delete.** Es la superficie de
+escritura más angosta del proyecto —`centers` al menos deja registrar un acopio—
+y escribe solo `service_role`, o sea un mantenedor en el editor de SQL. Tampoco
+entra en el freno de inserciones: no hay quién la golpee.
+
+**Una fila es un corte entero.** La UNGRD publicó un balance nuevo casi cada día
+—239 muertos el 12 de agosto, 273 el 13, 281, 287, 288, 294 el 15— y a veces más
+de uno el mismo día, por eso `cut_at` lleva la hora y no solo la fecha. Guardando
+el corte completo en `figures`, ninguna consulta puede mezclar dos: la fila *es*
+el corte.
+
+Eso importa porque los dos bloques de la tarjeta salen de filas distintas. El
+total nacional viene del corte más reciente; el desglose por departamento, del
+más reciente que lo traiga, que no es el mismo — el balance del 15 de agosto no
+publicó desglose y el del 13 sí. **No se suman ni se comparan entre sí**: entre
+esos dos cortes el Chocó pasó de 14 muertos a 13, porque la UNGRD corrigió hacia
+abajo. Cada bloque se pinta con su propia fecha a la vista y ahí termina.
+
+No hay columna que diga de qué tipo es un corte: cada uno trae las llaves que
+publicó y las que no, no están. Las llaves son ids del catálogo de
+`src/scripts/stats.ts`; una llave que el catálogo no conoce se ignora al leer, y
+una cifra nueva es una entrada allá más la llave acá, sin migración.
+
+**Fuente única: la UNGRD.** Las gobernaciones publican sus propias cuentas y no
+cuadran con las de la UNGRD —el Valle contaba cerca de 200 muertos propios contra
+los 148 que le asignó la UNGRD el 13 de agosto, y el Chocó reclamaba 43.000
+damnificados contra 115.461 personas afectadas en todo el país—. No son erratas
+sino metodologías distintas, y mezclarlas sería inventar una consistencia que
+nadie publicó. **Esto vale solo para esta tabla**: los `municipio` siguen citando
+prensa y gobernaciones en sus `notes`, porque la UNGRD no publica nada por
+municipio y quitarles la cifra los dejaría con una lista de insumos sin razón.
+
+Agregar el balance de hoy es una fila más:
+
+```sql
+insert into public.stats (id, source, source_url, cut_at, figures)
+values (
+  'ungrd-2026-08-16-0630', 'UNGRD', 'https://…',
+  '2026-08-16T06:30:00-05:00',
+  jsonb_build_object(
+    'fallecidos', 000, 'heridos', 000, 'desaparecidos', 000, 'rescatados', 000,
+    'familias_afectadas', 000, 'personas_afectadas', 000,
+    'viviendas_destruidas', 000, 'viviendas_averiadas', 000,
+    'departamentos', 00, 'municipios', 000
+  )
+);
+```
+
+El id lleva la fecha y la hora del corte porque hay más de uno al día. La página
+lee los diez cortes más nuevos y se queda con el que corresponde a cada bloque,
+así que publicar uno nuevo no pide borrar el anterior: el historial se queda y no
+estorba.
+
+Qué hay hoy, y qué está a punto de caerse del borde de los diez:
+
+```sql
+select id, cut_at, jsonb_pretty(figures) from public.stats order by cut_at desc;
 ```
