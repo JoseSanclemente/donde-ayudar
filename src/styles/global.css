@@ -19,6 +19,13 @@ body {
   @apply bg-slate-50 text-slate-900 antialiased;
 }
 
+/* Tailwind v4's preflight dropped v3's `button { cursor: pointer }`, so every
+   button on the site — the filter chips above all — renders with the arrow and
+   nothing says it is clickable. This rule is deliberate, not redundant. */
+button:not(:disabled) {
+  cursor: pointer;
+}
+
 /* ---- Marcador rojo con pulso ---- */
 
 /* `position` NO se toca: Leaflet ancla cada marcador con `position: absolute` +
