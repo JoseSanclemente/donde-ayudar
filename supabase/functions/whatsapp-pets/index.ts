@@ -94,6 +94,22 @@ const HELP =
   "Hola. Para reportar una mascota encontrada, envíanos solamente una foto 📸 " +
   "(sin texto, ni audios). En el siguiente paso te pediremos los detalles.";
 
+/**
+ * Whoever writes does not know this number only reads a photo, so they write
+ * three lines, or they keep typing with the buttons already on screen. Every one
+ * of those falls through to the same reply, and answering each of them is how one
+ * misunderstanding becomes five identical messages. Only the fallthrough is held
+ * back — a photo and a tap are never skipped.
+ *
+ * The window is kept in the isolate and not in a table: a burst arrives in
+ * seconds, the isolate outlives that by minutes, and the only cost of a cold
+ * start is one extra reply, which is what happens today anyway. A `wa_nudges`
+ * table would be exact, and it would be a schema, a sweep and a round trip for a
+ * duplicate text message.
+ */
+const NUDGE_WINDOW_MS = 60_000;
+const lastNudge = new Map<string, number>();
+
 /* ------------------------------------------------------------------ */
 /* The webhook                                                         */
 /* ------------------------------------------------------------------ */
@@ -233,6 +249,9 @@ function constantTimeEquals(a: string, b: string): boolean {
 
 async function handle(payload: Webhook): Promise<void> {
   let handled = 0;
+  // A photo and two lines of text can arrive in a single payload. The senders
+  // already answered here do not get answered again.
+  const nudged = new Set<string>();
   for (const entry of payload.entry ?? []) {
     for (const change of entry.changes ?? []) {
       // `statuses` — delivered, read — comes through the same webhook and is
@@ -240,7 +259,7 @@ async function handle(payload: Webhook): Promise<void> {
       for (const message of change.value?.messages ?? []) {
         handled += 1;
         try {
-          await handleMessage(message, change.value?.contacts);
+          await handleMessage(message, change.value?.contacts, nudged);
         } catch (error) {
           console.error("whatsapp-pets: message failed", message.id, error);
         }
@@ -254,7 +273,8 @@ async function handle(payload: Webhook): Promise<void> {
 
 async function handleMessage(
   message: Message,
-  contacts?: Contact[],
+  contacts: Contact[] | undefined,
+  nudged: Set<string>,
 ): Promise<void> {
   // Nobody to answer and nothing to attribute a photo to. Meta always sends one
   // of the two, so this is a shape we do not know rather than a message we can
@@ -280,7 +300,48 @@ async function handleMessage(
     return;
   }
 
-  await sendText(sender, HELP);
+  await nudge(sender, nudged);
+}
+
+/**
+ * The reply for everything that is neither a photo nor a tap: a greeting, the
+ * description of the dog, an audio, a sticker. What it says depends on where the
+ * sender already is, because telling somebody to send a photo while their photo
+ * waits for a tap reads as if the conversation had been lost.
+ */
+async function nudge(sender: Sender, nudged: Set<string>): Promise<void> {
+  if (nudged.has(sender.address)) return;
+  nudged.add(sender.address);
+
+  const now = Date.now();
+  for (const [address, at] of lastNudge) {
+    if (now - at > NUDGE_WINDOW_MS) lastNudge.delete(address);
+  }
+  if (now - (lastNudge.get(sender.address) ?? 0) < NUDGE_WINDOW_MS) return;
+  lastNudge.set(sender.address, now);
+
+  // The last one, because that is the conversation the buttons on their screen
+  // belong to.
+  const { data: intake } = await admin
+    .from(INTAKES)
+    .select("kind")
+    .eq("wa_from", sender.address)
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle();
+
+  if (!intake) {
+    await sendText(sender, HELP);
+    return;
+  }
+  await sendText(
+    sender,
+    intake.kind
+      ? "Ya casi. Toca «Macho», «Hembra» o «No sé» en el mensaje de arriba y " +
+        "queda publicada."
+      : "Ya recibimos tu foto 📸 Toca una de las opciones de arriba " +
+        "(Perro / Gato / Otro) para publicarla.",
+  );
 }
 
 /* ------------------------------------------------------------------ */
@@ -316,6 +377,16 @@ async function askKind(
   const intakeId = data?.[0]?.id;
   if (!intakeId) return;
 
+  // Somebody sending four shots of the same dog gets four cards and, if they tap
+  // through all of them, four pets. That is left alone — whoever really found two
+  // animals is served by exactly the same behaviour — but it is said out loud,
+  // because a surprise and a choice are not the same thing.
+  const { count } = await admin
+    .from(INTAKES)
+    .select("id", { count: "exact", head: true })
+    .eq("wa_from", sender.address)
+    .neq("id", intakeId);
+
   await send(sender, {
     type: "interactive",
     interactive: {
@@ -325,7 +396,11 @@ async function askKind(
           "¡Foto recibida! 🙏 ¿Qué animal encontraste?\n\n" +
           `📍 ${sender.scoped ? "Tu usuario" : "Tu número"} y esta foto irán a ` +
           "dondeayudar.com.co/mascotas para que el dueño te escriba. " +
-          "Toca una opción:",
+          "Toca una opción:" +
+          ((count ?? 0) > 0
+            ? "\n\nNota: cada foto se publica por separado. Si son varias fotos " +
+              "de la misma mascota, responde solo esta."
+            : ""),
       },
       action: {
         buttons: Object.entries(KINDS).map(([kind, title]) => ({
