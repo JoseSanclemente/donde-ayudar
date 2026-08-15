@@ -86,6 +86,9 @@ const SEXES: Record<string, string> = {
 
 const INTAKE_TTL_HOURS = 24;
 
+/** The alphabet of a wamid: `wamid.` and base64. Nothing else reaches a filter. */
+const WA_MESSAGE_ID = /^[A-Za-z0-9._=+/-]+$/;
+
 const HELP =
   "Manda la foto de la mascota que encontraste y te hago dos preguntas: qué " +
   "animal es y si es macho o hembra. Sale publicada en " +
@@ -184,11 +187,13 @@ function constantTimeEquals(a: string, b: string): boolean {
 }
 
 async function handle(payload: Webhook): Promise<void> {
+  let handled = 0;
   for (const entry of payload.entry ?? []) {
     for (const change of entry.changes ?? []) {
       // `statuses` — delivered, read — comes through the same webhook and is
       // none of our business.
       for (const message of change.value?.messages ?? []) {
+        handled += 1;
         try {
           await handleMessage(message);
         } catch (error) {
@@ -197,7 +202,9 @@ async function handle(payload: Webhook): Promise<void> {
       }
     }
   }
-  await sweepIntakes();
+  // Those `statuses` deliveries are around half the invocations, and sweeping on
+  // one is a delete over a table nothing has written to since the last sweep.
+  if (handled > 0) await sweepIntakes();
 }
 
 async function handleMessage(message: Message): Promise<void> {
@@ -273,33 +280,44 @@ async function askKind(
 async function askSex(message: Message, button: string): Promise<void> {
   const [, kind, intakeId] = button.split(":");
   if (!KINDS[kind] || !intakeId) return;
+  // The id goes inside a PostgREST filter string below, so it is checked against
+  // the alphabet a wamid is made of before it gets there. The payload is
+  // signature-verified, but a filter built out of input is not something to
+  // leave to the signature.
+  if (!WA_MESSAGE_ID.test(message.id)) return;
 
-  // Matched on the sender too: the id travels in a button we sent, but a photo
-  // must never be classified under a phone that did not send it.
-  const { data: intake } = await admin
-    .from(INTAKES)
-    .select("id, wa_kind_message_id")
-    .eq("id", intakeId)
-    .eq("wa_from", message.from)
-    .maybeSingle();
-
-  // The intake is deleted on publish, so this is what a tap on the buttons of an
-  // already published photo looks like.
-  if (!intake) {
-    await sendText(message.from, "Esa foto ya fue publicada. Gracias.");
-    return;
-  }
-
-  // A Meta resend of the same tap, which must not ask twice. A tap on a
-  // different button is a correction and falls through: the person changed their
-  // mind before answering the second question, and the last word is theirs.
-  if (intake.wa_kind_message_id === message.id) return;
-
-  const { error } = await admin
+  // One round trip, not two: the filter says everything the old select checked
+  // afterwards. Matched on the sender — the id travels in a button we sent, but
+  // a photo must never be classified under a phone that did not send it — and on
+  // `wa_kind_message_id`, so a Meta resend of the same tap matches no row. A tap
+  // on a *different* button does match: the person changed their mind before
+  // answering the second question, and the last word is theirs.
+  const { data: updated, error } = await admin
     .from(INTAKES)
     .update({ kind, wa_kind_message_id: message.id })
-    .eq("id", intake.id);
+    .eq("id", intakeId)
+    .eq("wa_from", message.from)
+    .or(`wa_kind_message_id.is.null,wa_kind_message_id.neq."${message.id}"`)
+    .select("id")
+    .maybeSingle();
   if (error) throw error;
+
+  // No row means one of two things, and they do not read the same to whoever
+  // tapped: the intake is gone —deleted on publish, so this is a tap on the
+  // buttons of an already published photo— or it is the resend. Only this
+  // branch, the rare one, pays a second round trip to tell them apart.
+  if (!updated) {
+    const { data: intake } = await admin
+      .from(INTAKES)
+      .select("id")
+      .eq("id", intakeId)
+      .eq("wa_from", message.from)
+      .maybeSingle();
+    if (!intake) {
+      await sendText(message.from, "Esa foto ya fue publicada. Gracias.");
+    }
+    return;
+  }
 
   await send(message.from, {
     type: "interactive",
@@ -313,7 +331,7 @@ async function askSex(message: Message, button: string): Promise<void> {
       action: {
         buttons: Object.entries(SEXES).map(([sex, title]) => ({
           type: "reply",
-          reply: { id: `sex:${sex}:${intake.id}`, title },
+          reply: { id: `sex:${sex}:${intakeId}`, title },
         })),
       },
     },
@@ -392,9 +410,15 @@ async function publish(message: Message, button: string): Promise<void> {
   // order `data/pets.ts` documents, for the same reason. A row pointing at a
   // photo that never uploaded renders broken for everyone forever; an object
   // with no row is invisible.
+  // The path carries a uuid, so these bytes never change: whatever cache the
+  // CDN is willing to grant, this object can take. What the page actually reads
+  // is the transform endpoint, which pins an hour of its own regardless.
   const uploaded = await admin.storage
     .from(BUCKET)
-    .upload(path, bytes, { contentType: media.mime_type });
+    .upload(path, bytes, {
+      contentType: media.mime_type,
+      cacheControl: "31536000",
+    });
   if (uploaded.error) throw uploaded.error;
 
   const inserted = await admin.from(PETS).insert({
@@ -412,13 +436,17 @@ async function publish(message: Message, button: string): Promise<void> {
     throw inserted.error;
   }
 
-  await admin.from(INTAKES).delete().eq("id", intake.id);
-  await sendText(
-    message.from,
-    "¡Listo! 🐾 Ya está publicada en dondeayudar.com.co/mascotas. " +
-      "Si la familia la está buscando, te escribirán directamente a este " +
-      "número. ¡Gracias por tu ayuda!",
-  );
+  // Both at once: the row is already published, so emptying the waiting room is
+  // no reason to keep whoever sent the photo waiting for the confirmation.
+  await Promise.all([
+    admin.from(INTAKES).delete().eq("id", intake.id),
+    sendText(
+      message.from,
+      "¡Listo! 🐾 Ya está publicada en dondeayudar.com.co/mascotas. " +
+        "Si la familia la está buscando, te escribirán directamente a este " +
+        "número. ¡Gracias por tu ayuda!",
+    ),
+  ]);
 }
 
 async function discard(
@@ -431,9 +459,11 @@ async function discard(
 }
 
 /**
- * A photo nobody classified in a day is not going to be classified. Swept on
- * any invocation and not on a schedule: there is no `pg_cron` in this project,
- * the same as the collection points, which expire in the browser.
+ * A photo nobody classified in a day is not going to be classified. Swept on any
+ * invocation that carried a message and not on a schedule: there is no `pg_cron`
+ * in this project, the same as the collection points, which expire in the
+ * browser. The `statuses` deliveries are skipped — nothing has been written to
+ * this table since the last sweep on one of those.
  */
 async function sweepIntakes(): Promise<void> {
   const cutoff = new Date(

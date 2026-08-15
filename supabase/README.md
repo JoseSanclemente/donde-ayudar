@@ -79,6 +79,21 @@ insert el que falla, el cliente borra el objeto antes de avisar.
 El host de Supabase entra en `img-src` de la CSP por esto — lo escribe
 `scripts/headers.mjs` a partir de `PUBLIC_SUPABASE_URL`, igual que `connect-src`.
 
+**La página nunca pide el original.** Una foto que llega por WhatsApp son
+1200×1600 y un tercio de mega, y la tarjeta pinta un cuadrado del tamaño de un
+dedo: `src/scripts/data/pets.ts` arma dos URL del endpoint de transformación
+—400×400 `cover` para la cuadrícula (unos 20 KB, webp si el navegador lo acepta)
+y 800×800 `contain` para la ficha—, así que los bytes grandes solo los paga quien
+toca una tarjeta. Las dos medidas van siempre juntas: `width` solo **no** conserva
+la proporción, porque el `resize` por defecto es `cover` y respeta exactamente lo
+que le den — un `width=400` suelto devuelve la foto en 400×1600.
+
+De paso arregla el caché. `/object/public/` responde `Cache-Control: no-cache`,
+así que cada visita revalidaba cada foto; `/render/image/public/` responde
+`public, max-age=3600`. Las subidas mandan `cacheControl: "31536000"` porque la
+llave lleva un uuid y esos bytes no cambian nunca, pero el CDN de transformación
+fija su hora igual: lo que se ganó es la hora, no el año.
+
 ## Las mascotas por WhatsApp
 
 `pets` tiene un segundo escritor: `supabase/functions/whatsapp-pets`, el único

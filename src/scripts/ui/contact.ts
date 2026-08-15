@@ -63,7 +63,10 @@ export function instagramUrl(handle: string): string {
  * phone written down as dead text is no use to whoever is reading it on a
  * phone, which is where this site is read.
  */
-export function contactLinksHtml(whatsapp?: string, instagram?: string): string {
+export function contactLinksHtml(
+  whatsapp?: string,
+  instagram?: string,
+): string {
   const lines = [
     whatsapp
       ? `<a class="center-link text-sm font-medium" href="${escapeHtml(
@@ -94,7 +97,7 @@ export function contactLinksHtml(whatsapp?: string, instagram?: string): string 
  * con el `gap` de su contenedor. El espacio lo pone quien lo coloca.
  */
 export const CONTACT_CTA =
-  "flex w-full text-center items-center justify-center gap-1.5 rounded-lg bg-emerald-600 p-3 text-sm font-semibold text-white no-underline shadow-sm transition hover:bg-emerald-700";
+  "flex w-full text-center items-center justify-center gap-1.5 rounded-lg bg-emerald-600 p-4 text-sm font-semibold text-white no-underline shadow-sm transition hover:bg-emerald-700";
 
 /** A dónde va el botón: al chat si el número lo arma, si no a marcarlo. */
 function contactHref(phone: string): { href: string; external: boolean } {
@@ -158,9 +161,10 @@ export function buildInstagramCta(handle: string): HTMLAnchorElement {
 }
 
 /**
- * El CTA con el número y nada más. Una mascota encontrada no trae nombre: quien
- * escribe pregunta por el animal, no por una persona, y «- 310 123 4567» con el
- * guión colgando de la nada se leía como un dato a medias.
+ * El CTA de una mascota encontrada, que no trae nombre: quien escribe pregunta
+ * por el animal, no por una persona. Dice a dónde lleva y no qué número es —el
+ * número es un dato que nadie va a marcar a mano desde el celular— salvo cuando
+ * no se puede armar el chat, que ahí el botón marca y lo honesto es mostrarlo.
  */
 export function buildPhoneCta(phone: string): HTMLAnchorElement {
   const { href, external } = contactHref(phone);
@@ -177,14 +181,17 @@ export function buildPhoneCta(phone: string): HTMLAnchorElement {
   icon.innerHTML = PHONE_ICON;
 
   const who = document.createElement("span");
-  who.textContent = phone;
+  who.textContent = external ? "Escribir a WhatsApp" : phone;
 
   call.append(icon, who);
   return call;
 }
 
 /** El mismo CTA como elemento, para los paneles que arman DOM. */
-export function buildContactCta(name: string, phone: string): HTMLAnchorElement {
+export function buildContactCta(
+  name: string,
+  phone: string,
+): HTMLAnchorElement {
   const call = buildPhoneCta(phone);
   // El botón ya está armado: lo único que cambia es por quién preguntar.
   const who = call.lastElementChild as HTMLSpanElement;

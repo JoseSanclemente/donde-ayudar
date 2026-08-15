@@ -56,6 +56,11 @@ Two kinds of data, and they must not mix:
   and `photo_path`. The
   photo is not in the row — it goes to the public `pets` bucket in Storage and the row keeps
   its object key, because the bytes in a column would ride along in every realtime payload.
+  The page never asks for that object: `data/pets.ts` derives two urls off the Storage
+  transform endpoint from the one key — a 400×400 `cover` for the grid card and an 800×800
+  `contain` for the sheet — so the card costs ~20 KB instead of the third of a megabyte
+  a WhatsApp photo weighs, and the big one is only paid by whoever taps. Both dimensions
+  always: `width` alone keeps no aspect ratio.
   Same policies as `volunteers` plus two on `storage.objects` that mirror them. The write
   order is fixed in `data/pets.ts`: photo first, row second, and the object is removed if
   the insert fails. `/mascotas` only reads.

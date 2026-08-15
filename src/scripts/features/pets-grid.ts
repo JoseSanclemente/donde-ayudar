@@ -33,7 +33,9 @@ const SEXES: Record<PetSex, { label: string; chip: string }> = {
   female: { label: "Hembra", chip: "bg-pink-100 text-pink-800" },
 };
 
-const CHIP = "rounded-full px-2 py-0.5 text-xs font-medium";
+/** Esta página se lee en un celular y a un brazo de distancia: los chips van en
+ *  el tamaño del cuerpo del texto, no en el de una nota al pie. */
+const CHIP = "rounded-full px-2.5 py-0.5 text-sm font-medium";
 
 function kindOf(pet: Pet) {
   return KINDS[pet.kind] ?? KINDS.other;
@@ -67,10 +69,15 @@ function buildChips(pet: Pet): HTMLSpanElement[] {
   return sex ? [buildChip(pet), sex] : [buildChip(pet)];
 }
 
-/** La foto de la tarjeta y la de la ficha son la misma: una sola descarga. */
-function buildPhoto(pet: Pet, className: string): HTMLImageElement {
+/**
+ * La tarjeta y la ficha piden dos tamaños distintos del mismo objeto, y esa es
+ * la idea: la tarjeta pinta un cuadrado del tamaño de un dedo y no tiene por qué
+ * bajarse la foto entera, que sale de WhatsApp en 1200×1600. Los bytes grandes
+ * los paga quien toca.
+ */
+function buildPhoto(pet: Pet, url: string, className: string): HTMLImageElement {
   const photo = document.createElement("img");
-  photo.src = pet.photoUrl;
+  photo.src = url;
   const sex = sexOf(pet);
   photo.alt = sex
     ? `${kindOf(pet).label} ${sex.label.toLowerCase()} encontrado`
@@ -86,20 +93,26 @@ function buildDetail(pet: Pet): HTMLElement {
   const detail = document.createElement("div");
   detail.className = "space-y-3";
 
-  detail.append(buildPhoto(pet, "max-h-[50svh] w-full rounded-xl object-contain"));
+  detail.append(
+    buildPhoto(
+      pet,
+      pet.photoUrl,
+      "max-h-[50svh] w-full rounded-xl object-contain",
+    ),
+  );
+
+  // Cuándo apareció va arriba y solo: es lo primero que decide si vale la pena
+  // escribir —un perro visto hace tres días ya no está donde lo vieron— y
+  // metido entre los chips se leía como un tercer chip descolorido.
+  const when = document.createElement("p");
+  when.className = "text-sm text-slate-500";
+  paintTime(when, pet.createdAt, "Encontrada ");
 
   const meta = document.createElement("div");
-  meta.className = "flex items-center gap-2";
-  const when = document.createElement("span");
-  when.className = "text-xs text-slate-500";
-  paintTime(when, pet.createdAt, "Encontrada ");
-  meta.append(...buildChips(pet), when);
+  meta.className = "flex flex-wrap items-center gap-2";
+  meta.append(...buildChips(pet));
 
-  const hint = document.createElement("p");
-  hint.className = "text-sm leading-snug text-slate-600";
-  hint.textContent = "Escríbele a quien la tiene para acordar dónde recogerla.";
-
-  detail.append(meta, hint, buildPhoneCta(pet.contactPhone));
+  detail.append(when, meta, buildPhoneCta(pet.contactPhone));
   return detail;
 }
 
@@ -127,7 +140,9 @@ export function initPetsGrid(): void {
     }
     empty.className = "mt-3 text-sm text-slate-500";
     empty.textContent =
-      state === "loading" ? "Cargando mascotas…" : "Todavía no hay mascotas publicadas.";
+      state === "loading"
+        ? "Cargando mascotas…"
+        : "Todavía no hay mascotas publicadas.";
   }
 
   function render() {
@@ -147,9 +162,10 @@ export function initPetsGrid(): void {
         card.addEventListener("click", () => openPetSheet(buildDetail(pet)));
 
         const footer = document.createElement("div");
-        footer.className = "flex flex-wrap items-center justify-between gap-1 px-2 py-2";
+        footer.className =
+          "flex flex-wrap items-center justify-between gap-3 p-3";
         const when = document.createElement("span");
-        when.className = "text-xs text-slate-400";
+        when.className = "text-sm text-slate-400";
         paintTime(when, pet.createdAt);
         // Los chips van juntos en su propia caja: con `justify-between` sobre
         // tres hijos el sexo se iría al centro, lejos de la clase de animal.
@@ -158,7 +174,10 @@ export function initPetsGrid(): void {
         chips.append(...buildChips(pet));
         footer.append(chips, when);
 
-        card.append(buildPhoto(pet, "aspect-square w-full object-cover"), footer);
+        card.append(
+          buildPhoto(pet, pet.thumbUrl, "aspect-square w-full object-cover"),
+          footer,
+        );
         item.append(card);
         return item;
       }),

@@ -34,7 +34,9 @@ export type Pet = {
   sex: PetSex | null;
   /** The object key inside the bucket — what the row stores. */
   photoPath: string;
-  /** Where to point an `<img>`. Not a column: built from `photoPath` on read. */
+  /** The grid card. Not a column: built from `photoPath` on read. */
+  thumbUrl: string;
+  /** The sheet. Same object, an order of magnitude more bytes. */
   photoUrl: string;
   contactPhone: string;
   createdAt: string;
@@ -107,12 +109,31 @@ function isRow(value: unknown): value is Row {
 }
 
 /**
+ * The two sizes the page asks for. A photo out of WhatsApp is 1200×1600 and a
+ * third of a megabyte, which is what the card used to download to paint a square
+ * the size of a thumb. Storage resizes on its own url, and serves webp to
+ * whoever accepts it, so the row keeps the key and nothing else changes.
+ *
+ * Both dimensions go on purpose: `width` alone does not preserve the aspect
+ * ratio — the default `resize` is `cover` and it honours exactly what it is
+ * given, so a lone `width=400` comes back 400×1600.
+ */
+const CARD = { width: 400, height: 400, resize: "cover", quality: 55 } as const;
+const FULL = {
+  width: 800,
+  height: 800,
+  resize: "contain",
+  quality: 70,
+} as const;
+
+/**
  * The bucket is public, so this is a string built locally — no network and no
  * signed url to expire while somebody is looking at the page.
  */
-function photoUrl(path: string): string {
+function photoUrl(path: string, transform: typeof CARD | typeof FULL): string {
   if (!supabase) return "";
-  return supabase.storage.from(BUCKET).getPublicUrl(path).data.publicUrl;
+  return supabase.storage.from(BUCKET).getPublicUrl(path, { transform }).data
+    .publicUrl;
 }
 
 function fromRow(row: Row): Pet {
@@ -121,7 +142,8 @@ function fromRow(row: Row): Pet {
     kind: row.kind as PetKind,
     sex: (row.sex as PetSex | null) ?? null,
     photoPath: row.photo_path,
-    photoUrl: photoUrl(row.photo_path),
+    thumbUrl: photoUrl(row.photo_path, CARD),
+    photoUrl: photoUrl(row.photo_path, FULL),
     contactPhone: row.contact_phone,
     createdAt: row.created_at,
     userId: row.user_id,
@@ -184,9 +206,12 @@ export async function addPet(input: PetInput): Promise<Pet | null> {
   // ownership is the `owner` check in the storage policy.
   const path = `${userId}/${id}.${extension}`;
 
-  const uploaded = await supabase.storage
-    .from(BUCKET)
-    .upload(path, input.file, { contentType: input.file.type });
+  // The path carries a uuid, so these bytes never change and the object can
+  // take whatever cache the CDN grants. Same value the bot writes.
+  const uploaded = await supabase.storage.from(BUCKET).upload(path, input.file, {
+    contentType: input.file.type,
+    cacheControl: "31536000",
+  });
   if (uploaded.error) {
     reportError("No se pudo subir la foto. Revisa la conexión.");
     return null;
@@ -194,12 +219,15 @@ export async function addPet(input: PetInput): Promise<Pet | null> {
 
   // The photo is already up, so the card can be drawn while the row travels.
   // The local url is replaced by the public one as soon as the insert answers.
+  // One blob for both sizes: there is nothing to resize on this side.
+  const local = URL.createObjectURL(input.file);
   const pending: Pet = {
     id,
     kind: input.kind,
     sex: input.sex ?? null,
     photoPath: path,
-    photoUrl: URL.createObjectURL(input.file),
+    thumbUrl: local,
+    photoUrl: local,
     contactPhone: input.contactPhone,
     createdAt: new Date().toISOString(),
     userId,
