@@ -90,9 +90,8 @@ const INTAKE_TTL_HOURS = 24;
 const WA_MESSAGE_ID = /^[A-Za-z0-9._=+/-]+$/;
 
 const HELP =
-  "Manda la foto de la mascota que encontraste y te hago dos preguntas: qué " +
-  "animal es y si es macho o hembra. Sale publicada en " +
-  "dondeayudar.com.co/mascotas.";
+  "Hola. Para reportar una mascota encontrada, envíanos solamente una foto 📸 " +
+  "(sin texto, ni audios). En el siguiente paso te pediremos los detalles.";
 
 /* ------------------------------------------------------------------ */
 /* The webhook                                                         */
