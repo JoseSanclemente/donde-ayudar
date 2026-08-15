@@ -61,14 +61,14 @@ const PHOTO_TYPES: Record<string, string> = {
 const KINDS: Record<string, string> = {
   dog: "Perro",
   cat: "Gato",
-  other: "Otra",
+  other: "Otro",
 };
 
 const INTAKE_TTL_HOURS = 24;
 
 const HELP =
   "Manda la foto de la mascota que encontraste y te pregunto qué animal es. " +
-  "Sale publicada en donde-ayudar.netlify.app/mascotas.";
+  "Sale publicada en dondeayudar.com.co/mascotas.";
 
 /* ------------------------------------------------------------------ */
 /* The webhook                                                         */
@@ -110,7 +110,9 @@ Deno.serve(async (request) => {
   // signature is the whole of what says the payload came from Meta. Without it
   // anyone who learns the url can publish a pet.
   const raw = await request.text();
-  if (!(await signatureMatches(raw, request.headers.get("x-hub-signature-256")))) {
+  if (
+    !(await signatureMatches(raw, request.headers.get("x-hub-signature-256")))
+  ) {
     return new Response("bad signature", { status: 401 });
   }
 
@@ -129,7 +131,10 @@ Deno.serve(async (request) => {
   return new Response("ok");
 });
 
-async function signatureMatches(raw: string, header: string | null): Promise<boolean> {
+async function signatureMatches(
+  raw: string,
+  header: string | null,
+): Promise<boolean> {
   if (!header?.startsWith("sha256=")) return false;
   const encoder = new TextEncoder();
   const key = await crypto.subtle.importKey(
@@ -139,8 +144,12 @@ async function signatureMatches(raw: string, header: string | null): Promise<boo
     false,
     ["sign"],
   );
-  const signed = new Uint8Array(await crypto.subtle.sign("HMAC", key, encoder.encode(raw)));
-  const expected = [...signed].map((byte) => byte.toString(16).padStart(2, "0")).join("");
+  const signed = new Uint8Array(
+    await crypto.subtle.sign("HMAC", key, encoder.encode(raw)),
+  );
+  const expected = [...signed]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
   return constantTimeEquals(expected, header.slice("sha256=".length));
 }
 
@@ -148,7 +157,8 @@ async function signatureMatches(raw: string, header: string | null): Promise<boo
 function constantTimeEquals(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
   let diff = 0;
-  for (let i = 0; i < a.length; i += 1) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  for (let i = 0; i < a.length; i += 1)
+    diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
 }
 
@@ -217,9 +227,9 @@ async function askKind(
       type: "button",
       body: {
         text:
-          "¡Gracias! ¿Qué animal es? Al responder, la foto y este número quedan " +
-          "publicados en donde-ayudar.netlify.app/mascotas para que quien la perdió " +
-          "te escriba.",
+          "¡Foto recibida! 🙏 ¿Qué animal encontraste?\n\n" +
+          "📍 Tu número y esta foto irán a dondeayudar.com.co/mascotas " +
+          "para que el dueño te escriba. Toca una opción:",
       },
       action: {
         buttons: Object.entries(KINDS).map(([kind, title]) => ({
@@ -280,8 +290,11 @@ async function publish(message: Message, button: string): Promise<void> {
   }
 
   // The media url is not public: it wants the same bearer token.
-  const download = await fetch(media.url, { headers: { authorization: `Bearer ${TOKEN}` } });
-  if (!download.ok) throw new Error(`media download failed: ${download.status}`);
+  const download = await fetch(media.url, {
+    headers: { authorization: `Bearer ${TOKEN}` },
+  });
+  if (!download.ok)
+    throw new Error(`media download failed: ${download.status}`);
   const bytes = await download.blob();
 
   const id = crypto.randomUUID();
@@ -315,12 +328,17 @@ async function publish(message: Message, button: string): Promise<void> {
   await admin.from(INTAKES).delete().eq("id", intake.id);
   await sendText(
     message.from,
-    `Listo, ya está publicada en donde-ayudar.netlify.app/mascotas. ` +
-      `Quien la perdió te escribirá a este número.`,
+    "¡Listo! 🐾 Ya está publicada en dondeayudar.com.co/mascotas. " +
+      "Si la familia la está buscando, te escribirán directamente a este " +
+      "número. ¡Gracias por tu ayuda!",
   );
 }
 
-async function discard(intakeId: string, to: string, reason: string): Promise<void> {
+async function discard(
+  intakeId: string,
+  to: string,
+  reason: string,
+): Promise<void> {
   await admin.from(INTAKES).delete().eq("id", intakeId);
   await sendText(to, reason);
 }
@@ -331,7 +349,9 @@ async function discard(intakeId: string, to: string, reason: string): Promise<vo
  * the same as the collection points, which expire in the browser.
  */
 async function sweepIntakes(): Promise<void> {
-  const cutoff = new Date(Date.now() - INTAKE_TTL_HOURS * 3600_000).toISOString();
+  const cutoff = new Date(
+    Date.now() - INTAKE_TTL_HOURS * 3600_000,
+  ).toISOString();
   const { error } = await admin.from(INTAKES).delete().lt("created_at", cutoff);
   if (error) console.error("whatsapp-pets: sweep failed", error);
 }
@@ -348,7 +368,10 @@ async function graph(path: string): Promise<unknown> {
   return await response.json();
 }
 
-async function send(to: string, message: Record<string, unknown>): Promise<void> {
+async function send(
+  to: string,
+  message: Record<string, unknown>,
+): Promise<void> {
   const response = await fetch(`${GRAPH}/${PHONE_NUMBER_ID}/messages`, {
     method: "POST",
     headers: {
@@ -364,7 +387,11 @@ async function send(to: string, message: Record<string, unknown>): Promise<void>
   });
   // A reply that does not arrive is not a reason to undo a published pet.
   if (!response.ok) {
-    console.error("whatsapp-pets: send failed", response.status, await response.text());
+    console.error(
+      "whatsapp-pets: send failed",
+      response.status,
+      await response.text(),
+    );
   }
 }
 

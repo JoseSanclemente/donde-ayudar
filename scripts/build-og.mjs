@@ -27,7 +27,7 @@ const SLATE_400 = "#94a3b8";
 // Duplicados de `src/consts.ts` a mano: este script es Node puro y no puede
 // importar de un módulo TypeScript sin sumar un paso de compilación.
 const SITE_NAME = "Dónde Ayudar Cali";
-const DOMAIN = "donde-ayudar.netlify.app";
+const DOMAIN = "dondeayudar.com.co";
 
 // Pila de fuentes, no una sola: la primera que exista gana. Sans-serif al final
 // para que nunca caiga en la serif por defecto de resvg.

@@ -101,7 +101,7 @@ se revisa el PNG con los ojos y el resultado se commitea.
 
 ## Despliegue
 
-En producción: **https://donde-ayudar.netlify.app**
+En producción: **https://dondeayudar.com.co**
 
 El dominio está escrito en tres lugares y los tres tienen que coincidir:
 `src/consts.ts` (`SITE_URL`), `astro.config.mjs` (`site`, que es lo que hace absolutas

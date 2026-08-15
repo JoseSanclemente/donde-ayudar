@@ -15,7 +15,7 @@ Fuera de estos archivos hay dos pasos manuales en el dashboard:
 1. **Authentication → Sign In / Providers → habilitar "Anonymous sign-ins"**. Sin
    eso nadie puede insertar, porque toda escritura pasa por una sesión anónima.
 2. **Authentication → Users → Add user**, un usuario para el bot de WhatsApp
-   (`whatsapp-bot@dondeayudarcali.com` sirve). Su uuid es el autor de todas las
+   (`whatsapp-bot@dondeayudar.com.co` sirve). Su uuid es el autor de todas las
    mascotas que publica la Edge Function; ver «Las mascotas por WhatsApp».
 
 ## Qué puede escribir un visitante

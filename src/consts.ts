@@ -11,7 +11,7 @@
  */
 
 /** Origen de producción, sin barra final: las URLs absolutas se arman con `new URL(path, Astro.site)`. */
-export const SITE_URL = "https://donde-ayudar.netlify.app";
+export const SITE_URL = "https://dondeayudar.com.co";
 
 export const SITE_NAME = "¿Dónde puedo ayudar?";
 

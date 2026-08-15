@@ -1,4 +1,4 @@
 User-agent: *
 Allow: /
 
-Sitemap: https://donde-ayudar.netlify.app/sitemap.xml
+Sitemap: https://dondeayudar.com.co/sitemap.xml

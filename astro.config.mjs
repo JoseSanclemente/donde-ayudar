@@ -22,7 +22,7 @@ export default defineConfig({
   // Sin `site`, `Astro.site` es undefined y las URLs de Open Graph salen
   // relativas — que los crawlers ignoran. Duplica `SITE_URL` de `src/consts.ts`
   // porque el config no puede importar del grafo de módulos de `src/`.
-  site: 'https://donde-ayudar.netlify.app',
+  site: 'https://dondeayudar.com.co',
 
   integrations: [headers(PUBLIC_SUPABASE_URL)],
 
