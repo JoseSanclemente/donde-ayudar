@@ -19,7 +19,9 @@
     "astro": "astro",
     "geo:build": "node scripts/build-geo-index.mjs",
     "geo:eval": "node scripts/eval-geo.mjs",
+    "zones:build": "node scripts/build-affected-zones.mjs",
     "og": "node scripts/build-og.mjs",
+    "wa:avatar": "node scripts/build-wa-avatar.mjs",
     "pets:seed": "node --env-file=.env scripts/seed-pets.mjs"
   },
   "dependencies": {

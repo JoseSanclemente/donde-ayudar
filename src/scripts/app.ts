@@ -1,5 +1,6 @@
 import { initData } from "./data/boot";
 import { onError } from "./data/errors";
+import { initAffectedLayer } from "./features/affected-layer";
 import { initAlertBanner } from "./features/alert-banner";
 import { initCentersLayer } from "./features/centers-layer";
 import { initMapFilter } from "./features/map-filter";
@@ -31,6 +32,9 @@ initMarkerSheet();
 initMarkerActions();
 initShare();
 initCentersLayer();
+// Antes del filtro: el JSON llega por su cuenta, pero la capa tiene que existir
+// cuando `initMapFilter` le pase el valor por defecto.
+initAffectedLayer();
 // Antes de que llegue el primer dato: los valores por defecto tienen que estar
 // puestos en el mapa cuando aparezca el primer marcador.
 initMapFilter();

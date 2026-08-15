@@ -7,7 +7,11 @@ import {
   type MapFilter,
   type MarkerKind,
 } from "../map-filter";
-import { setCenterVisibility, setReportVisibility } from "../map";
+import {
+  setAffectedVisibility,
+  setCenterVisibility,
+  setReportVisibility,
+} from "../map";
 import { createChipGroup } from "../ui/chip-group";
 import { $ } from "../ui/dom";
 
@@ -39,6 +43,7 @@ function apply(): void {
   );
   setCenterVisibility(types, filter.onlyActiveCenters);
   setReportVisibility(filter.kinds.has("reporte"), filter.onlyRecentReports);
+  setAffectedVisibility(filter.kinds.has("afectada"));
   paintButton();
 }
 

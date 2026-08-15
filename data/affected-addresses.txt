@@ -1,0 +1,70 @@
+# Edificaciones reportadas como afectadas o colapsadas.
+#
+# Fuente: recopilación ciudadana (reportes, medios y organismos de socorro).
+# No es un censo ni un dato oficial. De acá salen las zonas del mapa, nunca un
+# punto por dirección: `scripts/build-affected-zones.mjs` funde las cercanas.
+#
+# Una entrada por línea, campos separados por «|»:
+#
+#   código | dirección | colapso|afectacion | sector | lat,lng
+#
+# El sector es opcional y se escribe a mano — el script no lo deduce. La
+# coordenada también es opcional y, cuando está, se salta la geocodificación:
+# es para lo que la nomenclatura no resuelve. Las líneas que empiezan con # se
+# ignoran, y lo que va después de un # en una línea con datos es un comentario.
+#
+# Las esquinas van en forma canónica —«Carrera 44 # 5-0», cero metros desde el
+# cruce— y no como «Carrera 44 con Calle 5ta»: `parseAddress` no tiene rama para
+# «con», y sin placa el cruce entero cae en `rest` y la dirección se resuelve al
+# punto medio de la vía en toda la ciudad.
+
+# ---- Edificaciones con colapso ----
+
+A1  | Carrera 56 # 3-88        | colapso | Cuarto de Legua      # Edificio Ana Pilar
+A2  | Carrera 44 # 5-0         | colapso | Tequendama
+A3  | Carrera 72 # 10 Bis - 21 | colapso | Capri                # Torres del Limonar
+A4  | Calle 10 # 38-21         | colapso | Barrio Olímpico      # Apartahotel Molino Rojo
+A5  | Autopista sur con Calle 13 | colapso | La Luna | 3.4327442,-76.5272425  # Hotel La Luna
+A6  | Calle 8B # 45-17         | colapso | Tequendama           # Edificio Cantabria
+A7  | Calle 3D # 67-0          | colapso | El Refugio           # C. R. Ariguaní
+A8  | Carrera 44 # 9-0         | colapso | Los Cámbulos         # Edificio Vanessa / Corp. educativa adventista
+A9  | Calle 9 # 24-0           | colapso | La Alameda
+A10 | Carrera 40 # 4-0         | colapso | Nueva Granada        # U. R. Pío XII
+A11 | Carrera 39 # 5D-0        | colapso | Tequendama           # Edificio Mirasol
+A13 | Calle 9 # 38-0           | colapso | Eucarístico
+A14 | Calle 5 # 42-0           | colapso | Tequendama           # Panadería Quintapan
+A16 | Carrera 58 # 3-138       | colapso | Cuarto de Legua      # C. R. María Elvira Lloreda
+A19 | Carrera 28D # 72W-14     | colapso | El Poblado II        # Notaría 20
+A20 | Calle 4 # 57-62          | colapso | Pampalinda
+
+# ---- Algunas edificaciones reportadas con afectaciones ----
+
+A12 | Calle 5 # 36-08          | afectacion | El Sindicato         # Hospital Universitario del Valle
+A15 | Calle 3 # 55B-72         | afectacion | Cuarto de Legua      # C. R. Guadalupe
+A17 | Calle 5 # 57-0           | afectacion | Cuarto de Legua      # Edificio Atalanta
+A18 | Calle 62 # 1B-0          | afectacion | Chiminangos          # Chiminangos II
+A21 | Calle 5 # 37A-50         | afectacion | San Fernando         # Instituto para niños ciegos y sordos
+A22 | Calle 10 # 33-51         | afectacion | Colseguros           # Clínica Nuestra
+A23 | Calle 3 # 57-0           | afectacion | Cuarto de Legua      # Edificio Cañaveralejo I
+A24 | Avenida 5 Norte # 22N-2  | afectacion | Versalles            # Edificio Vanessa
+A25 | Carrera 66 # 13B-29      | afectacion | El Limonar           # Parques de la Fontana
+A26 | Calle 13A # 66B-60       | afectacion | El Limonar           # Torres de la Fontana
+A27 | Carrera 36 # 7-0         | afectacion | El Templete
+A28 | Calle 5 # 38D-104        | afectacion | San Fernando         # Ancianato Hermanitas de los Pobres
+A29 | Carrera 23C # 10-0       | afectacion | Bretaña
+A30 | Carrera 64A # 13C-65     | afectacion | Primero de Mayo      # Gemelos de Guadalupe
+A31 | Bajo Jordán, Carrera 92  | afectacion | Bajo Jordán | 3.3778688,-76.5508764  # viviendas afectadas
+A32 | Calle 12A # 56-4         | afectacion | Panamericano         # Edificio Laverdy
+A33 | Carrera 48 # 5-0         | afectacion | El Lido              # U. R. Antonio Nariño IV
+A34 | Altos de Santa Elena     | afectacion | Altos de Santa Elena | 3.3724225,-76.5545008
+A35 | Calle 12A # 52-60        | afectacion | Santa Anita          # Balcones de Guadalupe
+A36 | Calle 6A # 73-30         | afectacion | Capri | 3.3915936,-76.5444096  # Edificio Amalfi
+A37 | Calle 12 # 29B-78        | afectacion | Colseguros
+A38 | Calle 13A # 66B-16       | afectacion | Bosques del Limonar  # Edificio San Giorgio
+A39 | Calle 8C # 47-35         | afectacion | Nuevo Tequendama     # Torre de Kalúa
+A40 | Calle 14 # 70-87         | afectacion | Prados del Limonar   # Bosques de la Martina
+A41 | Calle 14 # 54-15         | afectacion | El Limonar           # Vientos de Guadalupe
+A42 | Calle 9 # 44-0           | afectacion |                      # varios edificios
+A43 | Calle 51 Norte con Avenida 4N | afectacion | La Flora | 3.4877082,-76.5218078  # Edificio Los Lagos
+A44 | Carrera 62 # 3-0         | afectacion |                      # varios edificios
+A45 | Calle 2 # 66B-89         | afectacion | El Refugio

@@ -1,4 +1,9 @@
 import L from "leaflet";
+import {
+  ZONE_DISCLAIMER,
+  ZONE_FILL,
+  type AffectedZone,
+} from "./affected-zones";
 import type { ReportGroup } from "./cluster";
 import {
   isCommunity,
@@ -282,11 +287,18 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
  */
 export type MarkerSelection = { html: string; lat: number; lng: number };
 
+/**
+ * Lo que puede abrir detalle. Un marcador, y desde las zonas afectadas también
+ * un círculo: las dos capas usan el mismo envase —popup en escritorio, sheet en
+ * móvil— y una segunda mecánica de popup sería la misma idea dos veces.
+ */
+type DetailLayer = L.Marker | L.Circle;
+
 let selectHandler: ((selection: MarkerSelection | null) => void) | null = null;
-let selected: L.Marker | null = null;
+let selected: DetailLayer | null = null;
 // El HTML del popup se guarda aparte porque en móvil el marcador no lo lleva
 // bindeado: sin popup, `getPopup()` no tiene nada que devolver.
-const popupHtml = new WeakMap<L.Marker, string>();
+const popupHtml = new WeakMap<DetailLayer, string>();
 
 /** `null` = lo que estaba abierto dejó de existir; el panel debe cerrarse. */
 export function onMarkerSelect(
@@ -295,7 +307,7 @@ export function onMarkerSelect(
   selectHandler = handler;
 }
 
-function emit(marker: L.Marker | null): void {
+function emit(marker: DetailLayer | null): void {
   selected = marker;
   if (!marker) {
     selectHandler?.(null);
@@ -315,7 +327,7 @@ export function clearSelection(): void {
  * bajo el header y los botones flotantes, así que el detalle va al sheet. Atar
  * el popup y cerrarlo a mano dejaría un parpadeo en cada toque.
  */
-function attachPopup(marker: L.Marker, html: string): void {
+function attachPopup(marker: DetailLayer, html: string): void {
   // Cada emisión del store repinta todos los marcadores, y casi siempre con el
   // mismo HTML: sin esta salida, un popup abierto se reparsea entero en cada
   // tick de realtime aunque no haya cambiado una letra.
@@ -328,14 +340,15 @@ function attachPopup(marker: L.Marker, html: string): void {
 
 function selectOnMobile(event: L.LeafletMouseEvent): void {
   if (!isMobile()) return;
-  emit(event.target as L.Marker);
+  emit(event.target as DetailLayer);
 }
 
 /** Al cruzar el breakpoint hay que devolverle (o quitarle) el popup a cada marcador. */
 function syncPopupMode(): void {
-  const all = [
+  const all: DetailLayer[] = [
     ...[...markers.values()].map((report) => report.marker),
     ...[...centers.values()].map((center) => center.marker),
+    ...zoneCircles,
   ];
   for (const marker of all) {
     const html = popupHtml.get(marker);
@@ -383,6 +396,7 @@ export function initMap(containerId: string): L.Map {
 
   collapseAttribution(map);
 
+  affectedLayer.addTo(map);
   centersLayer.addTo(map);
   reportsLayer.addTo(map);
 
@@ -407,6 +421,18 @@ export function initMap(containerId: string): L.Map {
   for (const event of ["pointerdown", "wheel", "keydown"] as const) {
     container.addEventListener(event, claim, { once: true, passive: true });
   }
+
+  // Las zonas se van del mapa pasado `ZONE_MAX_ZOOM`. Va en `zoomend` y no en
+  // `zoomstart`: sacarlas al empezar el gesto las hace desaparecer a mitad de la
+  // animación, con el zoom todavía dentro del rango.
+  const syncZoneZoom = () => {
+    const inRange = map.getZoom() <= ZONE_MAX_ZOOM;
+    if (inRange === zonesInRange) return;
+    zonesInRange = inRange;
+    applyZones();
+  };
+  syncZoneZoom();
+  map.on("zoomend", syncZoneZoom);
 
   onBreakpointChange(syncPopupMode);
 
@@ -797,7 +823,7 @@ function applyReports(): number {
   return shown;
 }
 
-function isReportMarker(marker: L.Marker): boolean {
+function isReportMarker(marker: DetailLayer): boolean {
   for (const { marker: candidate } of markers.values())
     if (candidate === marker) return true;
   return false;
@@ -1215,7 +1241,7 @@ function applyCenters(): number {
   return shown;
 }
 
-function isCenterMarker(marker: L.Marker): boolean {
+function isCenterMarker(marker: DetailLayer): boolean {
   for (const { marker: candidate } of centers.values())
     if (candidate === marker) return true;
   return false;
@@ -1277,6 +1303,119 @@ export function setCenters(entries: CenterEntry[]): number {
   }
 
   return applyCenters();
+}
+
+/* ---- Zonas afectadas: la capa de abajo del todo ---- */
+
+// Va en su propia capa y se agrega antes que las otras dos, pero lo que la deja
+// debajo no es ese orden: Leaflet pone los vectores en `overlayPane` y los
+// marcadores en `markerPane`, que va encima. Un círculo nunca puede tapar un
+// pin, ni siquiera el de un reporte que caiga justo en el borde.
+const affectedLayer = L.layerGroup();
+const zoneCircles: L.Circle[] = [];
+let zonesVisible = true;
+
+/**
+ * Más cerca que esto la capa se apaga, y no es solo por cuadros por segundo.
+ *
+ * Una zona es una afirmación a escala de ciudad —«por acá hubo reportes»—, y a
+ * zoom de calle una mancha sobre cuatro cuadras se empieza a leer como algo
+ * dicho de los edificios que quedan debajo, que es justo lo que la fuente pide
+ * no leer. Lo otro es el costo: el desenfoque es un filtro SVG, su superficie
+ * crece con el zoom, y a 20 el círculo más grande pasa de 6.000 px de radio.
+ */
+const ZONE_MAX_ZOOM = 17;
+
+/** Si el zoom actual las admite. Lo actualiza `initMap`. */
+let zonesInRange = true;
+
+/**
+ * Cuántos reportes y de qué tipo, sin nombrar una sola dirección. El colapso se
+ * cuenta aparte porque es la única distinción que la fuente hace, y va como
+ * conteo y no como color: pintar dos intensidades sería insinuar una gradación
+ * de daño que estos datos no miden.
+ */
+function affectedPopupHtml(zone: AffectedZone): string {
+  const reports = `${zone.reports} ${zone.reports === 1 ? "reporte" : "reportes"}`;
+  const collapses =
+    zone.collapses > 0
+      ? `, ${zone.collapses} de ellos por colapso`
+      : "";
+  const warnings = ZONE_DISCLAIMER.map(
+    (line) => `<li>${escapeHtml(line)}</li>`,
+  ).join("");
+  return `
+    <div class="space-y-2">
+      <div class="space-y-1">
+        <p class="text-xs font-semibold uppercase tracking-wide text-orange-700">Zona con reportes de daño</p>
+        <p class="text-lg font-semibold leading-tight text-slate-900 mt-3">${escapeHtml(zone.label)}</p>
+        <p class="text-sm text-slate-600">${reports}${collapses}</p>
+      </div>
+      <ul class="m-0 list-disc space-y-1 pl-4 text-xs text-slate-500">${warnings}</ul>
+    </div>`;
+}
+
+/**
+ * Reemplaza la capa entera. Acá sí se puede vaciar de golpe, al revés que en
+ * `applyCenters`: son datos estáticos que llegan una sola vez, así que no hay
+ * un repintado que pueda arrancar de debajo el detalle que alguien esté
+ * leyendo.
+ */
+export function setAffectedZones(zones: AffectedZone[]): void {
+  if (selected && isZoneCircle(selected)) emit(null);
+  affectedLayer.clearLayers();
+  zoneCircles.length = 0;
+
+  for (const zone of zones) {
+    const circle = L.circle([zone.lat, zone.lng], {
+      radius: zone.radius,
+      className: "affected-zone",
+      stroke: false,
+      fillColor: ZONE_FILL,
+      fillOpacity: 0.14,
+    });
+    attachPopup(circle, affectedPopupHtml(zone));
+    circle.on("click", onZoneClick);
+    zoneCircles.push(circle);
+  }
+
+  applyZones();
+}
+
+/**
+ * Un marcador ocupa 18 píxeles y una zona media ciudad: mientras se elige un
+ * punto en el mapa, el clic tiene que atravesarla. Sin esto la capa se traga el
+ * gesto justo en las cuadras donde más se va a reportar.
+ */
+function onZoneClick(event: L.LeafletMouseEvent): void {
+  if (!pickHandler) {
+    selectOnMobile(event);
+    return;
+  }
+  const handler = pickHandler;
+  stopPicking();
+  (event.target as L.Circle).closePopup();
+  handler(event.latlng);
+}
+
+function isZoneCircle(layer: DetailLayer): boolean {
+  return zoneCircles.some((circle) => circle === layer);
+}
+
+export function setAffectedVisibility(visible: boolean): number {
+  zonesVisible = visible;
+  return applyZones();
+}
+
+function applyZones(): number {
+  const visible = zonesVisible && zonesInRange;
+  for (const circle of zoneCircles) {
+    if (visible === affectedLayer.hasLayer(circle)) continue;
+    if (visible) affectedLayer.addLayer(circle);
+    else affectedLayer.removeLayer(circle);
+  }
+  if (!visible && selected && isZoneCircle(selected)) emit(null);
+  return visible ? zoneCircles.length : 0;
 }
 
 export function startPicking(onPick: (latlng: L.LatLng) => void): void {

@@ -481,6 +481,28 @@ button:not(:disabled) {
   clip-path: polygon(50% 0, 100% 38%, 100% 100%, 0 100%, 0 38%);
 }
 
+/* La mancha de las zonas afectadas. El desenfoque no es decoración: un borde
+   nítido se lee como un perímetro medido, y lo que hay detrás son reportes
+   sueltos agrupados a mano. El círculo tiene que decir «por acá», no «hasta
+   acá». */
+.affected-zone {
+  filter: blur(12px);
+}
+
+.filter-pin-afectada {
+  border-radius: 9999px;
+  background: #f97316;
+  opacity: 0.55;
+  filter: blur(2px);
+}
+
+/* La regla común de apagado escribe `filter` entero y le quitaría el desenfoque:
+   apagada, la mancha tiene que seguir siendo una mancha y no volverse un punto. */
+[aria-pressed="false"] .filter-pin-afectada {
+  filter: grayscale(1) blur(2px);
+  opacity: 0.45;
+}
+
 /* ---- Marcador provisional (arrastrable) ---- */
 
 .draft-marker {

@@ -7,8 +7,13 @@
  */
 import type { CenterType } from "./centers";
 
-/** Un reporte no es un `Center`, pero en el mapa son la misma pregunta: qué pin. */
-export type MarkerKind = "reporte" | CenterType;
+/**
+ * Un reporte no es un `Center`, pero en el mapa son la misma pregunta: qué pin.
+ * `afectada` tampoco lo es y ni siquiera es un pin —es la mancha de las zonas
+ * con reportes de daño—, pero se apaga desde la misma fila, y esa fila es la
+ * leyenda: es el único lugar donde la capa dice cómo se llama.
+ */
+export type MarkerKind = "reporte" | "afectada" | CenterType;
 
 export type MapFilter = {
   kinds: Set<MarkerKind>;
@@ -45,6 +50,12 @@ export const MARKER_KINDS: KindInfo[] = [
     chipOn: "border-red-300 bg-red-50 text-red-800",
   },
   {
+    id: "afectada",
+    label: "Zonas afectadas",
+    pin: "filter-pin-afectada",
+    chipOn: "border-orange-300 bg-orange-50 text-orange-800",
+  },
+  {
     id: "acopio",
     label: "Puntos de acopio",
     pin: "filter-pin-acopio",
@@ -71,7 +82,7 @@ export const MARKER_KINDS: KindInfo[] = [
 ];
 
 export const CENTER_KINDS = MARKER_KINDS.map(({ id }) => id).filter(
-  (id): id is CenterType => id !== "reporte",
+  (id): id is CenterType => id !== "reporte" && id !== "afectada",
 );
 
 /**
