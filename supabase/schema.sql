@@ -553,6 +553,12 @@ create table public.pets (
   id            uuid primary key default gen_random_uuid(),
   user_id       uuid not null default auth.uid() references auth.users on delete cascade,
   kind          text not null,
+  -- Whether it is a male or a female, which is the first thing somebody looking
+  -- for their dog knows about it. Nullable and with two values only: «no sé» is
+  -- a legitimate answer in front of an animal in the street and is stored as
+  -- NULL, the same as a row published before this column existed. The card
+  -- simply does not paint the chip.
+  sex           text check (sex is null or sex in ('male', 'female')),
   -- The object key inside the bucket, not a url. The pattern is a shape check,
   -- like the phone one: it stops the column being used as free text or as a full
   -- address to somewhere else. Reading it back into a url is `data/pets.ts`.
@@ -611,13 +617,14 @@ create policy "authors delete their own pet photo"
 
 -- `pets` has a second writer: the `whatsapp-pets` Edge Function, which publishes
 -- what people send to the WhatsApp number. A photo arrives before anyone has
--- said what animal it is, so the function answers with three buttons and waits;
+-- said what animal it is — or whether it is a male or a female, and a WhatsApp
+-- message carries three buttons at most — so the function asks twice and waits;
 -- this is what it keeps in the meantime.
 --
 -- Not the photo — the Graph media id. The bytes are downloaded only after the
--- tap, so a photo nobody classifies never reaches the bucket and there are no
--- orphan objects to sweep. The rows the function sweeps itself, cheaply, on any
--- invocation: nothing classified in a day is going to be.
+-- last tap, so a photo nobody finishes classifying never reaches the bucket and
+-- there are no orphan objects to sweep. The rows the function sweeps itself,
+-- cheaply, on any invocation: nothing classified in a day is going to be.
 create table public.pet_intakes (
   id            uuid primary key default gen_random_uuid(),
   -- The dedupe. Meta resends a webhook it believes failed, and the second copy
@@ -628,6 +635,12 @@ create table public.pet_intakes (
   wa_from       text not null,
   media_id      text not null,
   mime_type     text not null,
+  -- What the first tap said. Null until then.
+  kind          text,
+  -- Which message that `kind` came from. A Meta resend of the same tap must not
+  -- send the sex buttons twice; a genuine second tap must, because it is a
+  -- correction, and the id is what tells them apart.
+  wa_kind_message_id text,
   created_at    timestamptz not null default now()
 );
 

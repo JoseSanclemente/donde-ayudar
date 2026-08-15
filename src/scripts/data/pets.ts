@@ -20,9 +20,18 @@ import { getUserId } from "./session";
  */
 export type PetKind = "dog" | "cat" | "other";
 
+/**
+ * Whether it is a male or a female — the first thing somebody looking for their
+ * dog knows about it. `null` is «no sé», the answer of whoever is looking at an
+ * animal in the street and cannot tell, and also what a row published before the
+ * question existed carries. Nothing on the page tells the two apart.
+ */
+export type PetSex = "male" | "female";
+
 export type Pet = {
   id: string;
   kind: PetKind;
+  sex: PetSex | null;
   /** The object key inside the bucket — what the row stores. */
   photoPath: string;
   /** Where to point an `<img>`. Not a column: built from `photoPath` on read. */
@@ -36,6 +45,7 @@ type Row = {
   id: string;
   user_id: string;
   kind: string;
+  sex: string | null;
   photo_path: string;
   contact_phone: string;
   created_at: string;
@@ -89,6 +99,7 @@ function isRow(value: unknown): value is Row {
     typeof r.id === "string" &&
     typeof r.user_id === "string" &&
     typeof r.kind === "string" &&
+    (r.sex === null || r.sex === undefined || typeof r.sex === "string") &&
     typeof r.photo_path === "string" &&
     typeof r.contact_phone === "string" &&
     typeof r.created_at === "string"
@@ -108,6 +119,7 @@ function fromRow(row: Row): Pet {
   return {
     id: row.id,
     kind: row.kind as PetKind,
+    sex: (row.sex as PetSex | null) ?? null,
     photoPath: row.photo_path,
     photoUrl: photoUrl(row.photo_path),
     contactPhone: row.contact_phone,
@@ -132,6 +144,8 @@ export const onPets = changes.on;
 export type PetInput = {
   file: File;
   kind: PetKind;
+  /** Optional: whoever picks up a stray does not always know. */
+  sex?: PetSex | null;
   contactPhone: string;
 };
 
@@ -183,6 +197,7 @@ export async function addPet(input: PetInput): Promise<Pet | null> {
   const pending: Pet = {
     id,
     kind: input.kind,
+    sex: input.sex ?? null,
     photoPath: path,
     photoUrl: URL.createObjectURL(input.file),
     contactPhone: input.contactPhone,
@@ -198,6 +213,7 @@ export async function addPet(input: PetInput): Promise<Pet | null> {
       id,
       user_id: userId,
       kind: input.kind,
+      sex: input.sex ?? null,
       photo_path: path,
       contact_phone: input.contactPhone,
     })

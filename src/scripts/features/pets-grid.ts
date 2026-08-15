@@ -1,4 +1,12 @@
-import { getPets, getPetsState, onPets, onPetsState, type Pet, type PetKind } from "../data/pets";
+import {
+  getPets,
+  getPetsState,
+  onPets,
+  onPetsState,
+  type Pet,
+  type PetKind,
+  type PetSex,
+} from "../data/pets";
 import { openPetSheet } from "../pet-sheet";
 import { buildPhoneCta } from "../ui/contact";
 import { $, scheduleRender } from "../ui/dom";
@@ -20,10 +28,21 @@ const KINDS: Record<PetKind, { label: string; chip: string }> = {
   other: { label: "Otra", chip: "bg-slate-100 text-slate-700" },
 };
 
+const SEXES: Record<PetSex, { label: string; chip: string }> = {
+  male: { label: "Macho", chip: "bg-sky-100 text-sky-800" },
+  female: { label: "Hembra", chip: "bg-pink-100 text-pink-800" },
+};
+
 const CHIP = "rounded-full px-2 py-0.5 text-xs font-medium";
 
 function kindOf(pet: Pet) {
   return KINDS[pet.kind] ?? KINDS.other;
+}
+
+/** Sin sexo no hay chip: quien la encontró no supo decirlo, o la publicó antes
+ *  de que se preguntara. Un «no sé» pintado no le sirve a nadie. */
+function sexOf(pet: Pet) {
+  return pet.sex ? (SEXES[pet.sex] ?? null) : null;
 }
 
 function buildChip(pet: Pet): HTMLSpanElement {
@@ -33,11 +52,29 @@ function buildChip(pet: Pet): HTMLSpanElement {
   return chip;
 }
 
+function buildSexChip(pet: Pet): HTMLSpanElement | null {
+  const sex = sexOf(pet);
+  if (!sex) return null;
+  const chip = document.createElement("span");
+  chip.className = `${CHIP} ${sex.chip}`;
+  chip.textContent = sex.label;
+  return chip;
+}
+
+/** Los dos chips en el orden en que se leen, y sin huecos cuando falta el sexo. */
+function buildChips(pet: Pet): HTMLSpanElement[] {
+  const sex = buildSexChip(pet);
+  return sex ? [buildChip(pet), sex] : [buildChip(pet)];
+}
+
 /** La foto de la tarjeta y la de la ficha son la misma: una sola descarga. */
 function buildPhoto(pet: Pet, className: string): HTMLImageElement {
   const photo = document.createElement("img");
   photo.src = pet.photoUrl;
-  photo.alt = `${kindOf(pet).label} encontrada`;
+  const sex = sexOf(pet);
+  photo.alt = sex
+    ? `${kindOf(pet).label} ${sex.label.toLowerCase()} encontrado`
+    : `${kindOf(pet).label} encontrada`;
   photo.className = className;
   photo.loading = "lazy";
   photo.decoding = "async";
@@ -56,7 +93,7 @@ function buildDetail(pet: Pet): HTMLElement {
   const when = document.createElement("span");
   when.className = "text-xs text-slate-500";
   paintTime(when, pet.createdAt, "Encontrada ");
-  meta.append(buildChip(pet), when);
+  meta.append(...buildChips(pet), when);
 
   const hint = document.createElement("p");
   hint.className = "text-sm leading-snug text-slate-600";
@@ -110,11 +147,16 @@ export function initPetsGrid(): void {
         card.addEventListener("click", () => openPetSheet(buildDetail(pet)));
 
         const footer = document.createElement("div");
-        footer.className = "flex items-center justify-between gap-2 px-2 py-2";
+        footer.className = "flex flex-wrap items-center justify-between gap-1 px-2 py-2";
         const when = document.createElement("span");
         when.className = "text-xs text-slate-400";
         paintTime(when, pet.createdAt);
-        footer.append(buildChip(pet), when);
+        // Los chips van juntos en su propia caja: con `justify-between` sobre
+        // tres hijos el sexo se iría al centro, lejos de la clase de animal.
+        const chips = document.createElement("div");
+        chips.className = "flex flex-wrap items-center gap-1";
+        chips.append(...buildChips(pet));
+        footer.append(chips, when);
 
         card.append(buildPhoto(pet, "aspect-square w-full object-cover"), footer);
         item.append(card);

@@ -51,7 +51,9 @@ Two kinds of data, and they must not mix:
   declared in `src/scripts/volunteers.ts` and nowhere else; adding one is an entry there
   plus its value in the CHECK.
 - **Mascotas encontradas** — `pets`, the smallest table and the only one with a file behind
-  it: a `kind` (`dog`, `cat`, `other`), a mandatory `contact_phone` and `photo_path`. The
+  it: a `kind` (`dog`, `cat`, `other`), an optional `sex` (`male`, `female` — «no sé» is
+  `null`, and so is every row published before the column), a mandatory `contact_phone`
+  and `photo_path`. The
   photo is not in the row — it goes to the public `pets` bucket in Storage and the row keeps
   its object key, because the bytes in a column would ride along in every realtime payload.
   Same policies as `volunteers` plus two on `storage.objects` that mirror them. The write
@@ -61,11 +63,14 @@ Two kinds of data, and they must not mix:
   `supabase/functions/whatsapp-pets`, an Edge Function behind the city's WhatsApp number.
   It runs on Supabase and not on Netlify, so the site stays static — no adapter, no
   `netlify.toml` change, nothing in `dist` — and the browser never calls it. The
-  conversation is two steps because a photo does not say what animal it is: the photo
-  arrives and an `pet_intakes` row keeps the Graph media id while three buttons go back;
-  the tap arrives and only then is the photo downloaded, uploaded and published. That
-  order is why there are no orphan objects to sweep — a photo nobody classifies never
-  reaches the bucket, and the rows expire in the function itself. `pet_intakes` has RLS
+  conversation is three steps because a photo says neither what animal it is nor whether
+  it is a male or a female, and a message carries three buttons at most: the photo arrives
+  and a `pet_intakes` row keeps the Graph media id while the kind buttons go back; the kind
+  tap is saved on that row and the sex buttons go back; the sex tap is the one that
+  downloads, uploads and publishes. That order is why there are no orphan objects to sweep
+  — a photo nobody finishes classifying never reaches the bucket, and the rows expire in
+  the function itself. The intake also keeps `wa_kind_message_id`, because the middle step
+  deletes nothing: it is what tells a Meta resend from somebody correcting the kind. `pet_intakes` has RLS
   with no policies at all, which is what makes it invisible to everyone but
   `service_role`. Those rows carry the bot user in `user_id` and their objects have no
   `owner`, so nothing removes them from a browser; taking one down is the maintainer SQL

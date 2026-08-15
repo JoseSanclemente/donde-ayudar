@@ -85,18 +85,31 @@ El host de Supabase entra en `img-src` de la CSP por esto — lo escribe
 código de servidor del proyecto. Corre en Supabase y no en Netlify, así que el
 sitio sigue siendo estático y el navegador nunca lo llama.
 
-La conversación son dos pasos, porque una foto no dice qué animal es:
+La conversación son tres pasos, porque una foto no dice qué animal es ni si es
+macho o hembra, y un mensaje de WhatsApp lleva tres botones como máximo:
 
 1. Llega la foto. Se guarda el **acuse** en `pet_intakes` —el id del mensaje, el
    remitente y el **media id** de Graph— y salen tres botones: Perro / Gato /
-   Otra.
-2. Llega el toque. Recién ahí se descarga la foto, se sube al bucket, se publica
-   la fila y se borra el acuse.
+   Otro.
+2. Llega el toque de la clase. Se guarda en el acuse y salen tres botones más:
+   Macho / Hembra / No sé.
+3. Llega el toque del sexo. Recién ahí se descarga la foto, se sube al bucket, se
+   publica la fila y se borra el acuse.
 
-Descargar en el paso 2 y no en el 1 es para lo que existe la sala de espera: una
-foto que nadie clasifica nunca llega al bucket, así que no hay objetos huérfanos
-que barrer — solo filas, y esas las barre la función sola cuando pasan 24 horas.
-Meta guarda el archivo 30 días; el toque llega en segundos.
+Descargar en el último paso y no en el primero es para lo que existe la sala de
+espera: una foto que nadie termina de clasificar nunca llega al bucket, así que no
+hay objetos huérfanos que barrer — solo filas, y esas las barre la función sola
+cuando pasan 24 horas. Meta guarda el archivo 30 días; el toque llega en segundos.
+
+**«No sé» se guarda como NULL.** `pets.sex` tiene dos valores y nada más, y una
+fila publicada antes de que existiera la pregunta lo lleva igual en NULL: la
+tarjeta no pinta el chip y no hay forma de distinguir los dos casos.
+
+**Los reenvíos de Meta.** El paso 3 es idempotente solo, porque el acuse se borra
+al publicar. El paso 2 no borra nada, así que el acuse guarda además
+`wa_kind_message_id`: si vuelve a llegar el mismo id de mensaje es un reenvío y no
+se responde; si llega otro, es alguien corrigiendo la clase antes de contestar la
+segunda pregunta, y se le manda otra vez los botones de sexo.
 
 `pet_intakes` tiene RLS **sin una sola policy**: eso es lo que la hace invisible.
 `anon` y `authenticated` no ven nada, y solo `service_role` —que se salta RLS—

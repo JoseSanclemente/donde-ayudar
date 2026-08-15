@@ -8,17 +8,23 @@ import { createClient } from "npm:@supabase/supabase-js@2";
  * project: it runs on Supabase, not on Netlify, so the site stays static and
  * nothing in the browser ever calls this.
  *
- * The conversation is two steps, because a photo does not say what animal it is:
+ * The conversation is three steps, because a photo does not say what animal it
+ * is, and a WhatsApp message carries three buttons at most:
  *
  *   1. A photo arrives. The intake is recorded — the message id, the sender and
- *      the Graph **media id** — and three buttons go back: Perro / Gato / Otra.
- *   2. The tap arrives. Only now is the photo downloaded, uploaded to the bucket
- *      and published, and the intake deleted.
+ *      the Graph **media id** — and three buttons go back: Perro / Gato / Otro.
+ *   2. The kind tap arrives. It is saved on the intake and three more buttons go
+ *      back: Macho / Hembra / No sé.
+ *   3. The sex tap arrives. Only now is the photo downloaded, uploaded to the
+ *      bucket and published, and the intake deleted.
  *
- * Downloading in step 2 and not in step 1 is the point of the waiting room: a
- * photo nobody classifies never reaches the bucket, so there are no orphan
- * objects to sweep — only rows, and those go below. Meta keeps the media for 30
- * days; a tap arrives in seconds.
+ * Downloading in the last step and not in the first is the point of the waiting
+ * room: a photo nobody finishes classifying never reaches the bucket, so there
+ * are no orphan objects to sweep — only rows, and those go below. Meta keeps the
+ * media for 30 days; a tap arrives in seconds.
+ *
+ * The last tap is also where the consent is: it is what publishes a phone
+ * number, so both button messages say so.
  */
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
@@ -64,11 +70,26 @@ const KINDS: Record<string, string> = {
   other: "Otro",
 };
 
+/** The article the second question needs: «Un perro» / «Una mascota». */
+const KIND_PHRASES: Record<string, string> = {
+  dog: "un perro 🐶",
+  cat: "un gato 🐱",
+  other: "una mascota 🐾",
+};
+
+/** `unknown` is a button id and nothing else: it writes NULL on the row. */
+const SEXES: Record<string, string> = {
+  male: "Macho",
+  female: "Hembra",
+  unknown: "No sé",
+};
+
 const INTAKE_TTL_HOURS = 24;
 
 const HELP =
-  "Manda la foto de la mascota que encontraste y te pregunto qué animal es. " +
-  "Sale publicada en dondeayudar.com.co/mascotas.";
+  "Manda la foto de la mascota que encontraste y te hago dos preguntas: qué " +
+  "animal es y si es macho o hembra. Sale publicada en " +
+  "dondeayudar.com.co/mascotas.";
 
 /* ------------------------------------------------------------------ */
 /* The webhook                                                         */
@@ -187,6 +208,10 @@ async function handleMessage(message: Message): Promise<void> {
 
   const button = message.interactive?.button_reply?.id;
   if (button?.startsWith("kind:")) {
+    await askSex(message, button);
+    return;
+  }
+  if (button?.startsWith("sex:")) {
     await publish(message, button);
     return;
   }
@@ -242,18 +267,71 @@ async function askKind(
 }
 
 /* ------------------------------------------------------------------ */
-/* Step 2 — the tap arrives                                            */
+/* Step 2 — the kind tap arrives                                       */
 /* ------------------------------------------------------------------ */
 
-async function publish(message: Message, button: string): Promise<void> {
+async function askSex(message: Message, button: string): Promise<void> {
   const [, kind, intakeId] = button.split(":");
   if (!KINDS[kind] || !intakeId) return;
 
-  // Matched on the sender too: the id travels in a button we sent, but a row
-  // must never be published under a phone that did not send that photo.
+  // Matched on the sender too: the id travels in a button we sent, but a photo
+  // must never be classified under a phone that did not send it.
   const { data: intake } = await admin
     .from(INTAKES)
-    .select("id, media_id")
+    .select("id, wa_kind_message_id")
+    .eq("id", intakeId)
+    .eq("wa_from", message.from)
+    .maybeSingle();
+
+  // The intake is deleted on publish, so this is what a tap on the buttons of an
+  // already published photo looks like.
+  if (!intake) {
+    await sendText(message.from, "Esa foto ya fue publicada. Gracias.");
+    return;
+  }
+
+  // A Meta resend of the same tap, which must not ask twice. A tap on a
+  // different button is a correction and falls through: the person changed their
+  // mind before answering the second question, and the last word is theirs.
+  if (intake.wa_kind_message_id === message.id) return;
+
+  const { error } = await admin
+    .from(INTAKES)
+    .update({ kind, wa_kind_message_id: message.id })
+    .eq("id", intake.id);
+  if (error) throw error;
+
+  await send(message.from, {
+    type: "interactive",
+    interactive: {
+      type: "button",
+      body: {
+        text:
+          `Es ${KIND_PHRASES[kind]} ¿Macho o hembra?\n\n` +
+          "Con esta respuesta queda publicada.",
+      },
+      action: {
+        buttons: Object.entries(SEXES).map(([sex, title]) => ({
+          type: "reply",
+          reply: { id: `sex:${sex}:${intake.id}`, title },
+        })),
+      },
+    },
+  });
+}
+
+/* ------------------------------------------------------------------ */
+/* Step 3 — the sex tap arrives                                        */
+/* ------------------------------------------------------------------ */
+
+async function publish(message: Message, button: string): Promise<void> {
+  const [, sex, intakeId] = button.split(":");
+  if (!SEXES[sex] || !intakeId) return;
+
+  // Matched on the sender too, for the same reason as above.
+  const { data: intake } = await admin
+    .from(INTAKES)
+    .select("id, media_id, kind")
     .eq("id", intakeId)
     .eq("wa_from", message.from)
     .maybeSingle();
@@ -262,6 +340,12 @@ async function publish(message: Message, button: string): Promise<void> {
   // retry both look like.
   if (!intake) {
     await sendText(message.from, "Esa foto ya fue publicada. Gracias.");
+    return;
+  }
+
+  // The two questions arrived out of order, which no button of ours can do.
+  if (!intake.kind || !KINDS[intake.kind]) {
+    await sendText(message.from, HELP);
     return;
   }
 
@@ -316,7 +400,10 @@ async function publish(message: Message, button: string): Promise<void> {
   const inserted = await admin.from(PETS).insert({
     id,
     user_id: BOT_USER_ID,
-    kind,
+    kind: intake.kind,
+    // «No sé» is an answer, and the column has no value for it: it is stored as
+    // null, the same as a row published before the question existed.
+    sex: sex === "unknown" ? null : sex,
     photo_path: path,
     contact_phone: `+${message.from}`,
   });
