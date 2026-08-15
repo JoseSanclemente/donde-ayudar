@@ -1,0 +1,43 @@
+# Netlify watches the repo and publishes the site on every push; Supabase does
+# not. The Edge Function lives in this repo but deploys to a different platform,
+# so without this workflow `supabase/functions/` is just text nobody reads, and
+# the code in main and the code answering the webhook drift apart in silence.
+#
+# `paths` is the whole point: a push that only touches `src/` must not redeploy
+# the function. Deploying is not free — it swaps the running isolate — and a
+# rebuild triggered by an unrelated commit is noise the day something breaks.
+name: Deploy Edge Functions
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "supabase/functions/**"
+      - "supabase/config.toml"
+      - ".github/workflows/edge-functions.yml"
+  # Escape hatch: redeploy without an empty commit when a secret changed in the
+  # dashboard, which the function reads only at boot.
+  workflow_dispatch:
+
+# A second push while the first is deploying would race for the same isolate.
+concurrency:
+  group: edge-functions
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      # `verify_jwt = false` is not passed here: it lives in
+      # `supabase/config.toml`, so the flag travels with the code and a deploy
+      # cannot silently turn the check back on.
+      - name: Deploy whatsapp-pets
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase functions deploy whatsapp-pets --project-ref ${{ secrets.SUPABASE_PROJECT_ID }}
