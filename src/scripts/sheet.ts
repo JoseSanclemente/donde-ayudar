@@ -30,6 +30,7 @@ let scrim: HTMLDivElement | null = null;
 let fab: HTMLButtonElement | null = null;
 let menu: HTMLButtonElement | null = null;
 let funnel: HTMLButtonElement | null = null;
+let pets: HTMLAnchorElement | null = null;
 let tabs: HTMLButtonElement[] = [];
 /** Desplazamiento que deja el sheet completamente fuera de la pantalla. */
 let closedY = 0;
@@ -135,6 +136,9 @@ function paintControls() {
     funnel.hidden = covered;
     funnel.setAttribute("aria-expanded", String(isTabVisible("filtros")));
   }
+  // El de las mascotas se va con los demás: lleva a otra página, y un enlace
+  // flotando encima del panel abierto es justo lo que no se quería tocar.
+  if (pets) pets.hidden = covered;
 }
 
 function paintScrim(state: State, animate: boolean) {
@@ -429,6 +433,7 @@ export function initSheet(): void {
   fab = document.getElementById("fab-report") as HTMLButtonElement | null;
   menu = document.getElementById("sheet-toggle") as HTMLButtonElement | null;
   funnel = document.getElementById("fab-filter") as HTMLButtonElement | null;
+  pets = document.getElementById("fab-pets") as HTMLAnchorElement | null;
   tabs = [...grab.querySelectorAll<HTMLButtonElement>("[data-tab-btn]")];
 
   for (const button of tabs) {

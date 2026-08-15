@@ -50,6 +50,26 @@ Two kinds of data, and they must not mix:
   different copy: one set of policies, one throttle, one realtime binding. The panels are
   declared in `src/scripts/volunteers.ts` and nowhere else; adding one is an entry there
   plus its value in the CHECK.
+- **Mascotas encontradas** — `pets`, the smallest table and the only one with a file behind
+  it: a `kind` (`dog`, `cat`, `other`), a mandatory `contact_phone` and `photo_path`. The
+  photo is not in the row — it goes to the public `pets` bucket in Storage and the row keeps
+  its object key, because the bytes in a column would ride along in every realtime payload.
+  Same policies as `volunteers` plus two on `storage.objects` that mirror them. The write
+  order is fixed in `data/pets.ts`: photo first, row second, and the object is removed if
+  the insert fails. `/mascotas` only reads.
+  The table has a second writer, and it is the only server-side code in the project:
+  `supabase/functions/whatsapp-pets`, an Edge Function behind the city's WhatsApp number.
+  It runs on Supabase and not on Netlify, so the site stays static — no adapter, no
+  `netlify.toml` change, nothing in `dist` — and the browser never calls it. The
+  conversation is two steps because a photo does not say what animal it is: the photo
+  arrives and an `pet_intakes` row keeps the Graph media id while three buttons go back;
+  the tap arrives and only then is the photo downloaded, uploaded and published. That
+  order is why there are no orphan objects to sweep — a photo nobody classifies never
+  reaches the bucket, and the rows expire in the function itself. `pet_intakes` has RLS
+  with no policies at all, which is what makes it invisible to everyone but
+  `service_role`. Those rows carry the bot user in `user_id` and their objects have no
+  `owner`, so nothing removes them from a browser; taking one down is the maintainer SQL
+  in `supabase/README.md`, which is also where the secrets are listed.
 - **Puntos de donación** — the table with the narrowest write surface, in Supabase too
   (`centers`). Four kinds, split by a `type` discriminator: `acopio` (collection centers),
   `albergue` (shelters), `sangre` (blood banks) and `healthcare` (where the injured are
@@ -81,15 +101,23 @@ false` greys the marker out, `accepting_donations: false` only writes a line in 
 
 `src/scripts/` is split into layers, and imports only ever flow downward — never back up:
 
-- **`app.ts`** — boot only: it calls each `init…()`, `initData()`, and `loadAddresses()`.
-  The street grid is not asked for here: `public/geo/streets.json` is two megabytes, so
-  `location-picker` starts it on the first focus of an address field and `app.ts` only
-  warms it from an idle callback, for the visitor who never opens a form.
+- **One entry per page**, declared by the page itself and not by `Base.astro` — `app.ts`
+  for the map (`index.astro`), `pets.ts` for `/mascotas`. A single import in the layout
+  charged each page for the other's bundle, and `app.ts` boots Leaflet, the address
+  pipeline and the six stores, none of which the pets page has any use for.
+  - **`app.ts`** — boot only: it calls each `init…()`, `initData()`, and `loadAddresses()`.
+    The street grid is not asked for here: `public/geo/streets.json` is two megabytes, so
+    `location-picker` starts it on the first focus of an address field and `app.ts` only
+    warms it from an idle callback, for the visitor who never opens a form.
+  - **`pets.ts`** — the same thing for `/mascotas`, and much shorter: the sheet, the grid,
+    the ticker and `initPetsData()`. It reaches `data/boot-pets.ts` and never `data/boot.ts`,
+    because that one imports every store to call its `load…()` and an import is what pulls
+    a module into the bundle.
 - **`features/`** — one UI piece per file, each with its `init…()`: `alert-banner`,
   `center-form`, `centers-layer`, `header-offset`, `location-picker`, `marker-actions`,
   `marker-sheet`, `offers-panel`, `report-form`, `report-history`, `report-list`, `report-tabs`,
   `resource-picker`, `share`, `sync-badge`, `updates-feed`, `user-location`,
-  `volunteer-panel`. They
+  `volunteer-panel`, `pets-grid`. They
   subscribe to the stores; they never call Supabase directly. `marker-actions` is the odd
   one: the marker detail is HTML built by `map.ts`, which cannot touch the stores, so the
   wiring for its controls is delegated on `document` from there. `location-picker`,
@@ -107,6 +135,9 @@ false` greys the marker out, `accepting_donations: false` only writes a line in 
   `emitter.ts` to announce changes and its
   `bindTable()` in `live.ts`, which merges every table into a single realtime channel.
   `boot.ts` runs once: anonymous session, initial load, and only then the channel.
+  `boot-pets.ts` is the same three steps for `/mascotas`, minus the session — that page
+  only reads and the SELECT policy is `to anon` — and with its own reread, because
+  `sync.ts` imports the six stores.
   `session.ts` holds the current user id and `isMine()`, mirroring the RLS delete policy.
   `errors.ts` is the error bus the toast consumes. `sync.ts` is the freshness of the data:
   realtime never resends what happened while the socket was down, so it re-reads every
@@ -155,6 +186,10 @@ false` greys the marker out, `accepting_donations: false` only writes a line in 
     the cache: centering on a weeks-old position is harmless, a dot claiming it is not.
   - `sheet.ts` — the mobile bottom sheet (`display: contents` at >=1024px, so desktop is
     untouched).
+  - `pet-sheet.ts` — the panel of `/mascotas`, the visual twin of `sheet.ts` with none of
+    what ties that one to the map: no tabs, no `peek`, no breakpoint branch, no import of
+    `map.ts`. It is a panel at every width — that page has no sidebar to become — and it
+    only knows how to swap its body and slide.
   - `share-card.ts` — the 1080×1920 PNG behind the share button — story format, full
     screen on a phone — drawn on a canvas: a CARTO tile crop of the point, then its name,
     address and chips. The card is measured before anything is drawn and the map crop

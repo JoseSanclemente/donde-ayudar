@@ -29,7 +29,12 @@ function csp(supabaseUrl) {
     // Leaflet y GSAP posicionan y animan escribiendo en `element.style`.
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self'",
-    "img-src 'self' data: https://*.basemaps.cartocdn.com",
+    // Supabase entra acá además de en `connect-src`: las fotos de las mascotas
+    // se sirven del bucket público, que va por el mismo host que el REST. Sin
+    // esto el navegador las bloquea en producción y el build no dice nada.
+    // `blob:` es la foto recién elegida: la ficha se dibuja con el archivo local
+    // mientras la fila viaja.
+    `img-src 'self' data: blob: ${rest} https://*.basemaps.cartocdn.com`,
     // Los tres destinos que el sitio necesita y nada más: Supabase (REST y el
     // WebSocket de realtime), y Nominatim para buscar direcciones. Las teselas
     // de CARTO no entran acá: van por `img-src`.

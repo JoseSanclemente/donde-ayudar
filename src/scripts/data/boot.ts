@@ -2,6 +2,7 @@ import { MISSING_ENV_MESSAGE, supabase } from "../supabase";
 import { loadCenters } from "./centers";
 import { onReconnect, startLive } from "./live";
 import { loadOffers } from "./offers";
+import { loadPets } from "./pets";
 import { loadReports, setReportsState, startRetireSweep } from "./reports";
 import { ensureSession, restoreSession } from "./session";
 import { initSync, markSynced, resyncAll } from "./sync";
@@ -25,7 +26,7 @@ export async function initData(): Promise<void> {
     // para que quien vuelve vea suyo lo suyo desde el primer pintado.
     await restoreSession();
 
-    // Las cuatro consultas y el registro anónimo van juntos, no en fila. Las
+    // Todas las consultas y el registro anónimo van juntos, no en fila. Las
     // policies de SELECT son `to anon` —todo el mundo ve todo—, así que ninguna
     // lectura necesita sesión, y esperar el `signInAnonymously()` le ponía a
     // cada primera visita una ida y vuelta entera por delante de la primera
@@ -38,6 +39,7 @@ export async function initData(): Promise<void> {
       loadOffers(),
       loadCenters(),
       loadVolunteers(),
+      loadPets(),
     ]);
     // Sigue siendo obligatoria antes de `ready`: sin `uid` no se puede escribir
     // nada, y quien entra por primera vez no tiene todavía nada propio que el

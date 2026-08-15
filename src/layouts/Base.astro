@@ -10,18 +10,28 @@ import {
 interface Props {
   title: string;
   description?: string;
+  /**
+   * `/mascotas` es un documento que se desplaza; el mapa es una app que ocupa
+   * la pantalla y no se desplaza nunca. El `overflow-hidden` es de la segunda.
+   */
+  scroll?: boolean;
 }
 
-const { title, description = SITE_DESCRIPTION } = Astro.props;
+const { title, description = SITE_DESCRIPTION, scroll = false } = Astro.props;
 
-// El `<script>` del sitio va en el `head` y no al final del `body`. Es un
-// módulo: sigue siendo diferido y no bloquea el parseo, pero el navegador no
-// puede empezar a bajarlo hasta que el parser lo encuentra, y al final del
-// documento eso son 100 kB de HTML después — los formularios ocupan setenta.
-// Declarado arriba, los 150 kB del bundle bajan a la par de la página en vez de
-// detrás. Vive en el layout y no en la página porque es estar en el `head` lo
-// que adelanta el descubrimiento, y `index.astro` es la única página. La
-// explicación va acá y no en un comentario HTML: ese viajaría en cada respuesta.
+const bodyClass = scroll
+  ? "min-h-screen"
+  : "min-h-screen overflow-hidden overscroll-none lg:overflow-auto lg:overscroll-auto";
+
+// El `<script>` de cada página lo declara la página, no este layout: el mapa y
+// las mascotas no comparten arranque —`app.ts` monta Leaflet y las seis tablas,
+// `pets.ts` no— y un solo import acá le cobraba a cada una el bundle de la otra.
+// Astro sube el `<script>` de la página al `head` al compilar, así que sigue
+// valiendo lo que justificaba tenerlo acá: es un módulo, no bloquea el parseo,
+// pero el navegador no puede bajarlo hasta que el parser lo encuentra, y al
+// final del documento eso son 100 kB de HTML después — los formularios ocupan
+// setenta. La explicación va acá y no en un comentario HTML: ese viajaría en
+// cada respuesta.
 
 // Open Graph exige URLs absolutas: una ruta relativa la ignoran WhatsApp, X y
 // Facebook por igual. `Astro.site` sale de `site` en `astro.config.mjs`.
@@ -70,12 +80,8 @@ const ogImage = new URL(OG_IMAGE, Astro.site);
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="manifest" href="/site.webmanifest" />
-
-    <script>
-      import "../scripts/app";
-    </script>
   </head>
-  <body class="min-h-screen overflow-hidden overscroll-none lg:overflow-auto lg:overscroll-auto">
+  <body class={bodyClass}>
     <slot />
   </body>
 </html>

@@ -157,8 +157,12 @@ export function buildInstagramCta(handle: string): HTMLAnchorElement {
   return profile;
 }
 
-/** El mismo CTA como elemento, para los paneles que arman DOM. */
-export function buildContactCta(name: string, phone: string): HTMLAnchorElement {
+/**
+ * El CTA con el número y nada más. Una mascota encontrada no trae nombre: quien
+ * escribe pregunta por el animal, no por una persona, y «- 310 123 4567» con el
+ * guión colgando de la nada se leía como un dato a medias.
+ */
+export function buildPhoneCta(phone: string): HTMLAnchorElement {
   const { href, external } = contactHref(phone);
   const call = document.createElement("a");
   call.className = CONTACT_CTA;
@@ -173,8 +177,17 @@ export function buildContactCta(name: string, phone: string): HTMLAnchorElement 
   icon.innerHTML = PHONE_ICON;
 
   const who = document.createElement("span");
-  who.textContent = contactLabel(name, phone);
+  who.textContent = phone;
 
   call.append(icon, who);
+  return call;
+}
+
+/** El mismo CTA como elemento, para los paneles que arman DOM. */
+export function buildContactCta(name: string, phone: string): HTMLAnchorElement {
+  const call = buildPhoneCta(phone);
+  // El botón ya está armado: lo único que cambia es por quién preguntar.
+  const who = call.lastElementChild as HTMLSpanElement;
+  who.textContent = contactLabel(name, phone);
   return call;
 }

@@ -1,0 +1,7 @@
+# The webhook is called by Meta, which sends no `Authorization` header: with the
+# platform check on, every message would be rejected before reaching the code.
+# What authenticates the caller is the `x-hub-signature-256` the function itself
+# verifies. This file exists so that a deploy from the CLI cannot silently turn
+# the check back on — the deploy through the Supabase MCP passes the same flag.
+[functions.whatsapp-pets]
+verify_jwt = false

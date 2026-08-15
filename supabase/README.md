@@ -10,14 +10,18 @@ Dos archivos, una sola verdad:
 Cuando cambies el esquema, actualiza los dos: el delta para producción y la foto
 para que un proyecto nuevo siga arrancando de una sola corrida.
 
-Fuera de estos archivos hay un solo paso manual: en el dashboard,
-**Authentication → Sign In / Providers → habilitar "Anonymous sign-ins"**. Sin
-eso nadie puede insertar, porque toda escritura pasa por una sesión anónima.
+Fuera de estos archivos hay dos pasos manuales en el dashboard:
+
+1. **Authentication → Sign In / Providers → habilitar "Anonymous sign-ins"**. Sin
+   eso nadie puede insertar, porque toda escritura pasa por una sesión anónima.
+2. **Authentication → Users → Add user**, un usuario para el bot de WhatsApp
+   (`whatsapp-bot@dondeayudarcali.com` sirve). Su uuid es el autor de todas las
+   mascotas que publica la Edge Function; ver «Las mascotas por WhatsApp».
 
 ## Qué puede escribir un visitante
 
-Cinco tablas abiertas a escritura anónima — `reports`, `updates`, `offers`,
-`volunteers` y, solo en parte, `centers` — con la misma forma: cualquiera lee
+Seis tablas abiertas a escritura anónima — `reports`, `updates`, `offers`,
+`volunteers`, `pets` y, solo en parte, `centers` — con la misma forma: cualquiera lee
 todo, cualquiera inserta lo suyo, y solo el autor borra lo suyo (`auth.uid() =
 user_id`).
 
@@ -45,7 +49,85 @@ Las que reciben listas topan en 50 ids por llamada, y todas levantan `errcode
 22023` con un mensaje en español, que el cliente muestra tal cual en el toast.
 
 Además, un trigger `throttle_inserts` limita las inserciones por autor y por
-minuto: 6 reportes, 10 novedades, 4 ofertas, 4 inscripciones, 3 puntos.
+minuto: 6 reportes, 10 novedades, 4 ofertas, 4 inscripciones, 4 mascotas, 3
+puntos. **Quien llega con la `service_role` no cuenta**: no es un navegador —
+podría saltarse RLS entera— y frenarlo ahí sería teatro. Lo que sí haría es
+romper la Edge Function de WhatsApp, cuyas filas llevan todas el mismo autor.
+
+## Las mascotas encontradas
+
+`pets` es la tabla más pequeña del esquema y la única con un archivo detrás: una
+foto, un teléfono y qué animal es (`kind`: `dog`, `cat` u `other`). No lleva
+nombre ni dirección — un perro encontrado no tiene dirección, y quien lo perdió
+lo reconoce o no —, y el teléfono es obligatorio: es para lo que existe la
+página. Sin RPC y sin policy de UPDATE, como `volunteers`.
+
+**La foto no está en la fila.** Va al bucket `pets` de Storage y la fila guarda
+solo su llave (`photo_path`); los bytes en una columna viajarían en cada evento
+de realtime y en cada lectura de la tabla. El bucket es **público**, así que leer
+no necesita policy ni URL firmada: las fotos se ven igual que las filas. Escribir
+sí: dos policies sobre `storage.objects` que copian las de la tabla — cualquiera
+sube a su nombre, solo el dueño borra (`owner = auth.uid()`). El bucket tope en
+5 MB y acepta `image/jpeg`, `image/png` e `image/webp`; el navegador revisa lo
+mismo antes de subir, en `src/scripts/data/pets.ts`.
+
+El orden de escritura importa y está fijo en el cliente: **primero la foto,
+después la fila**. Una fila que apunta a una foto que no subió se ve rota para
+todo el mundo y para siempre; un objeto sin fila no lo alcanza nadie. Si es el
+insert el que falla, el cliente borra el objeto antes de avisar.
+
+El host de Supabase entra en `img-src` de la CSP por esto — lo escribe
+`scripts/headers.mjs` a partir de `PUBLIC_SUPABASE_URL`, igual que `connect-src`.
+
+## Las mascotas por WhatsApp
+
+`pets` tiene un segundo escritor: `supabase/functions/whatsapp-pets`, el único
+código de servidor del proyecto. Corre en Supabase y no en Netlify, así que el
+sitio sigue siendo estático y el navegador nunca lo llama.
+
+La conversación son dos pasos, porque una foto no dice qué animal es:
+
+1. Llega la foto. Se guarda el **acuse** en `pet_intakes` —el id del mensaje, el
+   remitente y el **media id** de Graph— y salen tres botones: Perro / Gato /
+   Otra.
+2. Llega el toque. Recién ahí se descarga la foto, se sube al bucket, se publica
+   la fila y se borra el acuse.
+
+Descargar en el paso 2 y no en el 1 es para lo que existe la sala de espera: una
+foto que nadie clasifica nunca llega al bucket, así que no hay objetos huérfanos
+que barrer — solo filas, y esas las barre la función sola cuando pasan 24 horas.
+Meta guarda el archivo 30 días; el toque llega en segundos.
+
+`pet_intakes` tiene RLS **sin una sola policy**: eso es lo que la hace invisible.
+`anon` y `authenticated` no ven nada, y solo `service_role` —que se salta RLS—
+alcanza un teléfono que todavía no aceptó publicarse. Tampoco va en el canal de
+realtime.
+
+**El autor.** No hay `auth.uid()` en una función con `service_role`, y
+`pets.user_id` es obligatorio y apunta a `auth.users`. Por eso el usuario del bot
+del paso 2 de arriba: su uuid firma todas estas filas. Consecuencia buscada:
+nadie las puede borrar desde el navegador —ni la fila ni el objeto, que queda sin
+`owner`—, porque nadie las publicó desde un navegador. Bajarlas es el SQL de
+«Bajar una foto publicada», más abajo.
+
+**Los secretos** van en Dashboard → Edge Functions → Secrets. `SUPABASE_URL` y
+`SUPABASE_SERVICE_ROLE_KEY` los inyecta la plataforma sola.
+
+| Secreto | Qué es |
+| --- | --- |
+| `WHATSAPP_VERIFY_TOKEN` | La cadena que uno inventa y repite en Meta al guardar la callback url |
+| `WHATSAPP_APP_SECRET` | App secret de la app de Meta. Firma cada webhook (`x-hub-signature-256`); sin esa verificación cualquiera que sepa la url publica una mascota |
+| `WHATSAPP_TOKEN` | Token de acceso del número. Sirve para bajar el archivo y para responder |
+| `WHATSAPP_PHONE_NUMBER_ID` | El id del número que manda las respuestas |
+| `PETS_BOT_USER_ID` | El uuid del usuario del bot |
+
+**El despliegue** va con `verify_jwt = false` —Meta no manda `Authorization`—, y
+`supabase/config.toml` lo deja escrito para que un deploy desde el CLI no lo
+vuelva a prender. La callback url es
+`https://<project-ref>.supabase.co/functions/v1/whatsapp-pets`.
+
+**Cerrar la entrada** es quitar la callback url en Meta, o borrar la función. Lo
+ya publicado no se toca.
 
 ## Los puntos de donación
 
@@ -176,4 +258,23 @@ desde el navegador. Cuando no puede (perdió la sesión), un mantenedor con
 ```sql
 delete from public.reports where id = '<uuid>';
 delete from public.offers  where id = '<uuid>';
+```
+
+**Bajar una foto publicada.** Borrar la fila de `pets` la saca de la página, pero
+el objeto sigue en el bucket y su URL pública sigue viva: son dos borrados, y el
+del objeto va después. Con `service_role`:
+
+```sql
+select id, photo_path from public.pets where id = '<uuid>';
+
+delete from storage.objects
+ where bucket_id = 'pets' and name = '<photo_path>';
+delete from public.pets where id = '<uuid>';
+```
+
+Para dejar de recibir fotos sin tocar lo publicado, la superficie de subida se
+cierra sola:
+
+```sql
+drop policy "anyone uploads a pet photo" on storage.objects;
 ```

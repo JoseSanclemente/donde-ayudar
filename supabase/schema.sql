@@ -1,5 +1,5 @@
--- Full schema. Four tables anyone can write to — reports, updates, offers,
--- volunteers — plus `centers`, where only a collection point can
+-- Full schema. Five tables anyone can write to — reports, updates, offers,
+-- volunteers, pets — plus `centers`, where only a collection point can
 -- be written from the browser and everything else takes a maintainer with
 -- `service_role`.
 --
@@ -537,10 +537,113 @@ create trigger centers_touch_updated_at before update on public.centers
   for each row execute function public.touch_updated_at();
 
 /* ================================================================== */
+/* Pets — an animal found in the street, and who has it                */
+/* ================================================================== */
+
+-- The smallest table of the schema: a photo, a phone and what kind of animal it
+-- is. Whoever finds a pet already took the picture — the whole point of the page
+-- is that the picture travels, so `photo_path` is the only mandatory thing after
+-- the phone. There is no name, no address and no notes: a found dog has no
+-- address, and the person looking for it recognises it or does not.
+--
+-- The photo itself is not here. It goes to the `pets` bucket in Storage (below)
+-- and the row keeps its object key: the bytes in a column would ride along in
+-- every realtime payload and in every read of the table.
+create table public.pets (
+  id            uuid primary key default gen_random_uuid(),
+  user_id       uuid not null default auth.uid() references auth.users on delete cascade,
+  kind          text not null,
+  -- The object key inside the bucket, not a url. The pattern is a shape check,
+  -- like the phone one: it stops the column being used as free text or as a full
+  -- address to somewhere else. Reading it back into a url is `data/pets.ts`.
+  photo_path    text not null check (photo_path ~ '^[a-zA-Z0-9/_.-]{3,200}$'),
+  -- The only contact, and mandatory: the phone is what the page is for. No name
+  -- next to it — whoever writes is asking about the animal, not about a person.
+  contact_phone text not null check (contact_phone ~ '^[0-9+][0-9 ()+-]{6,19}$'),
+  created_at    timestamptz not null default now(),
+  constraint pets_kind_check check (kind in ('dog', 'cat', 'other'))
+);
+
+create index pets_created_at_idx on public.pets (created_at desc);
+-- The insert throttle counts per author per minute.
+create index pets_user_created_at_idx on public.pets (user_id, created_at desc);
+
+alter table public.pets replica identity full;
+alter table public.pets enable row level security;
+alter publication supabase_realtime add table public.pets;
+
+create policy "pets are public"
+  on public.pets for select to anon, authenticated using (true);
+
+create policy "anyone publishes a pet they found"
+  on public.pets for insert to authenticated
+  with check ((select auth.uid()) = user_id);
+
+create policy "authors delete their own pet"
+  on public.pets for delete to authenticated
+  using ((select auth.uid()) = user_id);
+
+-- No UPDATE policy, like everywhere else: the animal was returned or it was not.
+-- A correction is deleting the row and publishing again with the right photo.
+
+/* ---- The bucket the photos live in ---- */
+
+-- Public: the photos are meant to be seen by everyone, exactly like the rows, so
+-- reading needs no policy and no signed url. The mime list and the 5 MB ceiling
+-- are the server-side half of what the form also checks — a phone camera hands
+-- out several megabytes without asking.
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values ('pets', 'pets', true, 5242880, array['image/jpeg', 'image/png', 'image/webp'])
+on conflict (id) do nothing;
+
+-- Writing does need policies, and they mirror the table's: anyone uploads in
+-- their own name, only the owner removes. `owner` is set by Storage itself from
+-- the session, so it is the same fact `user_id` carries in the row.
+create policy "anyone uploads a pet photo"
+  on storage.objects for insert to authenticated
+  with check (bucket_id = 'pets' and owner = (select auth.uid()));
+
+create policy "authors delete their own pet photo"
+  on storage.objects for delete to authenticated
+  using (bucket_id = 'pets' and owner = (select auth.uid()));
+
+/* ---- The waiting room of the WhatsApp intake ---- */
+
+-- `pets` has a second writer: the `whatsapp-pets` Edge Function, which publishes
+-- what people send to the WhatsApp number. A photo arrives before anyone has
+-- said what animal it is, so the function answers with three buttons and waits;
+-- this is what it keeps in the meantime.
+--
+-- Not the photo — the Graph media id. The bytes are downloaded only after the
+-- tap, so a photo nobody classifies never reaches the bucket and there are no
+-- orphan objects to sweep. The rows the function sweeps itself, cheaply, on any
+-- invocation: nothing classified in a day is going to be.
+create table public.pet_intakes (
+  id            uuid primary key default gen_random_uuid(),
+  -- The dedupe. Meta resends a webhook it believes failed, and the second copy
+  -- of the same message must not open a second conversation.
+  wa_message_id text not null unique,
+  -- Who sent it, in the digits Meta uses: no `+`, no spaces. It becomes
+  -- `contact_phone` on the published row.
+  wa_from       text not null,
+  media_id      text not null,
+  mime_type     text not null,
+  created_at    timestamptz not null default now()
+);
+
+create index pet_intakes_created_at_idx on public.pet_intakes (created_at desc);
+
+-- RLS on and **not a single policy**: that is what makes the table invisible.
+-- `anon` and `authenticated` get nothing, and only `service_role`, which skips
+-- RLS, can see a phone number that has not agreed to being published yet. It is
+-- not in `supabase_realtime` either: nothing subscribes to it.
+alter table public.pet_intakes enable row level security;
+
+/* ================================================================== */
 /* Freno de inserciones                                                */
 /* ================================================================== */
 
--- Cuatro tablas abiertas a escritura anónima. Los CHECK acotan el tamaño de una
+-- Cinco tablas abiertas a escritura anónima. Los CHECK acotan el tamaño de una
 -- fila; esto acota el ritmo. No frena a alguien decidido — puede pedir sesiones
 -- anónimas nuevas — pero sí frena el script tonto y el dedo pegado en «enviar».
 -- `security definer` para poder contar las filas propias sin depender de RLS.
@@ -554,6 +657,19 @@ declare
   limite    integer := coalesce(tg_argv[0]::integer, 10);
   recientes integer;
 begin
+  -- La Edge Function de WhatsApp no es un navegador: tiene la `service_role`, o
+  -- sea que podría saltarse RLS entera, y limitarla acá sería teatro. Lo que sí
+  -- haría es romperla, porque todas sus filas llevan el mismo autor y la quinta
+  -- mascota del minuto saldría rechazada. Se lee de los claims y no de
+  -- `current_user`: esto es `security definer`, así que `current_user` es su
+  -- dueño y no dice nada de quién llamó.
+  if coalesce(
+       nullif(current_setting('request.jwt.claim.role', true), ''),
+       nullif(current_setting('request.jwt.claims', true), '')::jsonb ->> 'role'
+     ) = 'service_role' then
+    return new;
+  end if;
+
   execute format(
     'select count(*)::int from public.%I where user_id = $1 and created_at > now() - interval ''1 minute''',
     tg_table_name
@@ -593,3 +709,9 @@ create trigger mental_health_volunteers_throttle
 -- curated rows — with no author — never enter the count.
 create trigger centers_throttle before insert on public.centers
   for each row execute function public.throttle_inserts(3);
+
+-- Each row carries an upload behind it, so the ceiling is low. It only guards
+-- the table: a script that uploads without inserting is the bucket's own limits
+-- to stop, not this trigger's.
+create trigger pets_throttle before insert on public.pets
+  for each row execute function public.throttle_inserts(4);

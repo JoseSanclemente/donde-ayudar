@@ -754,6 +754,29 @@ option {
   bottom: calc(1rem + env(safe-area-inset-bottom));
 }
 
+/* El escalón de más arriba: las mascotas. Tres botones debajo, así que sus
+   combinaciones de `[hidden]` son las siete de siempre, agrupadas por cuántos
+   escalones se perdieron. */
+.fab-pets {
+  bottom: calc(11.5rem + env(safe-area-inset-bottom));
+}
+
+#fab-report[hidden] ~ .fab-pets,
+#sheet-toggle[hidden] ~ .fab-pets,
+#fab-filter[hidden] ~ .fab-pets {
+  bottom: calc(8rem + env(safe-area-inset-bottom));
+}
+
+#fab-report[hidden] ~ #sheet-toggle[hidden] ~ .fab-pets,
+#fab-report[hidden] ~ #fab-filter[hidden] ~ .fab-pets,
+#sheet-toggle[hidden] ~ #fab-filter[hidden] ~ .fab-pets {
+  bottom: calc(4.5rem + env(safe-area-inset-bottom));
+}
+
+#fab-report[hidden] ~ #sheet-toggle[hidden] ~ #fab-filter[hidden] ~ .fab-pets {
+  bottom: calc(1rem + env(safe-area-inset-bottom));
+}
+
 @media (min-width: 1024px) {
   .fab-report {
     bottom: 3.5rem;
@@ -768,6 +791,18 @@ option {
   #fab-report[hidden] ~ .fab-filter,
   #fab-report[hidden] ~ #sheet-toggle[hidden] ~ .fab-filter {
     bottom: 3.5rem;
+  }
+
+  .fab-pets,
+  #sheet-toggle[hidden] ~ .fab-pets {
+    bottom: 10.5rem;
+  }
+
+  /* El embudo no se esconde en escritorio —nada tapa el mapa—, así que el único
+     escalón que se puede perder acá es el del FAB. */
+  #fab-report[hidden] ~ .fab-pets,
+  #fab-report[hidden] ~ #sheet-toggle[hidden] ~ .fab-pets {
+    bottom: 7rem;
   }
 }
 

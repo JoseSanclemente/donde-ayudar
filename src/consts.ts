@@ -17,6 +17,14 @@ export const SITE_NAME = "¿Dónde puedo ayudar?";
 
 export const SITE_TITLE = "¿Dónde puedo ayudar? — Zonas afectadas por el sismo";
 
+/** El encabezado de `/mascotas`, que es su propia pregunta y no la del mapa. */
+export const PETS_NAME = "¿Dónde está mi mascota?";
+
+export const PETS_TITLE = "¿Dónde está mi mascota? — Mascotas encontradas";
+
+export const PETS_DESCRIPTION =
+  "Fotos de mascotas encontradas en la calle después del sismo, con el teléfono de quien las tiene.";
+
 export const SITE_DESCRIPTION =
   "Mapa colaborativo de edificios afectados por el sismo en Colombia, los recursos que necesitan y los puntos donde donar.";
 
