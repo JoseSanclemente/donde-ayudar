@@ -23,8 +23,9 @@ import { createClient } from "npm:@supabase/supabase-js@2";
  * are no orphan objects to sweep — only rows, and those go below. Meta keeps the
  * media for 30 days; a tap arrives in seconds.
  *
- * The last tap is also where the consent is: it is what publishes a phone
- * number, so both button messages say so.
+ * The last tap is also where the consent is: it is what publishes the way back
+ * to whoever sent the photo — their number, or their username when the number is
+ * hidden behind one — so both button messages say so.
  */
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
@@ -99,15 +100,60 @@ const HELP =
 
 type Message = {
   id: string;
-  from: string;
+  /** Absent when the sender hides their phone behind a WhatsApp username. */
+  from?: string;
+  from_user_id?: string;
   type: string;
   image?: { id: string; mime_type?: string };
   interactive?: { button_reply?: { id: string } };
 };
 
-type Webhook = {
-  entry?: { changes?: { value?: { messages?: Message[] } }[] }[];
+type Contact = {
+  profile?: { name?: string; username?: string };
+  wa_id?: string;
+  user_id?: string;
 };
+
+type Value = { messages?: Message[]; contacts?: Contact[] };
+
+type Webhook = {
+  entry?: { changes?: { value?: Value }[] }[];
+};
+
+/**
+ * Who to answer, and what will be published as their contact.
+ *
+ * A WhatsApp username hides the phone: `from` and `wa_id` simply are not in the
+ * payload, and what comes instead is a business-scoped user id — `CO.13511…`,
+ * stable for this business and useless to anyone else. Meta only puts the phone
+ * back if the number wrote to us, or we to it, in the last 30 days; for whoever
+ * writes for the first time from a username there is never a phone to have.
+ *
+ * So the sender is one of two things and the whole function has to carry both:
+ * the address is what `send` addresses and what `pet_intakes` matches on, and
+ * `username` is the only contact a published row can offer when there is no
+ * phone. `wa.me/<username>` opens that chat, which is what the card needs.
+ */
+type Sender = {
+  /** The digits, or the business-scoped user id. */
+  address: string;
+  /** Whether that address is a user id and not a phone. */
+  scoped: boolean;
+  username: string | null;
+};
+
+/** `CO.1351106690554399` — a country prefix, a period and digits. */
+const USER_ID = /^[A-Z]{2}\.\d+$/;
+
+function senderOf(message: Message, contacts?: Contact[]): Sender | null {
+  const address = message.from ?? message.from_user_id;
+  if (!address) return null;
+  return {
+    address,
+    scoped: !message.from && USER_ID.test(address),
+    username: contacts?.[0]?.profile?.username ?? null,
+  };
+}
 
 Deno.serve(async (request) => {
   const url = new URL(request.url);
@@ -194,7 +240,7 @@ async function handle(payload: Webhook): Promise<void> {
       for (const message of change.value?.messages ?? []) {
         handled += 1;
         try {
-          await handleMessage(message);
+          await handleMessage(message, change.value?.contacts);
         } catch (error) {
           console.error("whatsapp-pets: message failed", message.id, error);
         }
@@ -206,23 +252,35 @@ async function handle(payload: Webhook): Promise<void> {
   if (handled > 0) await sweepIntakes();
 }
 
-async function handleMessage(message: Message): Promise<void> {
+async function handleMessage(
+  message: Message,
+  contacts?: Contact[],
+): Promise<void> {
+  // Nobody to answer and nothing to attribute a photo to. Meta always sends one
+  // of the two, so this is a shape we do not know rather than a message we can
+  // reply to badly.
+  const sender = senderOf(message, contacts);
+  if (!sender) {
+    console.error("whatsapp-pets: message with no sender", message.id);
+    return;
+  }
+
   if (message.type === "image" && message.image?.id) {
-    await askKind(message, message.image);
+    await askKind(message, sender, message.image);
     return;
   }
 
   const button = message.interactive?.button_reply?.id;
   if (button?.startsWith("kind:")) {
-    await askSex(message, button);
+    await askSex(message, sender, button);
     return;
   }
   if (button?.startsWith("sex:")) {
-    await publish(message, button);
+    await publish(message, sender, button);
     return;
   }
 
-  await sendText(message.from, HELP);
+  await sendText(sender, HELP);
 }
 
 /* ------------------------------------------------------------------ */
@@ -231,16 +289,22 @@ async function handleMessage(message: Message): Promise<void> {
 
 async function askKind(
   message: Message,
+  sender: Sender,
   image: { id: string; mime_type?: string },
 ): Promise<void> {
   // `ignoreDuplicates` over the unique `wa_message_id`: a resend of the same
   // message returns no row, and no row means the buttons already went out.
+  //
+  // The username is kept here and not read again at the last step: the contacts
+  // array travels with every message, but what a photo is published under should
+  // be what was true when the photo arrived.
   const { data, error } = await admin
     .from(INTAKES)
     .upsert(
       {
         wa_message_id: message.id,
-        wa_from: message.from,
+        wa_from: sender.address,
+        wa_username: sender.username,
         media_id: image.id,
         mime_type: image.mime_type ?? "",
       },
@@ -252,15 +316,16 @@ async function askKind(
   const intakeId = data?.[0]?.id;
   if (!intakeId) return;
 
-  await send(message.from, {
+  await send(sender, {
     type: "interactive",
     interactive: {
       type: "button",
       body: {
         text:
           "¡Foto recibida! 🙏 ¿Qué animal encontraste?\n\n" +
-          "📍 Tu número y esta foto irán a dondeayudar.com.co/mascotas " +
-          "para que el dueño te escriba. Toca una opción:",
+          `📍 ${sender.scoped ? "Tu usuario" : "Tu número"} y esta foto irán a ` +
+          "dondeayudar.com.co/mascotas para que el dueño te escriba. " +
+          "Toca una opción:",
       },
       action: {
         buttons: Object.entries(KINDS).map(([kind, title]) => ({
@@ -276,7 +341,11 @@ async function askKind(
 /* Step 2 — the kind tap arrives                                       */
 /* ------------------------------------------------------------------ */
 
-async function askSex(message: Message, button: string): Promise<void> {
+async function askSex(
+  message: Message,
+  sender: Sender,
+  button: string,
+): Promise<void> {
   const [, kind, intakeId] = button.split(":");
   if (!KINDS[kind] || !intakeId) return;
   // The id goes inside a PostgREST filter string below, so it is checked against
@@ -295,7 +364,7 @@ async function askSex(message: Message, button: string): Promise<void> {
     .from(INTAKES)
     .update({ kind, wa_kind_message_id: message.id })
     .eq("id", intakeId)
-    .eq("wa_from", message.from)
+    .eq("wa_from", sender.address)
     .or(`wa_kind_message_id.is.null,wa_kind_message_id.neq."${message.id}"`)
     .select("id")
     .maybeSingle();
@@ -310,15 +379,15 @@ async function askSex(message: Message, button: string): Promise<void> {
       .from(INTAKES)
       .select("id")
       .eq("id", intakeId)
-      .eq("wa_from", message.from)
+      .eq("wa_from", sender.address)
       .maybeSingle();
     if (!intake) {
-      await sendText(message.from, "Esa foto ya fue publicada. Gracias.");
+      await sendText(sender, "Esa foto ya fue publicada. Gracias.");
     }
     return;
   }
 
-  await send(message.from, {
+  await send(sender, {
     type: "interactive",
     interactive: {
       type: "button",
@@ -341,28 +410,46 @@ async function askSex(message: Message, button: string): Promise<void> {
 /* Step 3 — the sex tap arrives                                        */
 /* ------------------------------------------------------------------ */
 
-async function publish(message: Message, button: string): Promise<void> {
+async function publish(
+  message: Message,
+  sender: Sender,
+  button: string,
+): Promise<void> {
   const [, sex, intakeId] = button.split(":");
   if (!SEXES[sex] || !intakeId) return;
 
   // Matched on the sender too, for the same reason as above.
   const { data: intake } = await admin
     .from(INTAKES)
-    .select("id, media_id, kind")
+    .select("id, media_id, kind, wa_username")
     .eq("id", intakeId)
-    .eq("wa_from", message.from)
+    .eq("wa_from", sender.address)
     .maybeSingle();
 
   // The intake is deleted on publish, so this is what a second tap and a Meta
   // retry both look like.
   if (!intake) {
-    await sendText(message.from, "Esa foto ya fue publicada. Gracias.");
+    await sendText(sender, "Esa foto ya fue publicada. Gracias.");
     return;
   }
 
   // The two questions arrived out of order, which no button of ours can do.
   if (!intake.kind || !KINDS[intake.kind]) {
-    await sendText(message.from, HELP);
+    await sendText(sender, HELP);
+    return;
+  }
+
+  // The contact the card will carry. A scoped sender has no phone anywhere in
+  // the payload — that is what the username is for — so with neither there is
+  // nothing to publish: a photo with no way back is a photo nobody can claim.
+  const username = sender.username ?? intake.wa_username ?? null;
+  if (sender.scoped && !username) {
+    await discard(
+      intake.id,
+      sender,
+      "No pudimos leer un contacto para publicar la foto. " +
+        "Escríbenos desde un número de WhatsApp, por favor.",
+    );
     return;
   }
 
@@ -376,7 +463,7 @@ async function publish(message: Message, button: string): Promise<void> {
   if (!media.url || !extension) {
     await discard(
       intake.id,
-      message.from,
+      sender,
       "La foto tiene que ser JPG, PNG o WEBP. Mándala de nuevo, por favor.",
     );
     return;
@@ -384,7 +471,7 @@ async function publish(message: Message, button: string): Promise<void> {
   if ((media.file_size ?? 0) > MAX_PHOTO_BYTES) {
     await discard(
       intake.id,
-      message.from,
+      sender,
       "La foto pesa más de 5 MB. Tómala de nuevo o redúcela, por favor.",
     );
     return;
@@ -428,7 +515,10 @@ async function publish(message: Message, button: string): Promise<void> {
     // null, the same as a row published before the question existed.
     sex: sex === "unknown" ? null : sex,
     photo_path: path,
-    contact_phone: `+${message.from}`,
+    // One of the two, never both: the phone when there is one, the username when
+    // the phone is hidden. The CHECK in the schema demands exactly that.
+    contact_phone: sender.scoped ? null : `+${sender.address}`,
+    contact_username: sender.scoped ? username : null,
   });
   if (inserted.error) {
     await admin.storage.from(BUCKET).remove([path]);
@@ -440,21 +530,21 @@ async function publish(message: Message, button: string): Promise<void> {
   await Promise.all([
     admin.from(INTAKES).delete().eq("id", intake.id),
     sendText(
-      message.from,
+      sender,
       "¡Listo! 🐾 Ya está publicada en dondeayudar.com.co/mascotas. " +
-        "Si la familia la está buscando, te escribirán directamente a este " +
-        "número. ¡Gracias por tu ayuda!",
+        "Si la familia la está buscando, te escribirán directamente por " +
+        "acá. ¡Gracias por tu ayuda!",
     ),
   ]);
 }
 
 async function discard(
   intakeId: string,
-  to: string,
+  sender: Sender,
   reason: string,
 ): Promise<void> {
   await admin.from(INTAKES).delete().eq("id", intakeId);
-  await sendText(to, reason);
+  await sendText(sender, reason);
 }
 
 /**
@@ -484,8 +574,13 @@ async function graph(path: string): Promise<unknown> {
   return await response.json();
 }
 
+/**
+ * `to` takes a phone and `recipient` takes a business-scoped user id, and they
+ * are not interchangeable: sending both makes Meta use `to` and ignore the
+ * other, so whichever one this sender is, only that key goes out.
+ */
 async function send(
-  to: string,
+  sender: Sender,
   message: Record<string, unknown>,
 ): Promise<void> {
   const response = await fetch(`${GRAPH}/${PHONE_NUMBER_ID}/messages`, {
@@ -497,7 +592,7 @@ async function send(
     body: JSON.stringify({
       messaging_product: "whatsapp",
       recipient_type: "individual",
-      to,
+      ...(sender.scoped ? { recipient: sender.address } : { to: sender.address }),
       ...message,
     }),
   });
@@ -511,6 +606,6 @@ async function send(
   }
 }
 
-function sendText(to: string, body: string): Promise<void> {
-  return send(to, { type: "text", text: { preview_url: false, body } });
+function sendText(sender: Sender, body: string): Promise<void> {
+  return send(sender, { type: "text", text: { preview_url: false, body } });
 }

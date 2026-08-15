@@ -14,7 +14,7 @@ import {
 } from "../pets-filter";
 import { openPetSheet } from "../pet-sheet";
 import { isMobile, onBreakpointChange } from "../ui/breakpoint";
-import { buildPhoneCta } from "../ui/contact";
+import { buildPhoneCta, buildUsernameCta } from "../ui/contact";
 import { $, scheduleRender } from "../ui/dom";
 import { paintTime } from "../ui/time";
 
@@ -86,6 +86,19 @@ function buildPhoto(
   return photo;
 }
 
+/**
+ * The green button of a pet. The contact is one of the two and never both:
+ * somebody who hides their number behind a WhatsApp username has no phone to
+ * publish, and `wa.me` opens that chat just the same. The button reads the same
+ * either way because it does the same thing. `null` from both is a row the store
+ * does not accept, so there is nothing to draw for it.
+ */
+function buildPetCta(pet: Pet): HTMLAnchorElement | null {
+  if (pet.contactPhone) return buildPhoneCta(pet.contactPhone);
+  if (pet.contactUsername) return buildUsernameCta(pet.contactUsername);
+  return null;
+}
+
 /** La ficha del panel de abajo: la foto grande, cuándo apareció y a quién escribirle. */
 function buildDetail(pet: Pet): HTMLElement {
   const detail = document.createElement("div");
@@ -110,7 +123,8 @@ function buildDetail(pet: Pet): HTMLElement {
   meta.className = "flex flex-wrap items-center gap-2";
   meta.append(...buildChips(pet));
 
-  detail.append(when, meta, buildPhoneCta(pet.contactPhone));
+  const cta = buildPetCta(pet);
+  detail.append(when, meta, ...(cta ? [cta] : []));
   return detail;
 }
 
@@ -162,7 +176,8 @@ function buildOpenCard(pet: Pet): HTMLElement {
   card.className = CARD;
   const body = document.createElement("div");
   body.className = "px-3 pb-3";
-  body.append(buildPhoneCta(pet.contactPhone));
+  const cta = buildPetCta(pet);
+  if (cta) body.append(cta);
   card.append(
     buildPhoto(pet, pet.thumbUrl, "aspect-square w-full object-cover"),
     buildCardFooter(pet),

@@ -52,8 +52,12 @@ Two kinds of data, and they must not mix:
   plus its value in the CHECK.
 - **Mascotas encontradas** — `pets`, the smallest table and the only one with a file behind
   it: a `kind` (`dog`, `cat`, `other`), an optional `sex` (`male`, `female` — «no sé» is
-  `null`, and so is every row published before the column), a mandatory `contact_phone`
-  and `photo_path`. The
+  `null`, and so is every row published before the column), a mandatory `photo_path` and a
+  contact that is one of two columns, never both: `contact_phone`, or `contact_username`
+  when the phone is hidden behind a WhatsApp username — a CHECK demands one of the two,
+  the same shape as `volunteers`. The form on the site only ever writes a phone; a username
+  can only arrive through the bot, and `features/pets-grid.ts` picks which CTA to draw —
+  `wa.me` opens the chat from either. The
   photo is not in the row — it goes to the public `pets` bucket in Storage and the row keeps
   its object key, because the bytes in a column would ride along in every realtime payload.
   The page never asks for that object: `data/pets.ts` derives two urls off the Storage
@@ -75,7 +79,17 @@ Two kinds of data, and they must not mix:
   downloads, uploads and publishes. That order is why there are no orphan objects to sweep
   — a photo nobody finishes classifying never reaches the bucket, and the rows expire in
   the function itself. The intake also keeps `wa_kind_message_id`, because the middle step
-  deletes nothing: it is what tells a Meta resend from somebody correcting the kind. `pet_intakes` has RLS
+  deletes nothing: it is what tells a Meta resend from somebody correcting the kind.
+  Who sent the photo is not always a phone. WhatsApp lets a person put a username in front
+  of their number, and then the payload carries no `from` and no `wa_id` at all — only a
+  business-scoped user id (`CO.1351106690554399`) and the handle. Meta puts the phone back
+  only for a number that wrote to us, or we to it, in the last 30 days, which whoever
+  writes for the first time never is. So the function carries a `Sender` and not a phone:
+  the address goes in `to` when it is digits and in `recipient` when it is a user id —
+  sending both makes Meta ignore `recipient` — and it is what `wa_from` matches on, which
+  is why that column is not read as a phone anywhere. The handle is kept on the intake as
+  `wa_username` when the photo arrives, and becomes `contact_username` on the published
+  row. `pet_intakes` has RLS
   with no policies at all, which is what makes it invisible to everyone but
   `service_role`. Those rows carry the bot user in `user_id` and their objects have no
   `owner`, so nothing removes them from a browser; taking one down is the maintainer SQL

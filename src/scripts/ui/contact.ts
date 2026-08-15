@@ -36,6 +36,26 @@ export function telUrl(phone: string): string {
   return `tel:${phone.replace(/[^\d+]/g, "")}`;
 }
 
+/* ---- Usuarios de WhatsApp ---- */
+
+/**
+ * Un usuario de WhatsApp, que es el contacto de quien esconde su número detrás
+ * de uno. `wa.me` lo resuelve igual que a un número —contesta con un enlace
+ * `type=username`— así que el botón es el mismo y solo cambia lo que va después
+ * de la barra. Sin `tel:` de repuesto: acá no hay nada que marcar.
+ *
+ * Mismo alfabeto que el CHECK de la base. Validar dos veces es a propósito.
+ */
+export const WHATSAPP_USERNAME_PATTERN = /^[A-Za-z0-9._-]{3,30}$/;
+
+export function isValidWhatsappUsername(value: string): boolean {
+  return WHATSAPP_USERNAME_PATTERN.test(value.trim());
+}
+
+export function whatsappUsernameUrl(username: string): string {
+  return `https://wa.me/${encodeURIComponent(username.trim())}`;
+}
+
 /* ---- Instagram ---- */
 
 /** Same pattern Instagram itself accepts, minus the `@` nobody stores. */
@@ -168,6 +188,24 @@ export function buildInstagramCta(handle: string): HTMLAnchorElement {
  */
 export function buildPhoneCta(phone: string): HTMLAnchorElement {
   const { href, external } = contactHref(phone);
+  return buildCta(href, external, external ? "Escribir al WhatsApp" : phone);
+}
+
+/**
+ * El mismo botón para quien escribió desde un usuario de WhatsApp y no desde un
+ * número. Dice lo mismo porque hace lo mismo: abre ese chat. El usuario no se
+ * pinta —no es un dato que nadie vaya a copiar— y no hay variante de marcar,
+ * que es la diferencia entera con el de arriba.
+ */
+export function buildUsernameCta(username: string): HTMLAnchorElement {
+  return buildCta(whatsappUsernameUrl(username), true, "Escribir al WhatsApp");
+}
+
+function buildCta(
+  href: string,
+  external: boolean,
+  label: string,
+): HTMLAnchorElement {
   const call = document.createElement("a");
   call.className = CONTACT_CTA;
   call.href = href;
@@ -181,7 +219,7 @@ export function buildPhoneCta(phone: string): HTMLAnchorElement {
   icon.innerHTML = PHONE_ICON;
 
   const who = document.createElement("span");
-  who.textContent = external ? "Escribir al WhatsApp" : phone;
+  who.textContent = label;
 
   call.append(icon, who);
   return call;

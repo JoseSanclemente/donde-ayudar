@@ -38,7 +38,15 @@ export type Pet = {
   thumbUrl: string;
   /** The sheet. Same object, an order of magnitude more bytes. */
   photoUrl: string;
-  contactPhone: string;
+  /**
+   * How to write to whoever found it, and it is one of the two — never both,
+   * never neither. WhatsApp lets a person put a username in front of their
+   * number, and to whoever receives the message the phone then does not exist:
+   * a pet published from the WhatsApp bot by such a sender carries the handle
+   * and no phone. `wa.me` opens the chat from either.
+   */
+  contactPhone: string | null;
+  contactUsername: string | null;
   createdAt: string;
   userId: string;
 };
@@ -49,7 +57,8 @@ type Row = {
   kind: string;
   sex: string | null;
   photo_path: string;
-  contact_phone: string;
+  contact_phone: string | null;
+  contact_username: string | null;
   created_at: string;
 };
 
@@ -103,7 +112,10 @@ function isRow(value: unknown): value is Row {
     typeof r.kind === "string" &&
     (r.sex === null || r.sex === undefined || typeof r.sex === "string") &&
     typeof r.photo_path === "string" &&
-    typeof r.contact_phone === "string" &&
+    // One of the two is enough, which is what the CHECK in the base demands: a
+    // row with neither is a pet nobody can ask about.
+    (typeof r.contact_phone === "string" ||
+      typeof r.contact_username === "string") &&
     typeof r.created_at === "string"
   );
 }
@@ -144,7 +156,8 @@ function fromRow(row: Row): Pet {
     photoPath: row.photo_path,
     thumbUrl: photoUrl(row.photo_path, CARD),
     photoUrl: photoUrl(row.photo_path, FULL),
-    contactPhone: row.contact_phone,
+    contactPhone: row.contact_phone ?? null,
+    contactUsername: row.contact_username ?? null,
     createdAt: row.created_at,
     userId: row.user_id,
   };
@@ -228,7 +241,10 @@ export async function addPet(input: PetInput): Promise<Pet | null> {
     photoPath: path,
     thumbUrl: local,
     photoUrl: local,
+    // The form on the site asks for a phone and nothing else: a username can
+    // only arrive through the bot, which is what receives the message.
     contactPhone: input.contactPhone,
+    contactUsername: null,
     createdAt: new Date().toISOString(),
     userId,
   };

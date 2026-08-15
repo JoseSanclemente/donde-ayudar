@@ -563,11 +563,22 @@ create table public.pets (
   -- like the phone one: it stops the column being used as free text or as a full
   -- address to somewhere else. Reading it back into a url is `data/pets.ts`.
   photo_path    text not null check (photo_path ~ '^[a-zA-Z0-9/_.-]{3,200}$'),
-  -- The only contact, and mandatory: the phone is what the page is for. No name
-  -- next to it — whoever writes is asking about the animal, not about a person.
-  contact_phone text not null check (contact_phone ~ '^[0-9+][0-9 ()+-]{6,19}$'),
+  -- How to write to whoever found it. No name next to it — whoever writes is
+  -- asking about the animal, not about a person.
+  --
+  -- Two columns and not one, because WhatsApp lets a person put a username in
+  -- front of their number: to the business the phone then does not exist at all
+  -- —the webhook carries a business-scoped user id and the handle, and nothing
+  -- else— so a phone cannot be demanded of everyone. `wa.me/<username>` opens
+  -- that chat the same as a number does. The CHECK below asks for one of the two
+  -- and the row is worthless without either: a photo nobody can be written about
+  -- is a photo nobody can claim.
+  contact_phone    text check (contact_phone ~ '^[0-9+][0-9 ()+-]{6,19}$'),
+  contact_username text check (contact_username ~ '^[A-Za-z0-9._-]{3,30}$'),
   created_at    timestamptz not null default now(),
-  constraint pets_kind_check check (kind in ('dog', 'cat', 'other'))
+  constraint pets_kind_check check (kind in ('dog', 'cat', 'other')),
+  constraint pets_contact_check
+    check (contact_phone is not null or contact_username is not null)
 );
 
 create index pets_created_at_idx on public.pets (created_at desc);
@@ -630,9 +641,17 @@ create table public.pet_intakes (
   -- The dedupe. Meta resends a webhook it believes failed, and the second copy
   -- of the same message must not open a second conversation.
   wa_message_id text not null unique,
-  -- Who sent it, in the digits Meta uses: no `+`, no spaces. It becomes
-  -- `contact_phone` on the published row.
+  -- Who sent it. Normally the digits Meta uses — no `+`, no spaces — and it
+  -- becomes `contact_phone` on the published row. When the sender hides their
+  -- phone behind a WhatsApp username there are no digits to have, and what comes
+  -- instead is the business-scoped user id (`CO.1351106690554399`), which is what
+  -- the function addresses its replies to. The column holds either; it is not
+  -- read as a phone anywhere.
   wa_from       text not null,
+  -- The handle of a sender with no phone, kept from the message that brought the
+  -- photo: it becomes `contact_username` on the published row. Null for everyone
+  -- else, which is almost everyone.
+  wa_username   text,
   media_id      text not null,
   mime_type     text not null,
   -- What the first tap said. Null until then.
