@@ -131,8 +131,12 @@ function buildDetail(pet: Pet): HTMLElement {
 
 export function initPetsGrid(): void {
   const grid = $<HTMLUListElement>("pets-grid");
+  const panel = $<HTMLDivElement>("pets-state");
+  const spinner = $<HTMLSpanElement>("pets-spinner");
   const empty = $<HTMLParagraphElement>("pets-empty");
   const total = $<HTMLSpanElement>("pets-count");
+
+  const entered = new Set<string>();
 
   /**
    * Mientras las mascotas vienen en camino no se puede decir «no hay
@@ -142,16 +146,17 @@ export function initPetsGrid(): void {
   function paintEmptyState(shown: number) {
     const { state, message } = getPetsState();
     if (shown > 0 && state !== "error") {
-      empty.classList.add("hidden");
+      panel.classList.add("hidden");
       return;
     }
-    empty.classList.remove("hidden");
+    panel.classList.remove("hidden");
+    spinner.hidden = state !== "loading";
     if (state === "error") {
       empty.textContent = message ?? "No se pudieron cargar las mascotas.";
-      empty.className = "mt-3 text-sm text-red-600";
+      empty.className = "text-center text-sm text-red-600";
       return;
     }
-    empty.className = "mt-3 text-sm text-slate-500";
+    empty.className = "text-center text-sm text-slate-500";
     empty.textContent =
       state === "loading"
         ? "Cargando mascotas…"
@@ -162,9 +167,17 @@ export function initPetsGrid(): void {
     const pets = getPets();
     total.textContent = String(pets.length);
 
+    let fresh = 0;
+
     grid.replaceChildren(
       ...pets.map((pet) => {
         const item = document.createElement("li");
+        if (!entered.has(pet.id)) {
+          entered.add(pet.id);
+          item.dataset.enter = "";
+          item.style.animationDelay = `${Math.min(fresh, 11) * 0.11}s`;
+          fresh += 1;
+        }
 
         // Toda la tarjeta es el botón: en un celular el blanco alrededor de la
         // foto es la mitad del área que el dedo alcanza.

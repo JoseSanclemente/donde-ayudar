@@ -1137,6 +1137,17 @@ option {
   }
 }
 
+/* ---- Panel de `/mascotas` ---- */
+#pet-sheet[data-state="closed"] {
+  pointer-events: none;
+  transform: translateY(calc(100% + 24px));
+}
+
+#pet-sheet[data-state="closed"] #pet-sheet-body {
+  overflow-y: hidden;
+  touch-action: none;
+}
+
 /* ---- Entrada del header y la lista ---- */
 
 /* La hacía GSAP desde `app.ts`, y por eso se veía al revés: el bundle corre
@@ -1166,6 +1177,10 @@ option {
 
 #list-card {
   animation-delay: 0.12s;
+}
+
+#pets-grid li[data-enter] {
+  animation: enter-up 0.9s cubic-bezier(0.16, 1, 0.3, 1) backwards;
 }
 
 @keyframes banner-shake {
@@ -1201,8 +1216,13 @@ option {
   }
 
   #site-header,
-  #list-card {
+  #list-card,
+  #pets-grid li[data-enter] {
     animation: none;
+  }
+
+  #pets-spinner {
+    animation-duration: 2s;
   }
 
   /* El punto sigue ahí: lo que sobra es el movimiento, no el aviso. */
