@@ -4,10 +4,16 @@ import {
   onPets,
   onPetsState,
   type Pet,
-  type PetKind,
-  type PetSex,
 } from "../data/pets";
+import {
+  DEFAULT_PETS_FILTER,
+  matchesPetsFilter,
+  PET_KINDS,
+  PET_SEXES,
+  type PetsFilter,
+} from "../pets-filter";
 import { openPetSheet } from "../pet-sheet";
+import { isMobile, onBreakpointChange } from "../ui/breakpoint";
 import { buildPhoneCta } from "../ui/contact";
 import { $, scheduleRender } from "../ui/dom";
 import { paintTime } from "../ui/time";
@@ -21,39 +27,18 @@ import { paintTime } from "../ui/time";
  * que abre el panel de abajo, que es donde alguien ya decidió que ese es.
  */
 
-/** Las clases van literales: el escáner de Tailwind lee este archivo como texto. */
-const KINDS: Record<PetKind, { label: string; chip: string }> = {
-  dog: { label: "Perro", chip: "border-amber-800 bg-amber-100 text-amber-800" },
-  cat: {
-    label: "Gato",
-    chip: "border-violet-800 bg-violet-100 text-violet-800",
-  },
-  other: {
-    label: "Otra",
-    chip: "border-slate-700 bg-slate-100 text-slate-700",
-  },
-};
-
-const SEXES: Record<PetSex, { label: string; chip: string }> = {
-  male: { label: "Macho", chip: "border-sky-800 bg-sky-100 text-sky-800" },
-  female: {
-    label: "Hembra",
-    chip: "border-pink-800 bg-pink-100 text-pink-800",
-  },
-};
-
 /** Esta página se lee en un celular y a un brazo de distancia: los chips van en
  *  el tamaño del cuerpo del texto, no en el de una nota al pie. */
 const CHIP = "rounded-full border px-2.5 py-0.5 text-sm font-medium";
 
 function kindOf(pet: Pet) {
-  return KINDS[pet.kind] ?? KINDS.other;
+  return PET_KINDS[pet.kind] ?? PET_KINDS.other;
 }
 
 /** Sin sexo no hay chip: quien la encontró no supo decirlo, o la publicó antes
  *  de que se preguntara. Un «no sé» pintado no le sirve a nadie. */
 function sexOf(pet: Pet) {
-  return pet.sex ? (SEXES[pet.sex] ?? null) : null;
+  return pet.sex ? (PET_SEXES[pet.sex] ?? null) : null;
 }
 
 function buildChip(pet: Pet): HTMLSpanElement {
@@ -129,7 +114,68 @@ function buildDetail(pet: Pet): HTMLElement {
   return detail;
 }
 
-export function initPetsGrid(): void {
+const CARD =
+  "w-full overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-sm transition";
+
+/** Cuándo apareció y de qué clase es: el pie de la tarjeta, en los dos anchos. */
+function buildCardFooter(pet: Pet): HTMLDivElement {
+  const footer = document.createElement("div");
+  footer.className = "flex flex-col items-start justify-between gap-4 p-3";
+  const when = document.createElement("span");
+  when.className = "text-xs text-slate-400";
+  paintTime(when, pet.createdAt);
+  // Los chips van juntos en su propia caja: con `justify-between` sobre tres
+  // hijos el sexo se iría al centro, lejos de la clase de animal.
+  const chips = document.createElement("div");
+  chips.className = "flex flex-wrap items-center gap-1";
+  chips.append(...buildChips(pet));
+  footer.append(chips, when);
+  return footer;
+}
+
+/**
+ * La tarjeta de móvil: toda ella es el botón que abre la ficha. El blanco
+ * alrededor de la foto es la mitad del área que el dedo alcanza, y el teléfono
+ * no cabe acá —una fila de tarjetas con un botón verde cada una es una pantalla
+ * de botones verdes—, así que el contacto vive una sola vez, en la ficha.
+ */
+function buildTapCard(pet: Pet): HTMLButtonElement {
+  const card = document.createElement("button");
+  card.type = "button";
+  card.className = `${CARD} hover:border-slate-300`;
+  card.addEventListener("click", () => openPetSheet(buildDetail(pet)));
+  card.append(
+    buildPhoto(pet, pet.thumbUrl, "aspect-square w-full object-cover"),
+    buildCardFooter(pet),
+  );
+  return card;
+}
+
+/**
+ * La de escritorio: nada que tocar y el WhatsApp a la vista. Con el ratón no hay
+ * que ahorrar espacio ni pasos —la cuadrícula ya cabe entera y el panel de abajo
+ * era una parada de más para llegar al único dato que importa—, y el CTA es un
+ * enlace, que dentro de un botón no sería HTML válido.
+ */
+function buildOpenCard(pet: Pet): HTMLElement {
+  const card = document.createElement("article");
+  card.className = CARD;
+  const body = document.createElement("div");
+  body.className = "px-3 pb-3";
+  body.append(buildPhoneCta(pet.contactPhone));
+  card.append(
+    buildPhoto(pet, pet.thumbUrl, "aspect-square w-full object-cover"),
+    buildCardFooter(pet),
+    body,
+  );
+  return card;
+}
+
+export type PetsGrid = {
+  setFilter(next: PetsFilter): void;
+};
+
+export function initPetsGrid(): PetsGrid {
   const grid = $<HTMLUListElement>("pets-grid");
   const panel = $<HTMLDivElement>("pets-state");
   const spinner = $<HTMLSpanElement>("pets-spinner");
@@ -137,13 +183,14 @@ export function initPetsGrid(): void {
   const total = $<HTMLSpanElement>("pets-count");
 
   const entered = new Set<string>();
+  let filter: PetsFilter = DEFAULT_PETS_FILTER;
 
   /**
    * Mientras las mascotas vienen en camino no se puede decir «no hay
    * mascotas»: sería mentira, y quien está buscando a la suya la leería como un
    * no definitivo.
    */
-  function paintEmptyState(shown: number) {
+  function paintEmptyState(shown: number, published: number) {
     const { state, message } = getPetsState();
     if (shown > 0 && state !== "error") {
       panel.classList.add("hidden");
@@ -157,14 +204,21 @@ export function initPetsGrid(): void {
       return;
     }
     empty.className = "text-center text-sm text-slate-500";
+    if (state === "loading") {
+      empty.textContent = "Cargando mascotas…";
+      return;
+    }
+    // Que las escondió el filtro y que no hay ninguna publicada no son lo
+    // mismo: lo primero se arregla tocando un chip, lo segundo no.
     empty.textContent =
-      state === "loading"
-        ? "Cargando mascotas…"
+      published > 0
+        ? "Ninguna mascota coincide con el filtro."
         : "Todavía no hay mascotas publicadas.";
   }
 
   function render() {
-    const pets = getPets();
+    const published = getPets();
+    const pets = published.filter((pet) => matchesPetsFilter(pet, filter));
     total.textContent = String(pets.length);
 
     let fresh = 0;
@@ -179,37 +233,12 @@ export function initPetsGrid(): void {
           fresh += 1;
         }
 
-        // Toda la tarjeta es el botón: en un celular el blanco alrededor de la
-        // foto es la mitad del área que el dedo alcanza.
-        const card = document.createElement("button");
-        card.type = "button";
-        card.className =
-          "w-full overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-sm transition hover:border-slate-300";
-        card.addEventListener("click", () => openPetSheet(buildDetail(pet)));
-
-        const footer = document.createElement("div");
-        footer.className =
-          "flex flex-col items-start justify-between gap-4 p-3";
-        const when = document.createElement("span");
-        when.className = "text-xs text-slate-400";
-        paintTime(when, pet.createdAt);
-        // Los chips van juntos en su propia caja: con `justify-between` sobre
-        // tres hijos el sexo se iría al centro, lejos de la clase de animal.
-        const chips = document.createElement("div");
-        chips.className = "flex flex-wrap items-center gap-1";
-        chips.append(...buildChips(pet));
-        footer.append(chips, when);
-
-        card.append(
-          buildPhoto(pet, pet.thumbUrl, "aspect-square w-full object-cover"),
-          footer,
-        );
-        item.append(card);
+        item.append(isMobile() ? buildTapCard(pet) : buildOpenCard(pet));
         return item;
       }),
     );
 
-    paintEmptyState(pets.length);
+    paintEmptyState(pets.length, published.length);
   }
 
   const scheduled = scheduleRender(render);
@@ -217,6 +246,21 @@ export function initPetsGrid(): void {
   // El estado del store no cambia la lista, pero sí lo que dice el párrafo
   // cuando está vacía: «cargando» y «no hay» no son lo mismo.
   onPetsState(scheduled);
+  // Las dos tarjetas son marcado distinto, no una clase que se apague: cruzar el
+  // corte hay que rearmarlo.
+  onBreakpointChange(scheduled);
 
   render();
+
+  return {
+    setFilter(next) {
+      filter = next;
+      // Cambiar el filtro rearma la cuadrícula entera, no le agrega una
+      // tarjeta: sin olvidar quién ya entró, las que sobreviven aparecerían
+      // secas al lado de las que no, y lo que se pierde es justamente la señal
+      // de que la lista contestó. Un dato que llega solo sigue animando solo.
+      entered.clear();
+      scheduled();
+    },
+  };
 }

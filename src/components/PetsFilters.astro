@@ -1,0 +1,67 @@
+---
+// What of the grid to show. A single copy of the markup: it lives hidden in the
+// page and `features/pets-filter.ts` hands the node to the bottom sheet, which
+// moves it into its body. Two copies would be two copies of the chip state.
+import { PET_KIND_CHIPS, PET_SEX_CHIPS } from "../scripts/pets-filter";
+import { CHIP_BASE, CHIP_OFF } from "../scripts/ui/chip-group";
+
+const ROW_LABEL = "text-xs font-semibold uppercase tracking-wide text-slate-500";
+---
+
+<section class="pb-1 pt-3">
+  <div class="flex items-baseline justify-between gap-2">
+    <h2 class="text-lg font-semibold text-slate-900">Filtrar</h2>
+    <button
+      type="button"
+      id="pets-filters-reset"
+      class="text-xs font-medium text-slate-500 underline transition hover:text-red-600"
+    >
+      Restablecer
+    </button>
+  </div>
+
+  <!-- Los chips salen apagados: una fila sin nada marcado no pide nada, y tocar
+       «Perro» deja los perros en vez de quitarlos. Marcado toma el color que
+       tiene en la tarjeta, así que la fila es también la leyenda de la
+       cuadrícula. El estado vive en `aria-pressed`. -->
+  <div class="mt-3">
+    <p class={ROW_LABEL}>Tipo</p>
+    <div class="mt-2 flex flex-wrap gap-2">
+      {
+        PET_KIND_CHIPS.map((chip) => (
+          <button
+            type="button"
+            data-pets-kind={chip.id}
+            aria-pressed="false"
+            class={`${CHIP_BASE} ${CHIP_OFF}`}
+          >
+            {chip.label}
+          </button>
+        ))
+      }
+    </div>
+  </div>
+
+  <div class="mt-4">
+    <p class={ROW_LABEL}>Sexo</p>
+    <div class="mt-2 flex flex-wrap gap-2">
+      {
+        PET_SEX_CHIPS.map((chip) => (
+          <button
+            type="button"
+            data-pets-sex={chip.id}
+            aria-pressed="false"
+            class={`${CHIP_BASE} ${CHIP_OFF}`}
+          >
+            {chip.label}
+          </button>
+        ))
+      }
+    </div>
+  </div>
+
+  <p class="mt-3 text-xs text-slate-500">
+    Sin nada marcado se ven todas. «Sin dato» son las que se publicaron sin decir
+    si es macho o hembra.
+  </p>
+</section>

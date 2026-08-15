@@ -1,5 +1,6 @@
 import { initPetsData } from "./data/boot-pets";
 import { onError } from "./data/errors";
+import { initPetsFilter } from "./features/pets-filter";
 import { initPetsGrid } from "./features/pets-grid";
 import { initPetSheet } from "./pet-sheet";
 import { startTimeTicker } from "./ui/time";
@@ -12,7 +13,11 @@ import { showToast } from "./ui/toast";
  */
 
 initPetSheet();
-initPetsGrid();
+// El filtro y la cuadrícula no se importan entre sí: los ata el arranque, que es
+// para lo que está. La cuadrícula va primero porque el filtro empuja sus valores
+// por defecto apenas se monta.
+const grid = initPetsGrid();
+initPetsFilter(grid.setFilter);
 
 // «Encontrada hace 2 minutos» congelado media hora miente sobre el dato.
 startTimeTicker();

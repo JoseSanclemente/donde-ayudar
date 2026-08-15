@@ -3,7 +3,8 @@
 // del sheet y en escritorio el stylesheet lo levanta como un popover sobre el
 // botón, igual que hace con `#updates-card`. Dos ejemplares serían dos copias
 // del estado de las casillas.
-import { KIND_CHIP_BASE, MARKER_KINDS } from "../scripts/map-filter";
+import { MARKER_KINDS } from "../scripts/map-filter";
+import { CHIP_BASE } from "../scripts/ui/chip-group";
 
 const ROW = "flex cursor-pointer items-center gap-3 py-1.5 text-sm text-slate-700";
 const BOX =
@@ -32,7 +33,7 @@ const BOX =
           type="button"
           data-filter-kind={kind.id}
           aria-pressed="true"
-          class={`${KIND_CHIP_BASE} ${kind.chipOn}`}
+          class={`${CHIP_BASE} ${kind.chipOn}`}
         >
           <span class:list={["filter-pin", kind.pin]} aria-hidden="true" />
           {kind.label}

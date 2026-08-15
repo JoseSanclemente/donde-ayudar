@@ -32,7 +32,8 @@ export type KindInfo = {
   label: string;
   /** Clase de la figura, gemela del marcador del mapa. */
   pin: string;
-  /** El chip marcado, con el color de su marcador. */
+  /** El chip marcado, con el color de su marcador. Apagado lo pinta
+   *  `ui/chip-group.ts`, que es de donde salen la forma y el gris. */
   chipOn: string;
 };
 
@@ -68,13 +69,6 @@ export const MARKER_KINDS: KindInfo[] = [
     chipOn: "border-blue-300 bg-blue-50 text-blue-800",
   },
 ];
-
-/** Sin marcar: el chip se apaga entero y la figura se va a gris (`global.css`). */
-export const KIND_CHIP_OFF = "border-slate-200 bg-white text-slate-500";
-
-/** Lo común a los cinco: la forma del chip, no su color. */
-export const KIND_CHIP_BASE =
-  "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition";
 
 export const CENTER_KINDS = MARKER_KINDS.map(({ id }) => id).filter(
   (id): id is CenterType => id !== "reporte",

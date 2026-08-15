@@ -120,14 +120,20 @@ false` greys the marker out, `accepting_donations: false` only writes a line in 
     `location-picker` starts it on the first focus of an address field and `app.ts` only
     warms it from an idle callback, for the visitor who never opens a form.
   - **`pets.ts`** — the same thing for `/mascotas`, and much shorter: the sheet, the grid,
-    the ticker and `initPetsData()`. It reaches `data/boot-pets.ts` and never `data/boot.ts`,
+    the ticker, the filter and `initPetsData()`. It is also what ties the last two
+    together: `initPetsGrid()` returns a `setFilter` and `initPetsFilter()` takes it, because
+    a feature does not import another feature. It reaches `data/boot-pets.ts` and never `data/boot.ts`,
     because that one imports every store to call its `load…()` and an import is what pulls
     a module into the bundle.
 - **`features/`** — one UI piece per file, each with its `init…()`: `alert-banner`,
   `center-form`, `centers-layer`, `header-offset`, `location-picker`, `marker-actions`,
   `marker-sheet`, `offers-panel`, `report-form`, `report-history`, `report-list`, `report-tabs`,
   `resource-picker`, `share`, `sync-badge`, `updates-feed`, `user-location`,
-  `volunteer-panel`, `pets-grid`. They
+  `volunteer-panel`, `pets-grid`, `pets-filter`. `pets-grid` builds two cards off
+  `ui/breakpoint`, and they are different markup rather than one card with a class turned
+  off: on mobile the whole card is the button that opens the sheet, and on desktop it is an
+  inert `article` with the WhatsApp CTA under the chips — a link inside a button would not
+  be valid HTML, and with a mouse there is no tap to save. They
   subscribe to the stores; they never call Supabase directly. `marker-actions` is the odd
   one: the marker detail is HTML built by `map.ts`, which cannot touch the stores, so the
   wiring for its controls is delegated on `document` from there. `location-picker`,
@@ -171,6 +177,15 @@ false` greys the marker out, `accepting_donations: false` only writes a line in 
   - `resources.ts` / `status.ts` — the catalogs (resource categories and chips, point
     statuses). Tailwind classes are spelled out literally here: the scanner reads these
     files as plain text, so an interpolated class name never gets compiled.
+  - `pets-filter.ts` — what a pet is called and what colour it wears (`PET_KINDS`,
+    `PET_SEXES`), plus what the filter of `/mascotas` can hide. It owns the labels the grid
+    draws too, so a chip on a card and its chip in the filter can never disagree. `null`
+    sex is a value the filter names — `unknown`, «Sin dato» — and not a hole: without it,
+    ticking «Macho» would bury every pet published before the column. It reads the opposite
+    way round from `map-filter.ts`, and on purpose: there the chips are the legend of the
+    pins and ship marked, so unticking one hides a kind; here an empty row asks for nothing
+    and tapping «Perro» leaves the dogs. Within a row the marked chips add up, between rows
+    they narrow.
   - `volunteers.ts` — the catalog of volunteer panels: one entry per `kind`, with its id
     prefix, its sheet tab, its icon path and its copy. `index.astro` loops over it to
     build both the tab buttons and the cards, and `features/volunteer-panel.ts` loops
@@ -199,7 +214,13 @@ false` greys the marker out, `accepting_donations: false` only writes a line in 
   - `pet-sheet.ts` — the panel of `/mascotas`, the visual twin of `sheet.ts` with none of
     what ties that one to the map: no tabs, no `peek`, no breakpoint branch, no import of
     `map.ts`. It is a panel at every width — that page has no sidebar to become — and it
-    only knows how to swap its body and slide.
+    only knows how to swap its body and slide. It is a mobile thing, and only that: on
+    mobile it holds both the pet sheet — the big photo and the WhatsApp button of the card
+    that was tapped — and, when the funnel is pressed, the filter card, which it adopts
+    rather than copies, so the chips keep their listeners and their state across every
+    open. At `lg` neither ride exists: the filter is a column of its own and the card is
+    inert with its own CTA, so nothing opens the sheet. `features/pets-filter.ts` puts the
+    card back in its column when the breakpoint is crossed — there is only one copy of it.
   - `share-card.ts` — the 1080×1920 PNG behind the share button — story format, full
     screen on a phone — drawn on a canvas: a CARTO tile crop of the point, then its name,
     address and chips. The card is measured before anything is drawn and the map crop
@@ -215,8 +236,12 @@ false` greys the marker out, `accepting_donations: false` only writes a line in 
     `resources.ts`, and a new category has to be added to both.
   - `supabase.ts` — the client; `null` when the env vars are missing.
 - **`ui/`** — stateless helpers with no domain knowledge (`accordion`, `breakpoint`,
-  `chips`, `contact`, `dom`, `html`, `pick-hint`, `select`, `status-select`, `time`,
-  `toast`). They know neither the stores nor the features. `accordion` is the fold of the
+  `chip-group`, `chips`, `contact`, `dom`, `html`, `pick-hint`, `select`, `status-select`,
+  `time`, `toast`). `chip-group` is the row of toggle chips shared by the map filter and
+  the pets filter: it takes a root, a `data-` attribute and a list of `{ id, chipOn }`, and
+  it paints and toggles but never builds markup — that is why the map can keep its
+  `.filter-pin` figure inside the button. Two groups fit under one root, told apart by
+  their attribute, which is what `/mascotas` needs for its type and sex rows. They know neither the stores nor the features. `accordion` is the fold of the
   three sidebar cards: it takes an id prefix, opens closed and flips `data-collapsed`,
   which the one CSS rule for `[data-panel-card]` reads behind the `lg` media query. `select` is the one select of the site in its two
   variants — `field`, the white form control, and `chip`, the status pill painted with the
