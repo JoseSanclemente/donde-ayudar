@@ -60,6 +60,24 @@ const EMERGENCY_BOUNDS: [[number, number], [number, number]] = [
  */
 const EMERGENCY_MAX_ZOOM = 11;
 
+/**
+ * Farther out than this the map stops being a map of buildings and becomes a map
+ * of towns: the report pins, the collection points and the damage circles all
+ * leave, and the `municipio` pins — which are hidden at every closer zoom — take
+ * their place. It is a swap and not a fade, because the two answer different
+ * questions: at street zoom the question is which building needs what, and at
+ * region zoom nothing below a whole municipality is legible anyway.
+ *
+ * Sitting one step above `EMERGENCY_MAX_ZOOM` is what makes «ver toda la
+ * emergencia» land on the town side every time, and one step below the opening
+ * view (13, or `USER_ZOOM` with a cached position) so the map never opens empty
+ * of the detail it is for.
+ */
+const TOWNS_ONLY_MAX_ZOOM = 12;
+
+/** Whether the current zoom is on the town side of that line. Set by `initMap`. */
+let townsOnly = false;
+
 /** Zoom para la vista inicial sobre la persona: su ciudad entera, no su calle. */
 const USER_ZOOM = 14;
 
@@ -450,17 +468,25 @@ export function initMap(containerId: string): L.Map {
     container.addEventListener(event, claim, { once: true, passive: true });
   }
 
-  // Las zonas se van del mapa pasado `ZONE_MAX_ZOOM`. Va en `zoomend` y no en
+  // Las zonas se van del mapa pasado `ZONE_MAX_ZOOM`, y todo lo que no sea un
+  // municipio se va antes de `TOWNS_ONLY_MAX_ZOOM`. Va en `zoomend` y no en
   // `zoomstart`: sacarlas al empezar el gesto las hace desaparecer a mitad de la
   // animación, con el zoom todavía dentro del rango.
-  const syncZoneZoom = () => {
-    const inRange = map.getZoom() <= ZONE_MAX_ZOOM;
-    if (inRange === zonesInRange) return;
+  const syncZoom = () => {
+    const zoom = map.getZoom();
+    const inRange = zoom <= ZONE_MAX_ZOOM;
+    const towns = zoom <= TOWNS_ONLY_MAX_ZOOM;
+    if (inRange === zonesInRange && towns === townsOnly) return;
     zonesInRange = inRange;
+    if (towns !== townsOnly) {
+      townsOnly = towns;
+      applyReports();
+      applyCenters();
+    }
     applyZones();
   };
-  syncZoneZoom();
-  map.on("zoomend", syncZoneZoom);
+  syncZoom();
+  map.on("zoomend", syncZoom);
 
   onBreakpointChange(syncPopupMode);
 
@@ -745,6 +771,7 @@ function dropMarker(key: string): void {
   // El punto ya no existe: dejar su detalle abierto sería mostrar algo que el
   // mapa ya no tiene.
   if (entry.marker === selected) emit(null);
+  forgetFade(entry.marker);
   reportsLayer.removeLayer(entry.marker);
   entry.marker.remove();
 }
@@ -853,6 +880,90 @@ export function flyToEmergency(reserveTop = 0): Promise<void> {
   });
 }
 
+/* ---- Entering and leaving a layer, with the fade ---- */
+
+/**
+ * How long a pin takes to go, and it is the CSS that runs it — the rules for
+ * `.leaflet-marker-icon` and `.affected-zone` in `global.css` carry the same
+ * number. Here it is only the wait before the layer drops what is already
+ * invisible: taking the marker out at once would cut the transition on its first
+ * frame, and leaving it in forever would keep a hidden pin catching clicks.
+ */
+const FADE_MS = 220;
+
+/** The base fill of a damage zone, and what it fades back up to. */
+const ZONE_FILL_OPACITY = 0.14;
+
+/**
+ * Pending removals. One per layer, so a pin asked to come back while it is
+ * still fading out cancels its own exit instead of vanishing a moment later.
+ */
+const fadeTimers = new Map<L.Layer, number>();
+
+function setFillOpacity(layer: L.Marker | L.Circle, opacity: number): void {
+  if (layer instanceof L.Circle) layer.setStyle({ fillOpacity: opacity });
+  else layer.setOpacity(opacity);
+}
+
+/**
+ * Adds or removes with the fade, and it is the one door into every layer group
+ * on this map: the zoom swap, the filter and the reconciliations all go through
+ * here, so nothing can appear at full opacity by accident.
+ *
+ * Coming in, the opacity is written before the layer is added and raised on the
+ * next frame — a node inserted and restyled in the same one transitions from
+ * nothing.
+ */
+function setLayerVisible(
+  group: L.LayerGroup,
+  layer: L.Marker | L.Circle,
+  visible: boolean,
+): void {
+  const pending = fadeTimers.get(layer);
+  if (pending !== undefined) {
+    clearTimeout(pending);
+    fadeTimers.delete(layer);
+  }
+
+  const full = layer instanceof L.Circle ? ZONE_FILL_OPACITY : 1;
+
+  if (visible) {
+    if (group.hasLayer(layer)) {
+      setFillOpacity(layer, full);
+      return;
+    }
+    setFillOpacity(layer, 0);
+    group.addLayer(layer);
+    requestAnimationFrame(() => {
+      if (!group.hasLayer(layer) || fadeTimers.has(layer)) return;
+      setFillOpacity(layer, full);
+    });
+    return;
+  }
+
+  if (!group.hasLayer(layer)) return;
+  setFillOpacity(layer, 0);
+  fadeTimers.set(
+    layer,
+    window.setTimeout(() => {
+      fadeTimers.delete(layer);
+      group.removeLayer(layer);
+    }, FADE_MS),
+  );
+}
+
+/**
+ * The layer is going away for good — the row stopped existing, or the whole zone
+ * list is being replaced. No fade: what leaves here is not coming back, and the
+ * pending removal has to go with it or it would fire over a dead marker.
+ */
+function forgetFade(layer: L.Marker | L.Circle): void {
+  const pending = fadeTimers.get(layer);
+  if (pending === undefined) return;
+  clearTimeout(pending);
+  fadeTimers.delete(layer);
+}
+
 /* ---- Reports: their own layer, so the filter can empty it ---- */
 
 /**
@@ -887,30 +998,23 @@ export function setReportVisibility(
  */
 function applyReports(): number {
   let shown = 0;
+  let closes = false;
   for (const { marker, group, extra } of markers.values()) {
-    const visible = reportsVisible && (!reportsOnlyRecent || !extra.stale);
+    const visible =
+      !townsOnly && reportsVisible && (!reportsOnlyRecent || !extra.stale);
     if (visible) shown += 1;
-    if (visible === reportsLayer.hasLayer(marker)) continue;
-    if (visible) {
-      reportsLayer.addLayer(marker);
-      // Entrar en la capa reconstruye el elemento, y con él se fue el
-      // `data-estado`: sin esto el marcador vuelve sin color.
-      paintEstado(marker, group, extra);
-    } else {
-      reportsLayer.removeLayer(marker);
-    }
+    // A filter that hides the open point leaves the detail talking about
+    // something no longer on the map. It is read off the decision and not off
+    // `hasLayer`, which stays true the whole time the marker is fading out.
+    else if (marker === selected) closes = true;
+    const entering = visible && !reportsLayer.hasLayer(marker);
+    setLayerVisible(reportsLayer, marker, visible);
+    // Entrar en la capa reconstruye el elemento, y con él se fue el
+    // `data-estado`: sin esto el marcador vuelve sin color.
+    if (entering) paintEstado(marker, group, extra);
   }
-  // A filter that hides the open point leaves the detail talking about
-  // something no longer on the map.
-  if (selected && !reportsLayer.hasLayer(selected) && isReportMarker(selected))
-    emit(null);
+  if (closes) emit(null);
   return shown;
-}
-
-function isReportMarker(marker: DetailLayer): boolean {
-  for (const { marker: candidate } of markers.values())
-    if (candidate === marker) return true;
-  return false;
 }
 
 /* ---- Centers: their own layer, apart from the reports ---- */
@@ -1337,6 +1441,11 @@ function centerPopupHtml(center: Center, mine: boolean): string {
 }
 
 function matchesFilter(center: Center): boolean {
+  // The zoom decides which half of the table is on the map at all: a town below
+  // `TOWNS_ONLY_MAX_ZOOM`, everything else above it. The chips still get their
+  // veto on top — unticking «Municipios» leaves the far view empty rather than
+  // bringing the towns back.
+  if (townsOnly !== (center.type === "municipio")) return false;
   if (!visibleCenterTypes.has(center.type)) return false;
   return !centersOnlyActive || !isPaused(center);
 }
@@ -1349,24 +1458,17 @@ function matchesFilter(center: Center): boolean {
  */
 function applyCenters(): number {
   let shown = 0;
+  let closes = false;
   for (const { data, marker } of centers.values()) {
     const visible = matchesFilter(data);
     if (visible) shown += 1;
-    if (visible === centersLayer.hasLayer(marker)) continue;
-    if (visible) centersLayer.addLayer(marker);
-    else centersLayer.removeLayer(marker);
+    // A filter that hides the open point leaves the detail talking about
+    // something no longer on the map.
+    else if (marker === selected) closes = true;
+    setLayerVisible(centersLayer, marker, visible);
   }
-  // A filter that hides the open point leaves the detail talking about
-  // something no longer on the map.
-  if (selected && !centersLayer.hasLayer(selected) && isCenterMarker(selected))
-    emit(null);
+  if (closes) emit(null);
   return shown;
-}
-
-function isCenterMarker(marker: DetailLayer): boolean {
-  for (const { marker: candidate } of centers.values())
-    if (candidate === marker) return true;
-  return false;
 }
 
 /**
@@ -1391,6 +1493,7 @@ export function setCenters(entries: CenterEntry[]): number {
     // The point stopped existing: leaving its detail open would show something
     // the map no longer has.
     if (marker === selected) emit(null);
+    forgetFade(marker);
     centersLayer.removeLayer(marker);
     marker.remove();
     centers.delete(id);
@@ -1483,6 +1586,7 @@ function affectedPopupHtml(zone: AffectedZone): string {
  */
 export function setAffectedZones(zones: AffectedZone[]): void {
   if (selected && isZoneCircle(selected)) emit(null);
+  for (const circle of zoneCircles) forgetFade(circle);
   affectedLayer.clearLayers();
   zoneCircles.length = 0;
 
@@ -1492,7 +1596,7 @@ export function setAffectedZones(zones: AffectedZone[]): void {
       className: "affected-zone",
       stroke: false,
       fillColor: ZONE_FILL,
-      fillOpacity: 0.14,
+      fillOpacity: ZONE_FILL_OPACITY,
     });
     attachPopup(circle, affectedPopupHtml(zone));
     circle.on("click", onZoneClick);
@@ -1528,12 +1632,9 @@ export function setAffectedVisibility(visible: boolean): number {
 }
 
 function applyZones(): number {
-  const visible = zonesVisible && zonesInRange;
-  for (const circle of zoneCircles) {
-    if (visible === affectedLayer.hasLayer(circle)) continue;
-    if (visible) affectedLayer.addLayer(circle);
-    else affectedLayer.removeLayer(circle);
-  }
+  const visible = zonesVisible && zonesInRange && !townsOnly;
+  for (const circle of zoneCircles)
+    setLayerVisible(affectedLayer, circle, visible);
   if (!visible && selected && isZoneCircle(selected)) emit(null);
   return visible ? zoneCircles.length : 0;
 }

@@ -552,6 +552,18 @@ button:not(:disabled) {
    acá». */
 .affected-zone {
   filter: blur(12px);
+  transition: fill-opacity 220ms ease;
+}
+
+/* Crossing `TOWNS_ONLY_MAX_ZOOM` swaps half the map for the other half, and
+   swapping it in one frame reads as a glitch rather than as two views of the
+   same thing. `map.ts` sets the opacity and waits this long before taking the
+   marker out of its layer, so the number here and `FADE_MS` there are the same
+   fact — the transition is what runs, the timeout is only what cleans up after
+   it. Filtering and any other add or remove ride along for free: nothing else
+   ever writes a marker's opacity. */
+.leaflet-marker-icon {
+  transition: opacity 220ms ease;
 }
 
 .filter-pin-afectada {
@@ -1343,5 +1355,13 @@ option {
 
   #alert-banner[data-shake] {
     animation: none;
+  }
+
+  /* El pin aparece y desaparece igual, solo que de una: lo que sobra es el
+     movimiento, no el cambio. `map.ts` sigue esperando su `FADE_MS` antes de
+     sacarlo de la capa, y ese rato lo pasa ya invisible. */
+  .leaflet-marker-icon,
+  .affected-zone {
+    transition: none;
   }
 }
