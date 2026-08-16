@@ -30,7 +30,7 @@ const HEART_ICON = {
   <div class="mx-auto max-w-[1920px] lg:relative lg:flex lg:h-screen lg:overflow-hidden">
     <!-- Panel lateral (en móvil: header flotante + bottom sheet) -->
     <div
-      class="lg:flex lg:h-screen lg:w-[26rem] lg:shrink-0 lg:flex-col lg:gap-5 lg:overflow-y-auto lg:p-5"
+      class="lg:flex lg:h-screen lg:w-104 lg:shrink-0 lg:flex-col lg:gap-5 lg:overflow-y-auto lg:p-5"
     >
       <!-- Sin `backdrop-blur`: en móvil este header está fijo encima del mapa,
            así que cada frame de un arrastre obliga a desenfocar de nuevo la
@@ -38,7 +38,7 @@ const HEART_ICON = {
            desenfoque solo existía en móvil, que es donde más caro sale. -->
       <header
         id="site-header"
-        class="fixed inset-x-0 top-0 z-[900] border-b border-slate-200/60 bg-white/95 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] lg:static lg:z-auto lg:border-0 lg:bg-transparent lg:p-0"
+        class="fixed inset-x-0 top-0 z-900 border-b border-slate-200/60 bg-white/95 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] lg:static lg:z-auto lg:border-0 lg:bg-transparent lg:p-0"
       >
         <h1 class="mt-2 text-2xl font-bold tracking-tight text-slate-900 lg:mt-3 lg:text-2xl">
           {SITE_NAME}
@@ -70,7 +70,7 @@ const HEART_ICON = {
       <div
         id="sheet-scrim"
         hidden
-        class="fixed inset-0 z-[990] bg-slate-900/40 opacity-0 lg:hidden"
+        class="fixed inset-0 z-990 bg-slate-900/40 opacity-0 lg:hidden"
       >
       </div>
 
@@ -78,7 +78,7 @@ const HEART_ICON = {
         id="sheet"
         data-state="closed"
         data-tab="puntos"
-        class="fixed inset-x-0 bottom-0 z-[1000] flex max-h-[86svh] flex-col rounded-t-2xl border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] lg:contents"
+        class="fixed inset-x-0 bottom-0 z-1000 flex max-h-[86svh] flex-col rounded-t-2xl border-t border-slate-200 bg-white pb-[env(safe-area-inset-bottom)] shadow-[0_-8px_30px_rgba(0,0,0,0.12)] lg:contents"
       >
         <div id="sheet-grab" class="shrink-0 select-none px-4 pb-4 pt-2.5 lg:hidden">
           <span class="mx-auto block h-1.5 w-10 rounded-full bg-slate-300"></span>
@@ -189,7 +189,7 @@ const HEART_ICON = {
     </div>
 
     <!-- Mapa -->
-    <main class="fixed inset-0 z-0 lg:static lg:h-screen lg:flex-1 lg:p-5 lg:pr-[var(--right-column)]">
+    <main class="fixed inset-0 z-0 lg:static lg:h-screen lg:flex-1 lg:p-5 lg:pr-(--right-column)">
       <div
         id="map"
         class="h-full w-full lg:overflow-hidden lg:rounded-2xl lg:border lg:border-slate-200 lg:shadow-sm"
@@ -217,7 +217,7 @@ const HEART_ICON = {
       hidden
       aria-label="Abrir el panel de puntos y novedades"
       aria-controls="sheet"
-      class="sheet-toggle fixed right-4 z-[1050] inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-4 text-sm font-semibold text-slate-700 shadow-lg transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 lg:hidden"
+      class="sheet-toggle fixed right-4 z-1050 inline-flex items-center gap-2 rounded-full border border-slate-200 bg-white px-4 py-4 text-sm font-semibold text-slate-700 shadow-lg transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 lg:hidden"
     >
       <svg
         viewBox="0 0 20 20"
@@ -252,7 +252,7 @@ const HEART_ICON = {
       aria-label="Filtrar qué se ve en el mapa"
       aria-expanded="false"
       aria-controls="filters-card"
-      class="fab-filter fixed right-4 z-[1050] inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-4 text-slate-700 shadow-lg transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 lg:absolute lg:right-[calc(var(--right-column)+1.5rem)]"
+      class="fab-filter fixed right-4 z-1050 inline-flex items-center justify-center rounded-full border border-slate-200 bg-white px-4 py-4 text-slate-700 shadow-lg transition-colors hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300 lg:absolute lg:right-[calc(var(--right-column)+1.5rem)]"
     >
       <svg
         viewBox="0 0 20 20"
@@ -335,7 +335,7 @@ const HEART_ICON = {
       href="/mascotas"
       id="fab-pets"
       aria-label="Ver las mascotas encontradas"
-      class="fab-pets fixed right-4 z-[1050] inline-flex items-center justify-center rounded-full border border-red-200 bg-red-50 p-3 text-red-600 shadow-lg transition-colors hover:border-red-300 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-300 lg:absolute lg:right-[calc(var(--right-column)+1.5rem)]"
+      class="fab-pets fixed right-4 z-1050 inline-flex items-center justify-center rounded-full border border-red-200 bg-red-50 p-3 text-red-600 shadow-lg transition-colors hover:border-red-300 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-red-300 lg:absolute lg:right-[calc(var(--right-column)+1.5rem)]"
     >
       <svg viewBox="0 0 512 512" aria-hidden="true" class="h-6 w-6" fill="currentColor">
         <path

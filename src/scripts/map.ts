@@ -836,20 +836,22 @@ export function flyToEmergency(reserveTop = 0): Promise<void> {
       finish();
     });
 
-    map.flyToBounds(bounds.isValid() ? bounds : L.latLngBounds(EMERGENCY_BOUNDS), {
-      // Asymmetric, and that is the whole point of `reserveTop`. A centred fit
-      // puts the northern half of the pins under whatever covers the top of the
-      // map — on mobile that is the figures card, which is opened by the same
-      // tap. The caller measures it, the same deal as `offsetY` in `flyTo`: this
-      // module draws the map and does not get to know what floats over it.
-      paddingTopLeft: [48, 48 + Math.max(reserveTop, 0)],
-      paddingBottomRight: [48, 48],
-      maxZoom: EMERGENCY_MAX_ZOOM,
-      duration: 1.2,
-    });
+    map.flyToBounds(
+      bounds.isValid() ? bounds : L.latLngBounds(EMERGENCY_BOUNDS),
+      {
+        // Asymmetric, and that is the whole point of `reserveTop`. A centred fit
+        // puts the northern half of the pins under whatever covers the top of the
+        // map — on mobile that is the figures card, which is opened by the same
+        // tap. The caller measures it, the same deal as `offsetY` in `flyTo`: this
+        // module draws the map and does not get to know what floats over it.
+        paddingTopLeft: [48, 48 + Math.max(reserveTop, 0)],
+        paddingBottomRight: [48, 48],
+        maxZoom: EMERGENCY_MAX_ZOOM,
+        duration: 1.2,
+      },
+    );
   });
 }
-
 
 /* ---- Reports: their own layer, so the filter can empty it ---- */
 
@@ -1195,7 +1197,7 @@ function centerPopupHtml(center: Center, mine: boolean): string {
   // clickable would be publishing whoever's link. `break-words` goes in both
   // cases — a URL is a single word and stretches the popup if it cannot break.
   const notes = center.notes
-    ? `<p class="text-sm break-words text-slate-500">${
+    ? `<p class="text-sm wrap-break-word text-slate-500">${
         isCommunity(center)
           ? escapeHtml(center.notes)
           : linkifyHtml(center.notes)
@@ -1458,9 +1460,7 @@ let zonesInRange = true;
 function affectedPopupHtml(zone: AffectedZone): string {
   const reports = `${zone.reports} ${zone.reports === 1 ? "reporte" : "reportes"}`;
   const collapses =
-    zone.collapses > 0
-      ? `, ${zone.collapses} de ellos por colapso`
-      : "";
+    zone.collapses > 0 ? `, ${zone.collapses} de ellos por colapso` : "";
   const warnings = ZONE_DISCLAIMER.map(
     (line) => `<li>${escapeHtml(line)}</li>`,
   ).join("");
