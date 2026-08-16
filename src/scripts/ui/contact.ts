@@ -251,6 +251,33 @@ export function buildUsernameCta(
   );
 }
 
+/**
+ * El mismo botón antes de saber a dónde lleva.
+ *
+ * El contacto de una mascota ya no viaja con la lista: se pide por ficha, así
+ * que hay un momento —corto, y a veces ninguno— en que el botón está pintado y
+ * el destino no llegó. Es un `button` y no un `a` sin `href`: un enlace sin
+ * destino no se enfoca con el teclado ni se puede tocar, y este se toca. Quien
+ * lo coloca lo reemplaza por el enlace de verdad cuando el contacto contesta.
+ */
+export function buildPendingCta(
+  label = "Escribir al WhatsApp",
+): HTMLButtonElement {
+  const pending = document.createElement("button");
+  pending.type = "button";
+  pending.className = CONTACT_CTA;
+
+  const icon = document.createElement("span");
+  icon.className = "contents";
+  icon.innerHTML = PHONE_ICON;
+
+  const who = document.createElement("span");
+  who.textContent = label;
+
+  pending.append(icon, who);
+  return pending;
+}
+
 function buildCta(
   href: string,
   external: boolean,

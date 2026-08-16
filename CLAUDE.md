@@ -77,7 +77,16 @@ Two kinds of data, and they must not mix:
   arrives through the bot and through the seeder, and `features/pets-grid.ts` picks which
   CTA to draw — `wa.me` opens the chat from either, and prefills the first message when
   there is a `ref_code`: the link carries no attachment, so the photo travels as the url of
-  its own card. The
+  its own card. The contact columns are the one thing on this page the browser cannot read
+  with the table: the grid asks for two hundred rows in a single request, and while the
+  contact rode along so did two hundred phone numbers — never painted, the button says
+  «Escribir al WhatsApp» and the number lives in the `href`, but handed whole to whoever
+  asked for the table. The table-level SELECT was revoked and given back column by column
+  without those three, which is the order it has to happen in, and `pet_contact(id)`
+  returns one pet's. RLS is untouched: it filters rows, and these are columns. So the CTA
+  is painted before it knows where it leads — `ui/contact.ts` builds a `button` twin of it
+  for that gap — and resolves when the sheet opens on mobile, or when the mouse reaches the
+  card on desktop, which is what always happens before a click. The
   photo is not in the row — it goes to the public `pets` bucket in Storage and the row keeps
   its object key, because the bytes in a column would ride along in every realtime payload.
   The page never asks for that object: `data/pets.ts` derives two urls off the Storage
@@ -95,11 +104,21 @@ Two kinds of data, and they must not mix:
   conversation is three steps because a photo says neither what animal it is nor whether
   it is a male or a female, and a message carries three buttons at most: the photo arrives
   and a `pet_intakes` row keeps the Graph media id while the kind buttons go back; the kind
-  tap is saved on that row and the sex buttons go back; the sex tap is the one that
-  downloads, uploads and publishes. That order is why there are no orphan objects to sweep
+  tap is saved on that row and the sex buttons go back; the sex tap is saved too, and for a
+  sender who has answered the consent question before it is the one that downloads, uploads
+  and publishes. For everyone else there is a fourth step, asked once and only once:
+  publishing the photo publishes the way back to whoever sent it, which used to be
+  announced in the first message and taken as accepted by the third tap — announcing is not
+  asking, so two buttons go out and it is that tap that publishes. The answer lives in
+  `pet_senders`, keyed by the same address as `wa_from`, in the clear because a record of a
+  consent that cannot be read proves nothing, and behind the same defences as
+  `pet_intakes`. A no discards the photo rather than publishing it without a contact —
+  the CHECK wants one of the three — and is remembered too, though a sender who refused is
+  asked again rather than having their later photos die in silence. That order is why there are no orphan objects to sweep
   — a photo nobody finishes classifying never reaches the bucket, and the rows expire in
-  the function itself. The intake also keeps `wa_kind_message_id`, because the middle step
-  deletes nothing: it is what tells a Meta resend from somebody correcting the kind.
+  the function itself. The intake also keeps `wa_kind_message_id` and `wa_sex_message_id`, because
+  the middle steps delete nothing: they are what tell a Meta resend from somebody
+  correcting their answer before the next question.
   Who sent the photo is not always a phone. WhatsApp lets a person put a username in front
   of their number, and then the payload carries no `from` and no `wa_id` at all — only a
   business-scoped user id (`CO.1351106690554399`) and the handle. Meta puts the phone back
