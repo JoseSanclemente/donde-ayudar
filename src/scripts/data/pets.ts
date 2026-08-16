@@ -53,21 +53,29 @@ export type Pet = {
    * the form or the bot — only the seeder writes it.
    */
   refCode: string | null;
-  /**
-   * How to write to whoever found it, and it is one of the three — never
-   * several, never none. WhatsApp lets a person put a username in front of
-   * their number, and to whoever receives the message the phone then does not
-   * exist: a pet published from the WhatsApp bot by such a sender carries the
-   * handle and no phone. `wa.me` opens the chat from either.
-   *
-   * The third is neither: a pet seeded off Instagram carries the permalink of
-   * the post it appeared in, and the button opens that post.
-   */
-  contactPhone: string | null;
-  contactUsername: string | null;
-  contactInstagramUrl: string | null;
   createdAt: string;
   userId: string;
+};
+
+/**
+ * How to write to whoever found a pet, and it is one of the three — never
+ * several, never none. WhatsApp lets a person put a username in front of their
+ * number, and to whoever receives the message the phone then does not exist: a
+ * pet published from the bot by such a sender carries the handle and no phone.
+ * `wa.me` opens the chat from either. The third is neither: a pet seeded off
+ * Instagram carries the permalink of the post it appeared in.
+ *
+ * It is not part of `Pet`, and that is the point. The grid reads two hundred
+ * rows in one request, and while the contact rode along, so did two hundred
+ * phone numbers — the page never painted them, but the response handed them to
+ * anyone who asked for the table. The columns are no longer readable from the
+ * browser (`supabase/migrations/20260816-mascotas-contacto.sql`); this comes one
+ * pet at a time, through `pet_contact`, which is how a card actually uses it.
+ */
+export type PetContact = {
+  phone: string | null;
+  username: string | null;
+  instagramUrl: string | null;
 };
 
 type Row = {
@@ -78,14 +86,19 @@ type Row = {
   photo_path: string;
   place_name: string | null;
   ref_code: string | null;
-  contact_phone: string | null;
-  contact_username: string | null;
-  contact_instagram_url: string | null;
   created_at: string;
 };
 
 const TABLE = "pets";
 const BUCKET = "pets";
+
+/**
+ * Spelled out and never `*`: the three contact columns are not readable with the
+ * anon key any more, and `select("*")` asks for every column the table has, so
+ * it would come back a permission error instead of a grid.
+ */
+const COLUMNS =
+  "id, user_id, kind, sex, photo_path, place_name, ref_code, created_at";
 
 /** The same ceiling and the same list the bucket enforces, checked here first. */
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
@@ -134,11 +147,6 @@ function isRow(value: unknown): value is Row {
     typeof r.kind === "string" &&
     (r.sex === null || r.sex === undefined || typeof r.sex === "string") &&
     typeof r.photo_path === "string" &&
-    // One of the three is enough, which is what the CHECK in the base demands:
-    // a row with none of them is a pet nobody can ask about.
-    (typeof r.contact_phone === "string" ||
-      typeof r.contact_username === "string" ||
-      typeof r.contact_instagram_url === "string") &&
     typeof r.created_at === "string"
   );
 }
@@ -181,9 +189,6 @@ function fromRow(row: Row): Pet {
     photoUrl: photoUrl(row.photo_path, FULL),
     placeName: row.place_name ?? null,
     refCode: row.ref_code ?? null,
-    contactPhone: row.contact_phone ?? null,
-    contactUsername: row.contact_username ?? null,
-    contactInstagramUrl: row.contact_instagram_url ?? null,
     createdAt: row.created_at,
     userId: row.user_id,
   };
@@ -269,11 +274,6 @@ export async function addPet(input: PetInput): Promise<Pet | null> {
     photoUrl: local,
     placeName: null,
     refCode: null,
-    // The form on the site asks for a phone and nothing else: a username can
-    // only arrive through the bot, which is what receives the message.
-    contactPhone: input.contactPhone,
-    contactUsername: null,
-    contactInstagramUrl: null,
     createdAt: new Date().toISOString(),
     userId,
   };
@@ -288,9 +288,13 @@ export async function addPet(input: PetInput): Promise<Pet | null> {
       kind: input.kind,
       sex: input.sex ?? null,
       photo_path: path,
+      // The form on the site asks for a phone and nothing else: a username can
+      // only arrive through the bot, which is what receives the message.
       contact_phone: input.contactPhone,
     })
-    .select()
+    // Writing a column and reading it back are separate privileges, and the row
+    // only comes back with what the browser is still allowed to see.
+    .select(COLUMNS)
     .single();
 
   if (error || !isRow(data)) {
@@ -311,6 +315,7 @@ export async function addPet(input: PetInput): Promise<Pet | null> {
 
 function dropLocally(id: string): void {
   cache = cache.filter((pet) => pet.id !== id);
+  contacts.delete(id);
   emit();
 }
 
@@ -338,7 +343,7 @@ export async function loadPets(): Promise<void> {
   if (!supabase) return;
   const { data, error } = await supabase
     .from(TABLE)
-    .select("*")
+    .select(COLUMNS)
     .order("created_at", { ascending: false })
     .limit(200);
   if (error) throw error;
@@ -346,12 +351,52 @@ export async function loadPets(): Promise<void> {
   emit();
 }
 
+/**
+ * The contact of one pet, asked for when a card is about to be used and not
+ * when the grid is painted.
+ *
+ * Kept once resolved: the same card is hovered, opened and closed again, and
+ * the answer cannot change — there is no UPDATE policy on `pets`. A pet that is
+ * deleted takes its entry with it, which is `dropLocally`'s business below.
+ *
+ * Never throws and never reports: a contact that does not answer leaves the
+ * button as it was, and the toast belongs to whoever writes, not to whoever is
+ * looking. `null` is «not now», not «this pet has none» — the CHECK in the base
+ * demands one of the three.
+ */
+const contacts = new Map<string, PetContact>();
+
+export function getPetContact(id: string): PetContact | null {
+  return contacts.get(id) ?? null;
+}
+
+export async function fetchPetContact(id: string): Promise<PetContact | null> {
+  const known = contacts.get(id);
+  if (known) return known;
+  if (!supabase) return null;
+
+  const { data, error } = await supabase.rpc("pet_contact", { p_id: id });
+  const row = Array.isArray(data) ? data[0] : null;
+  if (error || !row) return null;
+
+  const contact: PetContact = {
+    phone: typeof row.contact_phone === "string" ? row.contact_phone : null,
+    username:
+      typeof row.contact_username === "string" ? row.contact_username : null,
+    instagramUrl:
+      typeof row.contact_instagram_url === "string"
+        ? row.contact_instagram_url
+        : null,
+  };
+  contacts.set(id, contact);
+  return contact;
+}
+
 function applyRealtime(payload: RealtimePayload): void {
   if (payload.eventType === "DELETE") {
     const id = (payload.old as { id?: string } | null)?.id;
     if (!id) return;
-    cache = cache.filter((pet) => pet.id !== id);
-    emit();
+    dropLocally(id);
     return;
   }
 

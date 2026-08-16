@@ -631,6 +631,30 @@ alter publication supabase_realtime add table public.pets;
 create policy "pets are public"
   on public.pets for select to anon, authenticated using (true);
 
+-- Every row is readable and not every column is. RLS filters rows, and what has
+-- to be kept back here are three columns: the page reads two hundred pets in one
+-- request, and while the contact came with them so did two hundred phone
+-- numbers — never painted, the button says «Escribir al WhatsApp» and the number
+-- lives in the `href`, but handed whole to anyone who asked for the table. That
+-- is a list, not a contact.
+--
+-- So the table-level SELECT goes and comes back column by column. It has to be
+-- in that order: a column cannot be revoked out of a grant made over the whole
+-- table. Whoever needs a contact asks `pet_contact` for one, which is how a card
+-- uses it. `service_role` is untouched — the bot and the seeder read everything.
+revoke select on public.pets from anon, authenticated;
+
+grant select (
+  id,
+  user_id,
+  kind,
+  sex,
+  photo_path,
+  place_name,
+  ref_code,
+  created_at
+) on public.pets to anon, authenticated;
+
 create policy "anyone publishes a pet they found"
   on public.pets for insert to authenticated
   with check ((select auth.uid()) = user_id);
@@ -641,6 +665,32 @@ create policy "authors delete their own pet"
 
 -- No UPDATE policy, like everywhere else: the animal was returned or it was not.
 -- A correction is deleting the row and publishing again with the right photo.
+
+-- The contact of one pet, which is the only way to reach those three columns
+-- from the browser. `security definer` because the caller has no privilege on
+-- them any more; no row filter because the SELECT policy above is `using (true)`
+-- and a published pet is public. What changed is the price of collecting them
+-- all: one request per pet instead of one request for every pet at once.
+create or replace function public.pet_contact(p_id uuid)
+returns table (
+  contact_phone text,
+  contact_username text,
+  contact_instagram_url text
+)
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p.contact_phone, p.contact_username, p.contact_instagram_url
+  from public.pets p
+  where p.id = p_id;
+$$;
+
+-- `public` includes whoever should not, and unlike the rest of the functions
+-- here the anonymous role does call this one: `/mascotas` opens no session.
+revoke all     on function public.pet_contact(uuid) from public;
+grant  execute on function public.pet_contact(uuid) to anon, authenticated;
 
 /* ---- The bucket the photos live in ---- */
 
@@ -699,6 +749,12 @@ create table public.pet_intakes (
   -- send the sex buttons twice; a genuine second tap must, because it is a
   -- correction, and the id is what tells them apart.
   wa_kind_message_id text,
+  -- What the second tap said, kept for the same reason `kind` is: for a sender
+  -- who has not answered the consent question yet there is one more wait after
+  -- this one, and the answer has to survive it. `unknown` is «no sé», which
+  -- becomes NULL on the published row and is not the same as «not answered».
+  sex           text check (sex is null or sex in ('male', 'female', 'unknown')),
+  wa_sex_message_id text,
   created_at    timestamptz not null default now()
 );
 
@@ -709,6 +765,40 @@ create index pet_intakes_created_at_idx on public.pet_intakes (created_at desc);
 -- RLS, can see a phone number that has not agreed to being published yet. It is
 -- not in `supabase_realtime` either: nothing subscribes to it.
 alter table public.pet_intakes enable row level security;
+
+/* ---- Who already answered the consent question ---- */
+
+-- Publishing the photo publishes the way back to whoever sent it: their number,
+-- or their username when the number is hidden behind one. That used to be
+-- announced in the first message and taken as accepted by the last tap.
+-- Announcing is not asking, so there is a fourth question with two buttons, and
+-- no photo is published without a yes.
+--
+-- It is asked once. Whoever already said yes sends their second photo and
+-- publishes it in three taps, the way it always worked — and this is the memory
+-- that makes that possible, because `pet_intakes` cannot be: that one is deleted
+-- on publish.
+--
+-- The key is the address the function already works with: the digits, or the
+-- business-scoped user id of somebody writing from a username. Same value as
+-- `pet_intakes.wa_from`, and read as a phone nowhere.
+--
+-- Kept in the clear rather than hashed on purpose: this is the record of a
+-- consent, and a record nobody can read proves nothing. It lives behind the same
+-- defences as `pet_intakes` — RLS on and not a single policy, so only
+-- `service_role` sees it — and outside `supabase_realtime`.
+--
+-- Nothing sweeps it. An «already asked» with an expiry date is asking again the
+-- person who already answered.
+create table public.pet_senders (
+  wa_from     text primary key,
+  consented   boolean not null,
+  -- When they said it. This is what gets shown if a published photo ever has to
+  -- be answered for.
+  decided_at  timestamptz not null default now()
+);
+
+alter table public.pet_senders enable row level security;
 
 /* ================================================================== */
 /* Las cifras de la emergencia                                         */

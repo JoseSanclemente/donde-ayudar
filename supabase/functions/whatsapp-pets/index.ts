@@ -15,17 +15,28 @@ import { createClient } from "npm:@supabase/supabase-js@2";
  *      the Graph **media id** — and three buttons go back: Perro / Gato / Otro.
  *   2. The kind tap arrives. It is saved on the intake and three more buttons go
  *      back: Macho / Hembra / No sé.
- *   3. The sex tap arrives. Only now is the photo downloaded, uploaded to the
- *      bucket and published, and the intake deleted.
+ *   3. The sex tap arrives. It is saved too, and for whoever has answered the
+ *      consent question before, this is where the photo is downloaded, uploaded
+ *      to the bucket and published, and the intake deleted.
+ *
+ * And a fourth step the first time, and only the first time:
+ *
+ *   4. Publishing the photo publishes the way back to whoever sent it — their
+ *      number, or their username when the number is hidden behind one. That used
+ *      to be announced in step 1 and taken as accepted by the tap in step 3.
+ *      Announcing is not asking. So a sender we have no answer from is asked
+ *      outright, with two buttons, and it is that tap that publishes. The answer
+ *      goes to `pet_senders` and is never asked again: the second photo of
+ *      somebody who said yes still takes three taps.
+ *
+ * A no is not a publication without a contact — the CHECK in the schema wants
+ * one of the three and a photo nobody can be written about is a photo nobody can
+ * claim. It is the photo discarded, and said so.
  *
  * Downloading in the last step and not in the first is the point of the waiting
  * room: a photo nobody finishes classifying never reaches the bucket, so there
  * are no orphan objects to sweep — only rows, and those go below. Meta keeps the
  * media for 30 days; a tap arrives in seconds.
- *
- * The last tap is also where the consent is: it is what publishes the way back
- * to whoever sent the photo — their number, or their username when the number is
- * hidden behind one — so both button messages say so.
  */
 
 declare const EdgeRuntime: { waitUntil(promise: Promise<unknown>): void };
@@ -55,6 +66,7 @@ const admin = createClient(
 
 const BUCKET = "pets";
 const INTAKES = "pet_intakes";
+const SENDERS = "pet_senders";
 const PETS = "pets";
 
 /** The same ceiling and the same list the bucket enforces, checked here first. */
@@ -78,11 +90,19 @@ const KIND_PHRASES: Record<string, string> = {
   other: "una mascota 🐾",
 };
 
-/** `unknown` is a button id and nothing else: it writes NULL on the row. */
+/** `unknown` is stored as it is typed here and becomes NULL on the published
+ *  row: on the intake it has to be told apart from «has not answered yet». */
 const SEXES: Record<string, string> = {
   male: "Macho",
   female: "Hembra",
   unknown: "No sé",
+};
+
+/** Two and not three: the question has two answers and a third button would
+ *  only be a way of not answering it. */
+const CONSENTS: Record<string, string> = {
+  yes: "Sí, publicar",
+  no: "No",
 };
 
 const INTAKE_TTL_HOURS = 24;
@@ -296,7 +316,11 @@ async function handleMessage(
     return;
   }
   if (button?.startsWith("sex:")) {
-    await publish(message, sender, button);
+    await onSex(message, sender, button);
+    return;
+  }
+  if (button?.startsWith("ok:")) {
+    await onConsent(message, sender, button);
     return;
   }
 
@@ -324,7 +348,7 @@ async function nudge(sender: Sender, nudged: Set<string>): Promise<void> {
   // belong to.
   const { data: intake } = await admin
     .from(INTAKES)
-    .select("kind")
+    .select("kind, sex")
     .eq("wa_from", sender.address)
     .order("created_at", { ascending: false })
     .limit(1)
@@ -334,14 +358,55 @@ async function nudge(sender: Sender, nudged: Set<string>): Promise<void> {
     await sendText(sender, HELP);
     return;
   }
+  if (intake.sex) {
+    await sendText(
+      sender,
+      "Falta una sola respuesta: toca «Sí, publicar» o «No» en el mensaje de " +
+        "arriba.",
+    );
+    return;
+  }
   await sendText(
     sender,
     intake.kind
-      ? "Ya casi. Toca «Macho», «Hembra» o «No sé» en el mensaje de arriba y " +
-        "queda publicada."
+      ? "Ya casi. Toca «Macho», «Hembra» o «No sé» en el mensaje de arriba."
       : "Ya recibimos tu foto 📸 Toca una de las opciones de arriba " +
         "(Perro / Gato / Otro) para publicarla.",
   );
+}
+
+/* ------------------------------------------------------------------ */
+/* Who already answered the consent question                           */
+/* ------------------------------------------------------------------ */
+
+/**
+ * `true` they agreed, `false` they refused, `null` they were never asked.
+ *
+ * The three are not the same and only the first skips the question. A stored no
+ * is asked again rather than silently refused: somebody who said no once and
+ * sends a photo months later is not asking us to throw it away without a word,
+ * and the alternative is a person whose photos die in silence forever.
+ */
+async function consentOf(address: string): Promise<boolean | null> {
+  const { data } = await admin
+    .from(SENDERS)
+    .select("consented")
+    .eq("wa_from", address)
+    .maybeSingle();
+  return data?.consented ?? null;
+}
+
+async function rememberConsent(
+  address: string,
+  consented: boolean,
+): Promise<void> {
+  const { error } = await admin
+    .from(SENDERS)
+    .upsert(
+      { wa_from: address, consented, decided_at: new Date().toISOString() },
+      { onConflict: "wa_from" },
+    );
+  if (error) throw error;
 }
 
 /* ------------------------------------------------------------------ */
@@ -462,6 +527,11 @@ async function askSex(
     return;
   }
 
+  // Whether this is the last question depends on whether we already have an
+  // answer to the fourth one, and saying «queda publicada» to somebody who is
+  // about to be asked one more thing is a promise the next message breaks.
+  const consented = await consentOf(sender.address);
+
   await send(sender, {
     type: "interactive",
     interactive: {
@@ -469,7 +539,9 @@ async function askSex(
       body: {
         text:
           `Es ${KIND_PHRASES[kind]} ¿Macho o hembra?\n\n` +
-          "Con esta respuesta queda publicada.",
+          (consented === true
+            ? "Con esta respuesta queda publicada."
+            : "Después te hacemos una última pregunta."),
       },
       action: {
         buttons: Object.entries(SEXES).map(([sex, title]) => ({
@@ -485,26 +557,52 @@ async function askSex(
 /* Step 3 — the sex tap arrives                                        */
 /* ------------------------------------------------------------------ */
 
-async function publish(
+/** Everything publishing needs off the waiting room. */
+type Intake = {
+  id: string;
+  media_id: string;
+  kind: string | null;
+  sex: string | null;
+  wa_username: string | null;
+};
+
+const INTAKE_COLUMNS = "id, media_id, kind, sex, wa_username";
+
+/**
+ * For whoever has already said yes this is the last tap and it publishes. For
+ * everybody else it is the second-to-last: the answer is written down and the
+ * consent question goes out.
+ */
+async function onSex(
   message: Message,
   sender: Sender,
   button: string,
 ): Promise<void> {
   const [, sex, intakeId] = button.split(":");
   if (!SEXES[sex] || !intakeId) return;
+  if (!WA_MESSAGE_ID.test(message.id)) return;
 
-  // Matched on the sender too, for the same reason as above.
-  const { data: intake } = await admin
+  // The same shape as the kind tap, and now for the same reason: between this
+  // answer and the publication there can be another wait, so a resend of this
+  // tap must not send the consent buttons twice while a genuine correction must.
+  const { data: intake, error } = await admin
     .from(INTAKES)
-    .select("id, media_id, kind, wa_username")
+    .update({ sex, wa_sex_message_id: message.id })
     .eq("id", intakeId)
     .eq("wa_from", sender.address)
+    .or(`wa_sex_message_id.is.null,wa_sex_message_id.neq."${message.id}"`)
+    .select(INTAKE_COLUMNS)
     .maybeSingle();
+  if (error) throw error;
 
-  // The intake is deleted on publish, so this is what a second tap and a Meta
-  // retry both look like.
   if (!intake) {
-    await sendText(sender, "Esa foto ya fue publicada. Gracias.");
+    const { data: known } = await admin
+      .from(INTAKES)
+      .select("id")
+      .eq("id", intakeId)
+      .eq("wa_from", sender.address)
+      .maybeSingle();
+    if (!known) await sendText(sender, "Esa foto ya fue publicada. Gracias.");
     return;
   }
 
@@ -513,6 +611,99 @@ async function publish(
     await sendText(sender, HELP);
     return;
   }
+
+  if ((await consentOf(sender.address)) === true) {
+    await publishPet(sender, intake as Intake);
+    return;
+  }
+  await askConsent(sender, intake.id);
+}
+
+/* ------------------------------------------------------------------ */
+/* Step 4 — the consent question, the first time only                  */
+/* ------------------------------------------------------------------ */
+
+/**
+ * What is actually being asked, named plainly: the photo is not the sensitive
+ * half, the way back to whoever sent it is. Which of the two it will be depends
+ * on the sender, so the question says the one that applies rather than covering
+ * both and leaving them to work out which is theirs.
+ */
+async function askConsent(sender: Sender, intakeId: string): Promise<void> {
+  const what = sender.scoped ? "tu usuario de WhatsApp" : "tu número de WhatsApp";
+  await send(sender, {
+    type: "interactive",
+    interactive: {
+      type: "button",
+      body: {
+        text:
+          "Una última cosa 🙏 Para que la familia pueda reclamarla, junto a la " +
+          `foto publicamos ${what} en dondeayudar.com.co/mascotas. Es la única ` +
+          "forma de que te escriban.\n\n" +
+          "¿Nos autorizas a publicarlo? Solo te lo preguntamos esta vez.",
+      },
+      action: {
+        buttons: Object.entries(CONSENTS).map(([answer, title]) => ({
+          type: "reply",
+          reply: { id: `ok:${answer}:${intakeId}`, title },
+        })),
+      },
+    },
+  });
+}
+
+async function onConsent(
+  message: Message,
+  sender: Sender,
+  button: string,
+): Promise<void> {
+  const [, answer, intakeId] = button.split(":");
+  if (!CONSENTS[answer] || !intakeId) return;
+
+  const { data: intake } = await admin
+    .from(INTAKES)
+    .select(INTAKE_COLUMNS)
+    .eq("id", intakeId)
+    .eq("wa_from", sender.address)
+    .maybeSingle();
+
+  // The intake is deleted on publish and on a no, so this is what a second tap
+  // and a Meta retry both look like.
+  if (!intake) {
+    await sendText(sender, "Esa foto ya fue publicada. Gracias.");
+    return;
+  }
+
+  // Written down before it is acted on, and in its own round trip: what must
+  // never happen is a photo published under a yes that was not recorded.
+  await rememberConsent(sender.address, answer === "yes");
+
+  if (answer === "no") {
+    await discard(
+      intake.id,
+      sender,
+      "Listo, no publicamos nada y descartamos la foto 👍 Si cambias de " +
+        "opinión, mándala otra vez cuando quieras. ¡Gracias igual!",
+    );
+    return;
+  }
+
+  // Neither of these can happen through a button of ours, and publishing needs
+  // both: the kind is a column with a CHECK and the sex is what step 3 saved.
+  if (!intake.kind || !KINDS[intake.kind] || !intake.sex) {
+    await sendText(sender, HELP);
+    return;
+  }
+
+  await publishPet(sender, intake as Intake);
+}
+
+/* ------------------------------------------------------------------ */
+/* Publishing                                                          */
+/* ------------------------------------------------------------------ */
+
+async function publishPet(sender: Sender, intake: Intake): Promise<void> {
+  const sex = intake.sex ?? "unknown";
 
   // The contact the card will carry. A scoped sender has no phone anywhere in
   // the payload — that is what the username is for — so with neither there is

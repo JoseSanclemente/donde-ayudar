@@ -118,6 +118,30 @@ y no toca nada sin `--apply`:
 node --env-file=.env scripts/delete-pets.mjs "Royi Pets" --apply
 ```
 
+**El contacto no se lee con la tabla.** `contact_phone`, `contact_username` y
+`contact_instagram_url` no tienen SELECT para `anon` ni para `authenticated`: la
+página lee doscientas filas de una y con ellas viajaban doscientos teléfonos, que
+es una lista y no un contacto. El privilegio de tabla se quitó y se devolvió
+columna por columna sin esas tres — en ese orden, porque una columna no se puede
+revocar de un grant hecho sobre la tabla entera. La policy de SELECT no cambió:
+RLS filtra filas y esto son columnas, y las dos hacen falta.
+
+Quien necesita un contacto llama a `pet_contact(<uuid>)`, que devuelve el de una
+sola mascota y es `security definer`. La ficha lo pide al abrirse y la tarjeta de
+escritorio al pasar el mouse, en `src/scripts/features/pets-grid.ts`. Consultar
+uno a mano:
+
+```sql
+select * from public.pet_contact('<uuid>');
+```
+
+`service_role` no está tocado: el bot, el seeder y el dashboard siguen leyendo
+las tres columnas. Deshacer el cambio entero es un `grant`:
+
+```sql
+grant select on public.pets to anon, authenticated;
+```
+
 **La foto no está en la fila.** Va al bucket `pets` de Storage y la fila guarda
 solo su llave (`photo_path`); los bytes en una columna viajarían en cada evento
 de realtime y en cada lectura de la tabla. El bucket es **público**, así que leer
@@ -191,8 +215,41 @@ macho o hembra, y un mensaje de WhatsApp lleva tres botones como máximo:
    Otro.
 2. Llega el toque de la clase. Se guarda en el acuse y salen tres botones más:
    Macho / Hembra / No sé.
-3. Llega el toque del sexo. Recién ahí se descarga la foto, se sube al bucket, se
-   publica la fila y se borra el acuse.
+3. Llega el toque del sexo. Se guarda en el acuse, y para quien ya contestó la
+   pregunta del paso 4 acá se descarga la foto, se sube al bucket, se publica la
+   fila y se borra el acuse.
+
+Y un cuarto paso la primera vez, y solo la primera:
+
+4. Publicar la foto publica también la forma de escribirle a quien la mandó — su
+   número, o su usuario cuando el número está detrás de uno. Antes eso se avisaba
+   en el paso 1 y se daba por aceptado con el toque del paso 3. Avisar no es
+   preguntar: a quien no le hemos preguntado le salen dos botones —«Sí, publicar»
+   / «No»— y es ese toque el que publica. La respuesta va a `pet_senders` y no se
+   vuelve a preguntar nunca: la segunda foto de quien dijo que sí sigue siendo de
+   tres toques.
+
+Un **no** no es publicar sin contacto: el CHECK de `pets` pide uno de los tres y
+una foto por la que nadie puede escribir no la reclama nadie. Es descartar la
+foto, y se le dice. Un no queda guardado igual, y si esa persona manda otra foto
+meses después se le vuelve a preguntar — lo contrario es que sus fotos se mueran
+en silencio para siempre.
+
+**`pet_senders`** es la memoria que `pet_intakes` no puede ser, porque esa se
+borra al publicar. La llave es la misma dirección que `wa_from`: los dígitos, o
+el user id de quien escribe desde un usuario. Se guarda en claro y no como hash a
+propósito — es la constancia de un consentimiento, y una constancia ilegible no
+prueba nada — con las mismas defensas que `pet_intakes`: RLS encendida, ni una
+policy, fuera de realtime. Nadie la barre: un «ya preguntamos» con vencimiento es
+volver a preguntarle a quien ya contestó.
+
+Ver o corregir una respuesta es SQL de mantenedor:
+
+```sql
+select * from public.pet_senders where wa_from = '573001112233';
+-- Volver a preguntarle a alguien: borrar su fila.
+delete from public.pet_senders where wa_from = '573001112233';
+```
 
 Descargar en el último paso y no en el primero es para lo que existe la sala de
 espera: una foto que nadie termina de clasificar nunca llega al bucket, así que no
@@ -203,11 +260,12 @@ cuando pasan 24 horas. Meta guarda el archivo 30 días; el toque llega en segund
 fila publicada antes de que existiera la pregunta lo lleva igual en NULL: la
 tarjeta no pinta el chip y no hay forma de distinguir los dos casos.
 
-**Los reenvíos de Meta.** El paso 3 es idempotente solo, porque el acuse se borra
-al publicar. El paso 2 no borra nada, así que el acuse guarda además
-`wa_kind_message_id`: si vuelve a llegar el mismo id de mensaje es un reenvío y no
-se responde; si llega otro, es alguien corrigiendo la clase antes de contestar la
-segunda pregunta, y se le manda otra vez los botones de sexo.
+**Los reenvíos de Meta.** El paso 4 es idempotente solo, porque el acuse se borra
+al publicar y también al descartar. Los pasos 2 y 3 no borran nada, así que el
+acuse guarda `wa_kind_message_id` y `wa_sex_message_id`: si vuelve a llegar el
+mismo id de mensaje es un reenvío y no se responde; si llega otro, es alguien
+corrigiendo su respuesta antes de contestar la siguiente pregunta, y se le mandan
+otra vez los botones que siguen.
 
 `pet_intakes` tiene RLS **sin una sola policy**: eso es lo que la hace invisible.
 `anon` y `authenticated` no ven nada, y solo `service_role` —que se salta RLS—

@@ -1,9 +1,12 @@
 import {
+  fetchPetContact,
+  getPetContact,
   getPets,
   getPetsState,
   onPets,
   onPetsState,
   type Pet,
+  type PetContact,
 } from "../data/pets";
 import {
   DEFAULT_PETS_FILTER,
@@ -16,6 +19,7 @@ import { openPetSheet } from "../pet-sheet";
 import { isMobile, onBreakpointChange } from "../ui/breakpoint";
 import {
   buildInstagramPostCta,
+  buildPendingCta,
   buildPhoneCta,
   buildUsernameCta,
 } from "../ui/contact";
@@ -170,23 +174,72 @@ function buildDetailPhoto(pet: Pet): HTMLDivElement {
 }
 
 /**
- * The button of a pet. The contact is one of the three and never several:
- * somebody who hides their number behind a WhatsApp username has no phone to
- * publish, and `wa.me` opens that chat just the same, so the first two buttons
- * read alike because they do the same thing. The third does not: a pet that came
- * off Instagram is reached at the post it appeared in, and the button wears
- * another colour so two identical buttons never leave it unsaid which app opens.
- * `null` from all three is a row the store does not accept, so there is nothing
- * to draw for it.
+ * The button of a pet, once its contact is known. The contact is one of the
+ * three and never several: somebody who hides their number behind a WhatsApp
+ * username has no phone to publish, and `wa.me` opens that chat just the same,
+ * so the first two buttons read alike because they do the same thing. The third
+ * does not: a pet that came off Instagram is reached at the post it appeared in,
+ * and the button wears another colour so two identical buttons never leave it
+ * unsaid which app opens.
  */
-function buildPetCta(pet: Pet): HTMLAnchorElement | null {
+function buildContactCta(pet: Pet, contact: PetContact): HTMLAnchorElement {
   const message = petMessage(pet);
-  if (pet.contactPhone) return buildPhoneCta(pet.contactPhone, message);
-  if (pet.contactUsername)
-    return buildUsernameCta(pet.contactUsername, message);
-  if (pet.contactInstagramUrl)
-    return buildInstagramPostCta(pet.contactInstagramUrl);
-  return null;
+  if (contact.phone) return buildPhoneCta(contact.phone, message);
+  if (contact.username) return buildUsernameCta(contact.username, message);
+  return buildInstagramPostCta(contact.instagramUrl ?? "");
+}
+
+/** El destino ya resuelto, abierto sin depender de un `click` sintético: un
+ *  `target="_blank"` después de una espera lo bloquean varios navegadores. */
+function openContact(url: string): void {
+  if (!window.open(url, "_blank", "noopener")) location.href = url;
+}
+
+/**
+ * El botón de una mascota, que al pintarse todavía no sabe a dónde lleva.
+ *
+ * El contacto ya no viaja con la lista —doscientas filas eran doscientos
+ * teléfonos en una sola respuesta— así que se pide de a uno. Cuándo se pide es
+ * lo único que cambia entre los dos anchos: la ficha de móvil se abre porque
+ * alguien tocó esa mascota y el contacto es lo que vino a buscar, así que se
+ * pide de una; la tarjeta de escritorio está en una cuadrícula de veinte y
+ * pedirlo al pintar sería exactamente lo que se quitó, así que espera al mouse
+ * o al tabulador, que es lo que pasa siempre antes de un clic.
+ *
+ * Tocar antes de que llegue no se pierde: el botón resuelve y abre. Y si no
+ * llega —sin conexión, la mascota retirada mientras se miraba— se queda como
+ * está, que es lo que un botón que no puede cumplir tiene que hacer.
+ */
+function buildPetCta(pet: Pet, eager: boolean, hover?: HTMLElement): HTMLElement {
+  const known = getPetContact(pet.id);
+  if (known) return buildContactCta(pet, known);
+
+  const pending = buildPendingCta();
+  let asked: Promise<PetContact | null> | null = null;
+
+  // Una sola petición por mascota por más veces que se pase el mouse: la
+  // promesa se guarda, no el hecho de haber preguntado.
+  const resolve = () => (asked ??= fetchPetContact(pet.id));
+
+  const settle = async (): Promise<HTMLAnchorElement | null> => {
+    const contact = await resolve();
+    if (!contact || !pending.isConnected) return null;
+    const cta = buildContactCta(pet, contact);
+    pending.replaceWith(cta);
+    return cta;
+  };
+
+  pending.addEventListener("focus", () => void settle());
+  pending.addEventListener("click", () => {
+    void settle().then((cta) => cta && openContact(cta.href));
+  });
+  // La tarjeta entera y no solo el botón: el mouse llega al borde de arriba
+  // mucho antes que al botón del pie, y el de Instagram cambia de color al
+  // resolverse — que lo haga mientras se lee la foto y no bajo el dedo.
+  (hover ?? pending).addEventListener("pointerenter", () => void settle());
+
+  if (eager) void settle();
+  return pending;
 }
 
 /**
@@ -226,8 +279,10 @@ function buildDetail(pet: Pet): HTMLElement {
   meta.append(...buildChips(pet));
 
   const place = buildPlace(pet);
-  const cta = buildPetCta(pet);
-  detail.append(when, meta, ...(place ? [place] : []), ...(cta ? [cta] : []));
+  // La ficha se abrió porque alguien tocó esta mascota: el contacto es lo que
+  // vino a buscar y no hay a qué esperar.
+  const cta = buildPetCta(pet, true);
+  detail.append(when, meta, ...(place ? [place] : []), cta);
   return detail;
 }
 
@@ -296,8 +351,7 @@ function buildOpenCard(pet: Pet): HTMLElement {
   card.className = CARD;
   const body = document.createElement("div");
   body.className = "px-3 pb-3";
-  const cta = buildPetCta(pet);
-  if (cta) body.append(cta);
+  body.append(buildPetCta(pet, false, card));
   card.append(
     buildPhoto(pet, pet.thumbUrl, "aspect-square w-full object-cover"),
     buildCardFooter(pet),
