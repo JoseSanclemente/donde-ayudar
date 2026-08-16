@@ -46,6 +46,14 @@ export type Pet = {
    */
   placeName: string | null;
   /**
+   * The code this pet carries in the register of whoever handed the batch over
+   * (`ROYI-00012`). A whole batch shares one contact, so the code is what tells
+   * one message from another: it travels in the `?text=` of the WhatsApp button
+   * and in the link that opens this card. `null` for everything published from
+   * the form or the bot — only the seeder writes it.
+   */
+  refCode: string | null;
+  /**
    * How to write to whoever found it, and it is one of the three — never
    * several, never none. WhatsApp lets a person put a username in front of
    * their number, and to whoever receives the message the phone then does not
@@ -69,6 +77,7 @@ type Row = {
   sex: string | null;
   photo_path: string;
   place_name: string | null;
+  ref_code: string | null;
   contact_phone: string | null;
   contact_username: string | null;
   contact_instagram_url: string | null;
@@ -171,6 +180,7 @@ function fromRow(row: Row): Pet {
     thumbUrl: photoUrl(row.photo_path, CARD),
     photoUrl: photoUrl(row.photo_path, FULL),
     placeName: row.place_name ?? null,
+    refCode: row.ref_code ?? null,
     contactPhone: row.contact_phone ?? null,
     contactUsername: row.contact_username ?? null,
     contactInstagramUrl: row.contact_instagram_url ?? null,
@@ -258,6 +268,7 @@ export async function addPet(input: PetInput): Promise<Pet | null> {
     thumbUrl: local,
     photoUrl: local,
     placeName: null,
+    refCode: null,
     // The form on the site asks for a phone and nothing else: a username can
     // only arrive through the bot, which is what receives the message.
     contactPhone: input.contactPhone,

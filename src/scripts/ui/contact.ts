@@ -27,9 +27,18 @@ function toWhatsappDigits(phone: string): string | null {
   return digits.length >= 7 ? digits : null;
 }
 
-export function whatsappUrl(phone: string): string | null {
+/**
+ * Lo único que `wa.me` deja llevar además del destinatario: el cuerpo del primer
+ * mensaje. No hay forma de adjuntar una foto ni un archivo —el enlace de Meta es
+ * texto y nada más—, así que lo que viaje tiene que caber en una frase.
+ */
+function withText(url: string, text?: string): string {
+  return text ? `${url}?text=${encodeURIComponent(text)}` : url;
+}
+
+export function whatsappUrl(phone: string, text?: string): string | null {
   const digits = toWhatsappDigits(phone);
-  return digits ? `https://wa.me/${digits}` : null;
+  return digits ? withText(`https://wa.me/${digits}`, text) : null;
 }
 
 export function telUrl(phone: string): string {
@@ -52,8 +61,8 @@ export function isValidWhatsappUsername(value: string): boolean {
   return WHATSAPP_USERNAME_PATTERN.test(value.trim());
 }
 
-export function whatsappUsernameUrl(username: string): string {
-  return `https://wa.me/${encodeURIComponent(username.trim())}`;
+export function whatsappUsernameUrl(username: string, text?: string): string {
+  return withText(`https://wa.me/${encodeURIComponent(username.trim())}`, text);
 }
 
 /* ---- Instagram ---- */
@@ -217,9 +226,12 @@ export function buildInstagramPostCta(url: string): HTMLAnchorElement {
  * número es un dato que nadie va a marcar a mano desde el celular— salvo cuando
  * no se puede armar el chat, que ahí el botón marca y lo honesto es mostrarlo.
  */
-export function buildPhoneCta(phone: string): HTMLAnchorElement {
-  const { href, external } = contactHref(phone);
-  return buildCta(href, external, external ? "Escribir al WhatsApp" : phone);
+export function buildPhoneCta(phone: string, text?: string): HTMLAnchorElement {
+  const wa = whatsappUrl(phone, text);
+  // El texto solo existe si hay chat: en un `tel:` no hay nada que redactar.
+  return wa
+    ? buildCta(wa, true, "Escribir al WhatsApp")
+    : buildCta(telUrl(phone), false, phone);
 }
 
 /**
@@ -228,8 +240,15 @@ export function buildPhoneCta(phone: string): HTMLAnchorElement {
  * pinta —no es un dato que nadie vaya a copiar— y no hay variante de marcar,
  * que es la diferencia entera con el de arriba.
  */
-export function buildUsernameCta(username: string): HTMLAnchorElement {
-  return buildCta(whatsappUsernameUrl(username), true, "Escribir al WhatsApp");
+export function buildUsernameCta(
+  username: string,
+  text?: string,
+): HTMLAnchorElement {
+  return buildCta(
+    whatsappUsernameUrl(username, text),
+    true,
+    "Escribir al WhatsApp",
+  );
 }
 
 function buildCta(

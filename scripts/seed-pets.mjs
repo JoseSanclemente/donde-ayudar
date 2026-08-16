@@ -8,6 +8,14 @@
  * an image url, what animal it is, whether it is a male or a female, and the
  * post it appeared in.
  *
+ * A batch does not always come off Instagram, so each half of an entry has two
+ * shapes and the file picks one of each: the photo is an `image_url` to download
+ * or an `image_path` already on disk, and the contact is the `instagram` post or
+ * a `contact_username`, the WhatsApp handle an organization answers at. On top
+ * of those, two things only a batch has: the `place_name` of whoever holds the
+ * animals, and the `ref_code` each one carries in that place's own register —
+ * with one contact for twenty pets, the code is what tells the messages apart.
+ *
  * It writes with the `service_role` key, like the WhatsApp function and for the
  * same two reasons: RLS pins `user_id` to the caller's session, and the insert
  * throttle allows four rows a minute per author. Both are right for a browser
@@ -22,6 +30,7 @@
  */
 
 import { readFile, writeFile } from "node:fs/promises";
+import { extname } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 
 /** The bucket's own `allowed_mime_types`, and the extension each one is saved as. */
@@ -58,6 +67,11 @@ function normalizeInstagram(value) {
   if (!match) return null;
   return `https://www.instagram.com/${match[1]}/${match[2]}/`;
 }
+
+/** The same patterns as the CHECKs in the base. Validating twice is on purpose. */
+const WHATSAPP_USERNAME = /^[A-Za-z0-9._-]{3,30}$/;
+const REF_CODE = /^[A-Za-z0-9][A-Za-z0-9 _-]{2,39}$/;
+const MAX_PLACE_NAME = 120;
 
 const BUCKET = "pets";
 const TABLE = "pets";
@@ -98,9 +112,14 @@ function required(name) {
 /** What the row cannot be fixed for: everything the base would reject anyway. */
 function validate(entry, index) {
   const where = `entrada ${index + 1}`;
-  if (typeof entry?.image_url !== "string" || !entry.image_url) {
-    return `${where}: falta image_url.`;
+
+  const hasUrl = typeof entry?.image_url === "string" && entry.image_url;
+  const hasPath = typeof entry?.image_path === "string" && entry.image_path;
+  if (!hasUrl && !hasPath) return `${where}: falta image_url o image_path.`;
+  if (hasUrl && hasPath) {
+    return `${where}: image_url e image_path a la vez; la foto es una sola.`;
   }
+
   if (!KINDS.includes(entry.kind)) {
     return `${where}: kind "${entry.kind}" no es ${KINDS.join(", ")}.`;
   }
@@ -108,14 +127,37 @@ function validate(entry, index) {
   if (sex !== null && !SEXES.includes(sex)) {
     return `${where}: sex "${sex}" no es male, female ni null.`;
   }
-  const instagram = normalizeInstagram(entry.instagram);
-  if (!instagram) {
-    return `${where}: instagram "${entry.instagram}" no es el enlace de una publicación.`;
+
+  // El contacto es lo que hace que la mascota sirva de algo, y son dos formas:
+  // la publicación de Instagram de donde salió, o el usuario de WhatsApp de
+  // quien la tiene. Una alcanza; las dos también, que el CHECK pide una.
+  const wantsInstagram = entry.instagram !== undefined && entry.instagram !== null;
+  const username = entry.contact_username ?? null;
+  if (!wantsInstagram && username === null) {
+    return `${where}: falta el contacto (instagram o contact_username).`;
   }
-  // Lo que se guarda es lo normalizado, no lo que vino: si eso no pasa el patrón
-  // de la base, el que está mal es `normalizeInstagram` y no la entrada.
-  if (!INSTAGRAM_POST.test(instagram)) {
-    return `${where}: "${instagram}" quedó fuera de lo que acepta la base.`;
+  if (username !== null && !WHATSAPP_USERNAME.test(String(username))) {
+    return `${where}: contact_username "${username}" no es un usuario de WhatsApp.`;
+  }
+  if (wantsInstagram) {
+    const instagram = normalizeInstagram(entry.instagram);
+    if (!instagram) {
+      return `${where}: instagram "${entry.instagram}" no es el enlace de una publicación.`;
+    }
+    // Lo que se guarda es lo normalizado, no lo que vino: si eso no pasa el patrón
+    // de la base, el que está mal es `normalizeInstagram` y no la entrada.
+    if (!INSTAGRAM_POST.test(instagram)) {
+      return `${where}: "${instagram}" quedó fuera de lo que acepta la base.`;
+    }
+  }
+
+  const place = entry.place_name ?? null;
+  if (place !== null && (!place || String(place).length > MAX_PLACE_NAME)) {
+    return `${where}: place_name pasa de ${MAX_PLACE_NAME} caracteres o está vacío.`;
+  }
+  const ref = entry.ref_code ?? null;
+  if (ref !== null && !REF_CODE.test(String(ref))) {
+    return `${where}: ref_code "${ref}" quedó fuera de lo que acepta la base.`;
   }
   return null;
 }
@@ -142,13 +184,40 @@ async function fetchPhoto(url) {
   return { blob: new Blob([bytes], { type }), extension, type };
 }
 
+/** El tipo se saca de la extensión: acá no hay cabecera que preguntar. */
+const TYPE_BY_EXTENSION = Object.fromEntries(
+  Object.entries(PHOTO_TYPES).map(([type, extension]) => [extension, type]),
+);
+
+/** La misma foto cuando ya está en disco, que es como la deja un recolector. */
+async function readPhoto(path) {
+  const extension = extname(path).replace(".", "").toLowerCase();
+  const type = TYPE_BY_EXTENSION[extension === "jpeg" ? "jpg" : extension];
+  if (!type) throw new Error(`tipo de foto no admitido: ".${extension}"`);
+
+  const bytes = await readFile(path);
+  if (bytes.byteLength > MAX_PHOTO_BYTES) {
+    throw new Error(
+      `la foto pesa ${Math.round(bytes.byteLength / 1024)} KB, el máximo es 5 MB`,
+    );
+  }
+
+  return {
+    blob: new Blob([bytes], { type }),
+    extension: PHOTO_TYPES[type],
+    type,
+  };
+}
+
 /**
  * Photo first, row second, and the object comes back down if the insert fails —
  * the same order as the WhatsApp function, and for the same reason: a pet that
  * never finishes publishing must not leave bytes behind in the bucket.
  */
 async function publish(admin, entry, botUserId) {
-  const { blob, extension, type } = await fetchPhoto(entry.image_url);
+  const { blob, extension, type } = entry.image_path
+    ? await readPhoto(entry.image_path)
+    : await fetchPhoto(entry.image_url);
 
   // The id is minted here so the object key and the row it belongs to stay in
   // sync: with the default the row would learn its id after the upload.
@@ -167,7 +236,12 @@ async function publish(admin, entry, botUserId) {
     kind: entry.kind,
     sex: entry.sex ?? null,
     photo_path: path,
-    contact_instagram_url: normalizeInstagram(entry.instagram),
+    place_name: entry.place_name ?? null,
+    ref_code: entry.ref_code ?? null,
+    contact_username: entry.contact_username ?? null,
+    contact_instagram_url: entry.instagram
+      ? normalizeInstagram(entry.instagram)
+      : null,
   });
   if (inserted.error) {
     await admin.storage.from(BUCKET).remove([path]);

@@ -60,13 +60,24 @@ Two kinds of data, and they must not mix:
   `null`, and so is every row published before the column), a mandatory `photo_path`, an
   optional `place_name` — where the animal is when it is somewhere with a name, a vet or a
   shelter, and not an address: the grid is also filled with pets held by institutions, and
-  only maintainer SQL writes it, no field in the form and no step in the bot; the card
-  draws it under the chips and skips the line when it is `null` — and a
+  the browser never writes it, no field in the form and no step in the bot — a maintainer
+  does, either as SQL over a published row or through `scripts/seed-pets.mjs` when the
+  whole batch comes from one place; the card
+  draws it under the chips and skips the line when it is `null` —, an optional `ref_code`
+  — the code the animal already had in the register of whoever handed the batch over
+  (`ROYI-00012`). A batch shares one contact, so whoever answers cannot tell twenty
+  messages about twenty animals apart: the code goes into the `?text=` of the WhatsApp
+  button and into the link that reopens the card, `/mascotas?mascota=<ref_code>`. Only the
+  seeder writes it — a pet from the form or the bot has no register behind it — and a
+  batch is taken down with `scripts/delete-pets.mjs`, by `place_name`, because deleting is
+  the author's and the author is the bot user — and a
   contact that is one of two columns, never both: `contact_phone`, or `contact_username`
   when the phone is hidden behind a WhatsApp username — a CHECK demands one of the two,
   the same shape as `volunteers`. The form on the site only ever writes a phone; a username
-  can only arrive through the bot, and `features/pets-grid.ts` picks which CTA to draw —
-  `wa.me` opens the chat from either. The
+  arrives through the bot and through the seeder, and `features/pets-grid.ts` picks which
+  CTA to draw — `wa.me` opens the chat from either, and prefills the first message when
+  there is a `ref_code`: the link carries no attachment, so the photo travels as the url of
+  its own card. The
   photo is not in the row — it goes to the public `pets` bucket in Storage and the row keeps
   its object key, because the bytes in a column would ride along in every realtime payload.
   The page never asks for that object: `data/pets.ts` derives two urls off the Storage
@@ -145,7 +156,11 @@ false` greys the marker out, `accepting_donations: false` only writes a line in 
   - **`pets.ts`** — the same thing for `/mascotas`, and much shorter: the sheet, the grid,
     the ticker, the filter and `initPetsData()`. It is also what ties the last two
     together: `initPetsGrid()` returns a `setFilter` and `initPetsFilter()` takes it, because
-    a feature does not import another feature. It reaches `data/boot-pets.ts` and never `data/boot.ts`,
+    a feature does not import another feature. It also reads the second url param of that
+    page — `?mascota=<ref_code>`, what a WhatsApp message carries — and hands it to the
+    grid's `focusPet` once the store says `ready`, the same gate the filter waits on; then
+    it drops the param with `replaceState`, because arriving from a message is not a page
+    somebody navigated to. It reaches `data/boot-pets.ts` and never `data/boot.ts`,
     because that one imports every store to call its `load…()` and an import is what pulls
     a module into the bundle.
 - **`features/`** — one UI piece per file, each with its `init…()`: `alert-banner`,

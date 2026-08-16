@@ -77,25 +77,46 @@ foto, un teléfono y qué animal es (`kind`: `dog`, `cat` u `other`). No lleva
 nombre ni dirección — un perro encontrado no tiene dirección, y quien lo perdió
 lo reconoce o no —, y el contacto es obligatorio: es para lo que existe la
 página. Son tres columnas y el CHECK pide una — `contact_phone`, que es lo único
-que escribe el formulario; `contact_username`, que solo llega por el bot; y
-`contact_instagram_url`, que solo llega por `scripts/seed-pets.mjs`. Sin RPC y
-sin policy de UPDATE, como `volunteers`.
+que escribe el formulario; `contact_username`, que llega por el bot y por
+`scripts/seed-pets.mjs`, que es como se publica la tanda de una organización que
+contesta en un solo chat; y `contact_instagram_url`, que solo llega por el
+seeder. Sin RPC y sin policy de UPDATE, como `volunteers`.
 
 **`place_name` es dónde está el animal**, cuando está en un lugar con nombre: una
 veterinaria, un albergue, una organización. No es una dirección — quien busca a su
 perro necesita saber quién lo tiene, no la esquina donde apareció — y es opcional:
 la mayoría de las filas no lo lleva, porque quien recoge un perro en la calle lo
 tiene en su casa, y entonces la tarjeta no pinta la línea. **No lo escribe el
-navegador**: no hay campo en el formulario, ni paso en el bot, ni nada en el
-seeder. Es SQL de mantenedor: no hay policy de UPDATE, así que ponerlo y
-cambiarlo solo se puede desde el dashboard o el repo, que corren con
-`service_role` y se saltan RLS entera:
+navegador**: no hay campo en el formulario ni paso en el bot. Lo escribe el
+mantenedor, de dos maneras y las dos con `service_role` — el seeder, cuando la
+tanda entera viene de un lugar con nombre, y SQL suelto para una fila que ya
+está publicada, que no hay policy de UPDATE:
 
 ```sql
 update public.pets set place_name = 'Veterinaria La 14' where id = '<uuid>';
 ```
 
 Tope de 120 caracteres, la misma forma que `reports.place_name`.
+
+**`ref_code` es el código que la mascota ya tenía en el registro de quien pasó la
+tanda** (`ROYI-00012`). Una tanda comparte un solo contacto, así que quien recibe
+«Escribir al WhatsApp» no tiene con qué distinguir veinte mensajes sobre veinte
+animales: el código viaja en el `?text=` del botón y en el enlace que abre la
+ficha (`/mascotas?mascota=ROYI-00012`). Opcional, y solo lo escribe el seeder —
+una mascota publicada desde el formulario o desde el bot no tiene registro
+detrás. Es un CHECK de forma y no una llave foránea: no hay tabla de sistemas
+ajenos, y lo que el patrón evita es que la columna se vuelva texto libre que
+termina en una URL.
+
+**Retirar una tanda** no se puede desde el navegador: borrar es del autor
+(`auth.uid() = user_id`) y una tanda la firma el usuario del bot, cuya sesión no
+tiene nadie. Para eso está `scripts/delete-pets.mjs`, que toma el `place_name`,
+borra las filas y después las fotos del bucket — el mismo orden que el cliente —
+y no toca nada sin `--apply`:
+
+```
+node --env-file=.env scripts/delete-pets.mjs "Royi Pets" --apply
+```
 
 **La foto no está en la fila.** Va al bucket `pets` de Storage y la fila guarda
 solo su llave (`photo_path`); los bytes en una columna viajarían en cada evento
@@ -128,6 +149,33 @@ así que cada visita revalidaba cada foto; `/render/image/public/` responde
 `public, max-age=3600`. Las subidas mandan `cacheControl: "31536000"` porque la
 llave lleva un uuid y esos bytes no cambian nunca, pero el CDN de transformación
 fija su hora igual: lo que se ganó es la hora, no el año.
+
+## La tanda de Royi
+
+`scripts/fetch-royi-pets.mjs` baja las mascotas que Royi publica en su propio
+sitio (https://royipets.netlify.app) y deja el archivo que come el seeder. El
+sitio es una página estática sobre Firestore y su colección `pets` se lee con la
+llave web que la propia página trae en el HTML, así que no hay que raspar
+marcado: se le piden los documentos a la API REST. La foto tampoco es un archivo
+allá — vive en otra colección como data url en base64 —, y de acá sale un jpeg
+por mascota en `scripts/.royi-photos/`.
+
+Tres cosas que el recolector decide y conviene saber:
+
+- **Solo las que todavía buscan familia**: se descarta `archivado`, el `estado`
+  «Adoptado» o «Encontró sus dueños», y la `ubicacion` que dice lo mismo — hay
+  filas con «Disponible» y ubicación «Adoptado», y entre las dos gana la que
+  cierra.
+- **Solo Cali.** Royi también recibe animales de fuera y el `lugarSector` lo
+  dice; publicar un perro de Jamundí acá es ponerlo en una cuadrícula que quien
+  lo busca no va a mirar. La dirección es texto libre y a veces nombra el
+  municipio con el sector todavía en Cali: eso no se descarta solo, se avisa al
+  final para revisarlo a ojo.
+- **El contacto no se lee del origen.** Los teléfonos de Royi están en una
+  colección privada que no es pública, así que la tanda entera lleva el usuario
+  de WhatsApp que ellos dieron (`contact_username`), el `place_name` de quien
+  responde y el `ref_code` de cada animal, que es lo que distingue un mensaje de
+  otro. Las filas las firma el usuario del bot, como toda tanda sembrada.
 
 ## Las mascotas por WhatsApp
 

@@ -1,7 +1,8 @@
 import { initPetsData } from "./data/boot-pets";
 import { onError } from "./data/errors";
+import { getPetsState, onPetsState } from "./data/pets";
 import { initPetsFilter } from "./features/pets-filter";
-import { initPetsGrid } from "./features/pets-grid";
+import { initPetsGrid, PET_PARAM, type PetsGrid } from "./features/pets-grid";
 import { initPetSheet } from "./pet-sheet";
 import { startTimeTicker } from "./ui/time";
 import { showToast } from "./ui/toast";
@@ -18,6 +19,7 @@ initPetSheet();
 // por defecto apenas se monta.
 const grid = initPetsGrid();
 initPetsFilter(grid.setFilter);
+openPetFromUrl(grid);
 
 // «Encontrada hace 2 minutos» congelado media hora miente sobre el dato.
 startTimeTicker();
@@ -25,3 +27,34 @@ startTimeTicker();
 onError(showToast);
 
 void initPetsData();
+
+/**
+ * Quien llega desde el WhatsApp de una tanda trae en la dirección el código de
+ * la mascota por la que escribe (`/mascotas?mascota=ROYI-00012`). Como el filtro
+ * con `lugar`: se lee al arrancar y solo se atiende cuando el store dice
+ * `ready` —antes no hay a quién buscar—, y se borra de la barra con
+ * `replaceState`, porque llegar desde un mensaje no es una página que alguien
+ * navegó. La cuadrícula y el filtro no se conocen entre sí; atarlos es el
+ * trabajo del arranque.
+ */
+function openPetFromUrl(pets: PetsGrid): void {
+  const code = new URLSearchParams(location.search).get(PET_PARAM)?.trim();
+  if (!code) return;
+
+  const open = () => {
+    const url = new URL(location.href);
+    url.searchParams.delete(PET_PARAM);
+    history.replaceState(history.state, "", url);
+    pets.focusPet(code);
+  };
+
+  if (getPetsState().state === "ready") {
+    open();
+    return;
+  }
+  const stop = onPetsState((state) => {
+    if (state !== "ready") return;
+    stop();
+    open();
+  });
+}

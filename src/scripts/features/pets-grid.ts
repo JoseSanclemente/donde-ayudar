@@ -31,6 +31,17 @@ import { paintTime } from "../ui/time";
  * que abre el panel de abajo, que es donde alguien ya decidió que ese es.
  */
 
+/**
+ * La ficha de una mascota, como dirección. No hay una página por mascota —el
+ * sitio es estático— así que la ficha es un parámetro sobre la cuadrícula, el
+ * segundo de esta página después de `lugar`. Es lo que viaja en el WhatsApp de
+ * una tanda: quien recibe el mensaje abre la ficha del animal por el que le
+ * escriben. Van acá y no en `pets-filter.ts` porque no filtran nada; el arranque
+ * los lee para pasárselos a `focusPet`.
+ */
+export const PET_PATH = "/mascotas";
+export const PET_PARAM = "mascota";
+
 /** Esta página se lee en un celular y a un brazo de distancia: los chips van en
  *  el tamaño del cuerpo del texto, no en el de una nota al pie. */
 const CHIP = "rounded-full border px-2.5 py-0.5 text-sm font-medium";
@@ -164,11 +175,28 @@ function buildDetailPhoto(pet: Pet): HTMLDivElement {
  * to draw for it.
  */
 function buildPetCta(pet: Pet): HTMLAnchorElement | null {
-  if (pet.contactPhone) return buildPhoneCta(pet.contactPhone);
-  if (pet.contactUsername) return buildUsernameCta(pet.contactUsername);
+  const message = petMessage(pet);
+  if (pet.contactPhone) return buildPhoneCta(pet.contactPhone, message);
+  if (pet.contactUsername) return buildUsernameCta(pet.contactUsername, message);
   if (pet.contactInstagramUrl)
     return buildInstagramPostCta(pet.contactInstagramUrl);
   return null;
+}
+
+/**
+ * El primer mensaje ya escrito, para las mascotas de una tanda: todas comparten
+ * un mismo chat, así que quien lo recibe no tiene con qué distinguir veinte
+ * mensajes sobre veinte animales. El código es el que ya usa en su propio
+ * registro, y el enlace abre esta misma ficha —`wa.me` no lleva adjuntos, solo
+ * texto, así que la foto solo puede viajar como dirección.
+ *
+ * Sin código no hay mensaje: quien publicó desde el formulario contesta por su
+ * propia mascota y no necesita que le digan cuál es.
+ */
+function petMessage(pet: Pet): string | undefined {
+  if (!pet.refCode) return undefined;
+  const link = `${location.origin}${PET_PATH}?${PET_PARAM}=${encodeURIComponent(pet.refCode)}`;
+  return `Hola, escribo por la mascota ${pet.refCode} que vi en Dónde Ayudar Cali:\n${link}`;
 }
 
 /** La ficha del panel de abajo: la foto grande, cuándo apareció y a quién escribirle. */
@@ -277,7 +305,20 @@ function buildOpenCard(pet: Pet): HTMLElement {
 
 export type PetsGrid = {
   setFilter(next: PetsFilter): void;
+  /**
+   * Llevar a quien llega desde un mensaje hasta la mascota por la que escriben.
+   * En móvil es abrir la ficha, que es lo mismo que hace tocar la tarjeta; en
+   * escritorio no hay ficha que abrir —la tarjeta ya lleva su propio botón— así
+   * que la trae a la vista y la marca un momento. Un código que no existe (una
+   * mascota ya retirada, un enlace viejo) no hace nada.
+   */
+  focusPet(refCode: string): void;
 };
+
+/** El anillo que dice cuál es, y cuánto dura antes de devolver la tarjeta a la
+ *  fila. Las clases van literales: el escáner de Tailwind lee esto como texto. */
+const FOCUS_RING = ["ring-2", "ring-red-500", "ring-offset-2", "rounded-xl"];
+const FOCUS_MS = 2600;
 
 export function initPetsGrid(): PetsGrid {
   const grid = $<HTMLUListElement>("pets-grid");
@@ -337,6 +378,8 @@ export function initPetsGrid(): PetsGrid {
           fresh += 1;
         }
 
+        // Lo que `focusPet` busca en la cuadrícula ya pintada.
+        item.dataset.petId = pet.id;
         item.append(isMobile() ? buildTapCard(pet) : buildOpenCard(pet));
         return item;
       }),
@@ -365,6 +408,30 @@ export function initPetsGrid(): PetsGrid {
       // de que la lista contestó. Un dato que llega solo sigue animando solo.
       entered.clear();
       scheduled();
+    },
+
+    focusPet(refCode) {
+      const pet = getPets().find((candidate) => candidate.refCode === refCode);
+      if (!pet) return;
+
+      if (isMobile()) {
+        openPetSheet(buildDetail(pet));
+        return;
+      }
+
+      // El repintado de la cuadrícula está encolado en un `requestAnimationFrame`
+      // (`scheduleRender`), así que la tarjeta de una mascota que acaba de
+      // llegar todavía no está en el DOM: esto va después de ese cuadro. Si el
+      // filtro la esconde no hay a dónde ir, y no se toca el filtro por eso.
+      requestAnimationFrame(() => {
+        const item = grid.querySelector<HTMLLIElement>(
+          `[data-pet-id="${CSS.escape(pet.id)}"]`,
+        );
+        if (!item) return;
+        item.scrollIntoView({ behavior: "smooth", block: "center" });
+        item.classList.add(...FOCUS_RING);
+        setTimeout(() => item.classList.remove(...FOCUS_RING), FOCUS_MS);
+      });
     },
   };
 }

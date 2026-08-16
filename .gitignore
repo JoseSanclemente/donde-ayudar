@@ -20,6 +20,11 @@ pnpm-debug.log*
 # la tanda de mascotas que se siembra a mano; el ejemplo sí va versionado
 scripts/pets-seed.json
 
+# lo que baja `pets:royi`: las fotos del origen y el archivo que va acumulando
+# los ids ya publicados
+scripts/pets-royi.json
+scripts/.royi-photos/
+
 # macOS-specific files
 .DS_Store
 

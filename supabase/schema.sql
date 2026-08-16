@@ -583,8 +583,18 @@ create table public.pets (
   -- and there is no place to name. It exists because the grid is also filled
   -- with pets held by institutions, and there the name is what lets whoever
   -- recognises their dog go and get it. Not an address, and not written from the
-  -- browser: no field in the form and no step in the bot, only maintainer SQL.
+  -- browser: no field in the form and no step in the bot, only maintainer SQL and
+  -- the seeder, which publishes batches that come from exactly such a place.
   place_name    text check (place_name is null or char_length(place_name) between 1 and 120),
+  -- The code this pet already had in the register of whoever handed the batch
+  -- over. A whole batch shares one contact, so whoever receives «Escribir al
+  -- WhatsApp» cannot tell twenty messages about twenty animals apart; this is the
+  -- identifier they already work with, and it comes back in the `?text=` of the
+  -- button and in the link that opens the card. Only `scripts/seed-pets.mjs`
+  -- writes it: a pet published from the form or from the bot has no register
+  -- behind it. A shape check and not a foreign key — there is no table of
+  -- external systems, and what the pattern stops is free text landing in a url.
+  ref_code      text check (ref_code is null or ref_code ~ '^[A-Za-z0-9][A-Za-z0-9 _-]{2,39}$'),
   -- How to write to whoever found it. No name next to it — whoever writes is
   -- asking about the animal, not about a person.
   --
