@@ -23,7 +23,7 @@ import { dirname, join } from "node:path";
 
 /** The project and the key are the ones in the page's own `firebase.initializeApp`. */
 const PROJECT = "royi-pets";
-const API_KEY = "AIzaSyBXVdstgeA9tU252Kv7Yyrrn7PdVC-Q3dE";
+const API_KEY = "";
 const FIRESTORE = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents`;
 
 /** Who answers for every animal in this batch, and how to write to them. */
@@ -189,7 +189,9 @@ async function publishedIds(file) {
   try {
     const previous = JSON.parse(await readFile(file, "utf8"));
     return new Map(
-      previous.filter((entry) => entry.id).map((entry) => [entry.source, entry.id]),
+      previous
+        .filter((entry) => entry.id)
+        .map((entry) => [entry.source, entry.id]),
     );
   } catch {
     return new Map();
@@ -222,7 +224,10 @@ async function main() {
 
     const path = join(args.photos, `${code}.jpg`);
     try {
-      await writeFile(path, await fetchPhoto(code, field(doc, "fotoPrincipal")));
+      await writeFile(
+        path,
+        await fetchPhoto(code, field(doc, "fotoPrincipal")),
+      );
     } catch (error) {
       console.error(`✗ ${code} sin foto: ${error.message}`);
       skipped += 1;
