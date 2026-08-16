@@ -34,6 +34,7 @@ type Row = {
   accepting_donations: boolean | null;
   is_active: boolean | null;
   updated_at: string | null;
+  created_at: string | null;
 };
 
 /** What the form is allowed to write: a collection point, and only these fields. */
@@ -113,6 +114,7 @@ function isRow(value: unknown): value is Row {
 }
 
 function fromRow(row: Row): Center {
+  const updatedAt = text(row.updated_at) ?? new Date().toISOString();
   return {
     id: row.id,
     type: row.type as CenterType,
@@ -134,7 +136,11 @@ function fromRow(row: Row): Center {
     // A payload read by a tab that has not reloaded degrades to «just
     // touched». The other way round it would grey out the whole map on a shape
     // it simply cannot see.
-    updatedAt: text(row.updated_at) ?? new Date().toISOString(),
+    updatedAt,
+    // A row from before the column read by an older tab: the last touch is the
+    // closest thing to a publication date, and it never sorts it above a point
+    // published later.
+    createdAt: text(row.created_at) ?? updatedAt,
   };
 }
 
@@ -183,6 +189,7 @@ export function addCenter(input: NewCollectionCenter): Center {
     acceptingDonations: true,
     isActive: true,
     updatedAt: new Date().toISOString(),
+    createdAt: new Date().toISOString(),
   };
   cache = sorted([...cache, center]);
   emit();

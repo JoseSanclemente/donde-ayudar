@@ -10,6 +10,7 @@
  * entero, y la mueve `sheet.ts` como siempre.
  */
 import CenterForm from "./CenterForm.astro";
+import CenterHistory from "./CenterHistory.astro";
 import ReportForm from "./ReportForm.astro";
 import ReportHistory from "./ReportHistory.astro";
 ---
@@ -54,7 +55,10 @@ import ReportHistory from "./ReportHistory.astro";
     <ReportHistory />
     <ReportForm />
   </div>
-  <div data-report-panel="acopio" class="mt-5"><CenterForm /></div>
+  <div data-report-panel="acopio" class="mt-5">
+    <CenterHistory />
+    <CenterForm />
+  </div>
 </div>
 
 <style>

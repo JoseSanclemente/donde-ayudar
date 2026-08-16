@@ -17,6 +17,11 @@ export type ResourcePicker = {
   values(): string[];
   /** Vacía la selección y repinta. Va con el `form.reset()`. */
   clear(): void;
+  /**
+   * Reemplaza la selección — llenar el formulario desde un punto ya registrado.
+   * Recorta en `max`, el mismo techo que respeta un toque.
+   */
+  setValues(values: string[]): void;
   /** Cierra las categorías, sin perder lo marcado. */
   collapse(): void;
   showError(message: string): void;
@@ -203,6 +208,11 @@ export function createResourcePicker(
     values: () => [...resources],
     clear() {
       resources.clear();
+      renderSelectedResources();
+    },
+    setValues(values) {
+      resources.clear();
+      for (const value of values.slice(0, max)) resources.add(value);
       renderSelectedResources();
     },
     collapse,

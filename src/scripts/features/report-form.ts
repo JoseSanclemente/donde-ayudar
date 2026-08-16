@@ -170,15 +170,16 @@ export function initReportForm(): void {
   // o de reabrir el sheet: quien lo abre busca la dirección primero, y las
   // categorías desplegadas empujan todo lo demás fuera de la pantalla.
   let wasVisible = isTabVisible("reportar");
-  // Perder de vista el formulario se lleva el pin: un punto provisional en el
-  // mapa sin el formulario detrás no es más que una marca que nadie puede ni
-  // mover ni enviar. Da igual por dónde se fue —la ✕, el scrim, el arrastre,
-  // Escape o cambiar de panel—: lo que cuenta es que ya no se ve. Las
-  // coordenadas no se pierden: volver repone el pin donde estaba.
+  // Closing the form empties it: what was typed for one place is not what the
+  // next report is about, and a half-filled form reopened hours later publishes
+  // stale data with no warning. The draft pin goes with it — a provisional mark
+  // on the map with no form behind it is one nobody can move or submit. How it
+  // was closed does not matter: the ✕, the scrim, the drag, Escape or switching
+  // panel. What counts is that it is no longer on screen.
   //
-  // Señalar en el mapa es la excepción y por eso el `isPicking()`: ahí el sheet
-  // se cierra a propósito para dejar tocar el mapa, y el formulario sigue vivo
-  // detrás esperando el punto.
+  // Picking on the map is the exception, hence `isPicking()`: the sheet closes
+  // on purpose there to let the map be touched, and the form stays alive behind
+  // it waiting for the point.
   const onScreen = () => isTabVisible("reportar") || isPicking();
   let wasOnScreen = onScreen();
   onTabChange(() => {
@@ -189,8 +190,10 @@ export function initReportForm(): void {
     const shown = onScreen();
     if (shown === wasOnScreen) return;
     wasOnScreen = shown;
-    if (!shown) location.suspend();
-    else if (currentReportTab() === "necesidad") location.resume();
+    if (!shown) {
+      resetForm();
+      location.suspend();
+    } else if (currentReportTab() === "necesidad") location.resume();
   });
 
   // El pin y el modo de señalar son únicos en el mapa: solo puede tenerlos la

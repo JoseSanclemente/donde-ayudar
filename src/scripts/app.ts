@@ -10,6 +10,7 @@ import { initMarkerSheet } from "./features/marker-sheet";
 import { initVolunteerPanel } from "./features/volunteer-panel";
 import { initOffersPanel } from "./features/offers-panel";
 import { initCenterForm } from "./features/center-form";
+import { initCenterHistory } from "./features/center-history";
 import { initReportForm } from "./features/report-form";
 import { initReportHistory } from "./features/report-history";
 import { initReportList } from "./features/report-list";
@@ -57,6 +58,9 @@ initReportForm();
 // a quién llamarle hasta que el formulario se inicializó.
 initReportHistory();
 initCenterForm();
+// Lo mismo del otro lado: `prefillCenter` no tiene a quién llamarle hasta que
+// el formulario de acopio se inicializó.
+initCenterHistory();
 initReportList();
 initUpdatesFeed();
 initOffersPanel();

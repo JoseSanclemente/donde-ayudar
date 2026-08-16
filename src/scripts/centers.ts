@@ -42,6 +42,8 @@ export type Center = {
   isActive: boolean;
   /** Also the expiry clock — see `isExpired`. */
   updatedAt: string;
+  /** When it was published. Never moves: `confirm_center` only touches `updated_at`. */
+  createdAt: string;
 };
 
 export function isCommunity(center: Center): boolean {

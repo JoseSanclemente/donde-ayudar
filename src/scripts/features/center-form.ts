@@ -1,11 +1,48 @@
 import { addCenter } from "../data/centers";
 import { flyTo, isPicking } from "../map";
-import { closeReportPanel, closeSheet, isTabVisible, onTabChange } from "../sheet";
+import {
+  closeReportPanel,
+  closeSheet,
+  isTabVisible,
+  onTabChange,
+  openReportPanel,
+} from "../sheet";
 import { instagramHandle, isValidInstagram, isValidPhone } from "../ui/contact";
 import { $, clearError, showError } from "../ui/dom";
+import { flashField } from "../ui/flash";
 import { createLocationPicker } from "./location-picker";
-import { currentReportTab, onReportTabChange } from "./report-tabs";
+import { currentReportTab, onReportTabChange, showReportTab } from "./report-tabs";
 import { createResourcePicker } from "./resource-picker";
+
+/**
+ * A point that was already published once, offered back by the history above the
+ * form. Everything is copied, unlike a need: what a warehouse takes and who
+ * answers the phone there is the same the next morning — what expired is the
+ * confirmation, not the data.
+ */
+export type CenterPrefill = {
+  name: string;
+  address: string;
+  lat: number;
+  lng: number;
+  hours: string;
+  donations: string[];
+  contactWhatsapp?: string;
+  contactInstagram?: string;
+  notes?: string;
+};
+
+/**
+ * The form keeps its fields in the closure of `initCenterForm`, so filling it
+ * from outside goes through here — the same door `prefillReport` opens for the
+ * need form. Before boot there is nobody to call: `app.ts` initializes the form
+ * before the history.
+ */
+let applyPrefill: ((point: CenterPrefill) => void) | null = null;
+
+export function prefillCenter(point: CenterPrefill): void {
+  applyPrefill?.(point);
+}
 
 export function initCenterForm(): void {
   const form = $<HTMLFormElement>("center-form");
@@ -25,6 +62,33 @@ export function initCenterForm(): void {
   // what is there compare without translating anything. Eighty is the CHECK of
   // `centers.donations`.
   const picker = createResourcePicker("center", { max: 80 });
+
+  // `form.reset()` only returns the native controls to their initial value: the
+  // pin, the suggestions and the chosen supplies live outside the form.
+  function resetForm() {
+    form.reset();
+    picker.clear();
+    location.reset();
+    clearError(pointNameError);
+    clearError(whatsappError);
+    clearError(instagramError);
+  }
+
+  applyPrefill = (point) => {
+    resetForm();
+    pointName.value = point.name;
+    hours.value = point.hours;
+    whatsapp.value = point.contactWhatsapp ?? "";
+    instagram.value = point.contactInstagram ?? "";
+    notes.value = point.notes ?? "";
+    picker.setValues(point.donations);
+    location.setLocation(point.address, { lat: point.lat, lng: point.lng }, "punto ya registrado");
+    // The tab change is what hands the draft pin over from the other form.
+    showReportTab("acopio");
+    openReportPanel();
+    location.flash();
+    flashField(pointName);
+  };
 
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
@@ -89,13 +153,8 @@ export function initCenterForm(): void {
       donations,
     });
 
-    form.reset();
-    picker.clear();
+    resetForm();
     picker.collapse();
-    location.reset();
-    clearError(pointNameError);
-    clearError(whatsappError);
-    clearError(instagramError);
 
     closeReportPanel();
     closeSheet();
@@ -115,10 +174,11 @@ export function initCenterForm(): void {
     }
   });
 
-  // Losing sight of the form takes the pin with it: a draft point on the map
-  // with no form behind it is a mark nobody can move or submit. How it went
-  // away does not matter. The coordinates are not lost: coming back puts the
-  // pin where it was.
+  // Closing the form empties it: what was typed for one point is not what the
+  // next one is about, and a half-filled form reopened hours later publishes
+  // stale data with no warning. The draft pin goes with it — a mark on the map
+  // with no form behind it is one nobody can move or submit. How it went away
+  // does not matter.
   //
   // Picking on the map is the exception, hence `isPicking()`: the sheet closes
   // on purpose there to let the map be touched, and the form stays alive behind
@@ -129,8 +189,10 @@ export function initCenterForm(): void {
     const shown = onScreen();
     if (shown === wasOnScreen) return;
     wasOnScreen = shown;
-    if (!shown) location.suspend();
-    else if (currentReportTab() === "acopio") location.resume();
+    if (!shown) {
+      resetForm();
+      location.suspend();
+    } else if (currentReportTab() === "acopio") location.resume();
   });
 
   if (currentReportTab() !== "acopio") location.suspend();

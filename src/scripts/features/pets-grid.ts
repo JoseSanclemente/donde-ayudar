@@ -84,12 +84,17 @@ function buildChips(pet: Pet): HTMLSpanElement[] {
  * line at all: an empty row under the chips reads as a missing fact. Two lines
  * at most, so the name of a vet cannot stretch the card past the one beside it.
  */
-function buildPlace(pet: Pet): HTMLParagraphElement | null {
+function buildPlace(pet: Pet): HTMLDivElement | null {
   if (!pet.placeName) return null;
+  const block = document.createElement("div");
+  const label = document.createElement("p");
+  label.className = "text-xs font-medium text-slate-400";
+  label.textContent = "¿Dónde fue visto?";
   const place = document.createElement("p");
   place.className = "line-clamp-2 text-sm text-slate-600";
   place.textContent = pet.placeName;
-  return place;
+  block.append(label, place);
+  return block;
 }
 
 /**
@@ -177,7 +182,8 @@ function buildDetailPhoto(pet: Pet): HTMLDivElement {
 function buildPetCta(pet: Pet): HTMLAnchorElement | null {
   const message = petMessage(pet);
   if (pet.contactPhone) return buildPhoneCta(pet.contactPhone, message);
-  if (pet.contactUsername) return buildUsernameCta(pet.contactUsername, message);
+  if (pet.contactUsername)
+    return buildUsernameCta(pet.contactUsername, message);
   if (pet.contactInstagramUrl)
     return buildInstagramPostCta(pet.contactInstagramUrl);
   return null;
@@ -190,13 +196,15 @@ function buildPetCta(pet: Pet): HTMLAnchorElement | null {
  * registro, y el enlace abre esta misma ficha —`wa.me` no lleva adjuntos, solo
  * texto, así que la foto solo puede viajar como dirección.
  *
- * Sin código no hay mensaje: quien publicó desde el formulario contesta por su
- * propia mascota y no necesita que le digan cuál es.
+ * Without a code there is no register and no card to link to, so the message is
+ * only the reason for writing: whoever published from the form answers about
+ * their own pet and needs nothing to tell it apart.
  */
-function petMessage(pet: Pet): string | undefined {
-  if (!pet.refCode) return undefined;
+function petMessage(pet: Pet): string {
+  if (!pet.refCode)
+    return "Hola, escribo por la mascota que vi en dondeayudar.com.co";
   const link = `${location.origin}${PET_PATH}?${PET_PARAM}=${encodeURIComponent(pet.refCode)}`;
-  return `Hola, escribo por la mascota ${pet.refCode} que vi en Dónde Ayudar Cali:\n${link}`;
+  return `Hola, escribo por la mascota ${pet.refCode} que vi en dondeayudar.com.co:\n${link}`;
 }
 
 /** La ficha del panel de abajo: la foto grande, cuándo apareció y a quién escribirle. */
@@ -219,12 +227,7 @@ function buildDetail(pet: Pet): HTMLElement {
 
   const place = buildPlace(pet);
   const cta = buildPetCta(pet);
-  detail.append(
-    when,
-    meta,
-    ...(place ? [place] : []),
-    ...(cta ? [cta] : []),
-  );
+  detail.append(when, meta, ...(place ? [place] : []), ...(cta ? [cta] : []));
   return detail;
 }
 
