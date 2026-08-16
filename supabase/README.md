@@ -81,6 +81,22 @@ que escribe el formulario; `contact_username`, que solo llega por el bot; y
 `contact_instagram_url`, que solo llega por `scripts/seed-pets.mjs`. Sin RPC y
 sin policy de UPDATE, como `volunteers`.
 
+**`place_name` es dónde está el animal**, cuando está en un lugar con nombre: una
+veterinaria, un albergue, una organización. No es una dirección — quien busca a su
+perro necesita saber quién lo tiene, no la esquina donde apareció — y es opcional:
+la mayoría de las filas no lo lleva, porque quien recoge un perro en la calle lo
+tiene en su casa, y entonces la tarjeta no pinta la línea. **No lo escribe el
+navegador**: no hay campo en el formulario, ni paso en el bot, ni nada en el
+seeder. Es SQL de mantenedor: no hay policy de UPDATE, así que ponerlo y
+cambiarlo solo se puede desde el dashboard o el repo, que corren con
+`service_role` y se saltan RLS entera:
+
+```sql
+update public.pets set place_name = 'Veterinaria La 14' where id = '<uuid>';
+```
+
+Tope de 120 caracteres, la misma forma que `reports.place_name`.
+
 **La foto no está en la fila.** Va al bucket `pets` de Storage y la fila guarda
 solo su llave (`photo_path`); los bytes en una columna viajarían en cada evento
 de realtime y en cada lectura de la tabla. El bucket es **público**, así que leer

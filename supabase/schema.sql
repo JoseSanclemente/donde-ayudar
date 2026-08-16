@@ -578,6 +578,13 @@ create table public.pets (
   -- like the phone one: it stops the column being used as free text or as a full
   -- address to somewhere else. Reading it back into a url is `data/pets.ts`.
   photo_path    text not null check (photo_path ~ '^[a-zA-Z0-9/_.-]{3,200}$'),
+  -- Where the animal is: a vet, a shelter, an organization. Optional, and empty
+  -- for most rows — somebody who picked a dog up in the street holds it at home
+  -- and there is no place to name. It exists because the grid is also filled
+  -- with pets held by institutions, and there the name is what lets whoever
+  -- recognises their dog go and get it. Not an address, and not written from the
+  -- browser: no field in the form and no step in the bot, only maintainer SQL.
+  place_name    text check (place_name is null or char_length(place_name) between 1 and 120),
   -- How to write to whoever found it. No name next to it — whoever writes is
   -- asking about the animal, not about a person.
   --

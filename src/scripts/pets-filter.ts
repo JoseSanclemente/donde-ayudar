@@ -62,6 +62,46 @@ export const PET_SEX_CHIPS: (ChipOption<PetSexFilter> & PetLabel)[] = (
 ).map((id) => ({ id, ...petSexLabel(id), chipOn: petSexLabel(id).chip }));
 
 /**
+ * Where the animal is, and the one axis of this filter that is not a catalog:
+ * `place_name` is free text written by a maintainer, so what can be asked for is
+ * whatever the published rows happen to carry. That is why it is a select and
+ * not a row of chips — a chip per vet grows without a ceiling — and why it is
+ * one choice and not a set: the list of places is read to find one of them.
+ *
+ * `NO_PLACE` is the twin of «Sin dato» in the sex row. Most pets have no place —
+ * whoever picks a dog up in the street keeps it at home — and without a value
+ * naming them, choosing any place would bury the majority of the grid.
+ */
+export const NO_PLACE = "__none__";
+
+/** `null` is every place, which is what the select opens on. */
+export type PetPlaceFilter = string | null;
+
+export type PetPlaceOption = { id: string; label: string };
+
+/**
+ * The places on offer, in the order the select lists them: the named ones first,
+ * alphabetical and folded to one entry each, and «Sin lugar» at the end when
+ * there is any pet without one. An empty array is a grid where nobody wrote a
+ * place, and then the control has nothing to ask about.
+ */
+export function petPlaceOptions(pets: Pet[]): PetPlaceOption[] {
+  const named = new Set<string>();
+  let placeless = false;
+  for (const pet of pets) {
+    if (pet.placeName) named.add(pet.placeName);
+    else placeless = true;
+  }
+  if (named.size === 0) return [];
+  const options = [...named]
+    .sort((a, b) => a.localeCompare(b, "es"))
+    .map((label) => ({ id: label, label }));
+  return placeless
+    ? [...options, { id: NO_PLACE, label: "Sin lugar" }]
+    : options;
+}
+
+/**
  * An empty row asks for nothing, and that is what makes the chips read the way
  * anyone expects: tapping «Perro» leaves the dogs, not everything except them.
  * The map filter reads the other way around — its chips are the legend of the
@@ -73,22 +113,34 @@ export const PET_SEX_CHIPS: (ChipOption<PetSexFilter> & PetLabel)[] = (
 export type PetsFilter = {
   kinds: Set<PetKind>;
   sexes: Set<PetSexFilter>;
+  /** One place or every place, never a set: see `petPlaceOptions`. */
+  place: PetPlaceFilter;
 };
 
 /** The grid opens on everything, with nothing asked for. */
 export const DEFAULT_PETS_FILTER: PetsFilter = {
   kinds: new Set(),
   sexes: new Set(),
+  place: null,
 };
 
 /** If nothing is being asked for: the button says so. */
 export function isDefaultPetsFilter(filter: PetsFilter): boolean {
-  return filter.kinds.size === 0 && filter.sexes.size === 0;
+  return (
+    filter.kinds.size === 0 && filter.sexes.size === 0 && filter.place === null
+  );
+}
+
+function matchesPlace(pet: Pet, place: PetPlaceFilter): boolean {
+  if (place === null) return true;
+  if (place === NO_PLACE) return !pet.placeName;
+  return pet.placeName === place;
 }
 
 export function matchesPetsFilter(pet: Pet, filter: PetsFilter): boolean {
   return (
     (filter.kinds.size === 0 || filter.kinds.has(pet.kind)) &&
-    (filter.sexes.size === 0 || filter.sexes.has(pet.sex ?? "unknown"))
+    (filter.sexes.size === 0 || filter.sexes.has(pet.sex ?? "unknown")) &&
+    matchesPlace(pet, filter.place)
   );
 }

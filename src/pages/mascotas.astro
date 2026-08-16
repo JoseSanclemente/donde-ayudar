@@ -64,7 +64,12 @@ import { PETS_DESCRIPTION, PETS_NAME, PETS_TITLE } from "../consts";
         </p>
       </div>
 
-      <ul id="pets-grid" class="mt-3 grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4">
+      <!-- Fewer columns from `lg` up, which is what widens the card: the photo
+           is the whole point of the page and it is what a wider column buys —
+           the square grows with it, and a dog is recognised or it is not. The
+           filter column already eats its share of the width, so four cards a row
+           at `xl` left each one narrower than a phone shows. -->
+      <ul id="pets-grid" class="mt-3 grid grid-cols-2 gap-6 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
       </ul>
     </section>
     </div>

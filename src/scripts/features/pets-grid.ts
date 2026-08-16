@@ -68,6 +68,20 @@ function buildChips(pet: Pet): HTMLSpanElement[] {
 }
 
 /**
+ * Where the animal is, when it is somewhere with a name. Most rows have none —
+ * whoever picks a dog up in the street keeps it at home — and then there is no
+ * line at all: an empty row under the chips reads as a missing fact. Two lines
+ * at most, so the name of a vet cannot stretch the card past the one beside it.
+ */
+function buildPlace(pet: Pet): HTMLParagraphElement | null {
+  if (!pet.placeName) return null;
+  const place = document.createElement("p");
+  place.className = "line-clamp-2 text-sm text-slate-600";
+  place.textContent = pet.placeName;
+  return place;
+}
+
+/**
  * La tarjeta y la ficha piden dos tamaños distintos del mismo objeto, y esa es
  * la idea: la tarjeta pinta un cuadrado del tamaño de un dedo y no tiene por qué
  * bajarse la foto entera, que sale de WhatsApp en 1200×1600. Los bytes grandes
@@ -175,18 +189,34 @@ function buildDetail(pet: Pet): HTMLElement {
   meta.className = "flex flex-wrap items-center gap-2";
   meta.append(...buildChips(pet));
 
+  const place = buildPlace(pet);
   const cta = buildPetCta(pet);
-  detail.append(when, meta, ...(cta ? [cta] : []));
+  detail.append(
+    when,
+    meta,
+    ...(place ? [place] : []),
+    ...(cta ? [cta] : []),
+  );
   return detail;
 }
 
+/**
+ * `h-full` on a grid child, and the grid stretches its rows: two cards side by
+ * side measure the same even when one has no place and the other carries two
+ * lines of vet name. Without it the shorter footer shrank its card and the row
+ * came out stepped.
+ */
 const CARD =
-  "w-full overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-sm transition";
+  "flex h-full w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-sm transition";
 
 /** Cuándo apareció y de qué clase es: el pie de la tarjeta, en los dos anchos. */
 function buildCardFooter(pet: Pet): HTMLDivElement {
   const footer = document.createElement("div");
-  footer.className = "flex flex-col items-start justify-between gap-4 p-3";
+  // `flex-1` takes the slack of the stretched card, and `justify-between` keeps
+  // the time at the bottom of it: across a row of uneven cards the time lands at
+  // the same height in all of them.
+  footer.className =
+    "flex flex-1 flex-col items-start justify-between gap-4 p-3";
   const when = document.createElement("span");
   when.className = "text-xs text-slate-400";
   paintTime(when, pet.createdAt);
@@ -195,7 +225,14 @@ function buildCardFooter(pet: Pet): HTMLDivElement {
   const chips = document.createElement("div");
   chips.className = "flex flex-wrap items-center gap-1";
   chips.append(...buildChips(pet));
-  footer.append(chips, when);
+  // The place sits against the chips and not loose between them and the time:
+  // the `gap-4` of the footer separates two blocks, and as a third child the
+  // name floated the same distance from everything.
+  const head = document.createElement("div");
+  head.className = "flex flex-col items-start gap-1.5";
+  const place = buildPlace(pet);
+  head.append(chips, ...(place ? [place] : []));
+  footer.append(head, when);
   return footer;
 }
 

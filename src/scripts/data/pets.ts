@@ -39,6 +39,13 @@ export type Pet = {
   /** The sheet. Same object, an order of magnitude more bytes. */
   photoUrl: string;
   /**
+   * Where the animal is, when it is somewhere with a name: a vet, a shelter, an
+   * organization. Not an address — whoever recognises their dog needs to know
+   * who has it, not the corner it was found on. `null` for everything published
+   * from the form or the bot: only maintainer SQL writes this.
+   */
+  placeName: string | null;
+  /**
    * How to write to whoever found it, and it is one of the three — never
    * several, never none. WhatsApp lets a person put a username in front of
    * their number, and to whoever receives the message the phone then does not
@@ -61,6 +68,7 @@ type Row = {
   kind: string;
   sex: string | null;
   photo_path: string;
+  place_name: string | null;
   contact_phone: string | null;
   contact_username: string | null;
   contact_instagram_url: string | null;
@@ -162,6 +170,7 @@ function fromRow(row: Row): Pet {
     photoPath: row.photo_path,
     thumbUrl: photoUrl(row.photo_path, CARD),
     photoUrl: photoUrl(row.photo_path, FULL),
+    placeName: row.place_name ?? null,
     contactPhone: row.contact_phone ?? null,
     contactUsername: row.contact_username ?? null,
     contactInstagramUrl: row.contact_instagram_url ?? null,
@@ -248,6 +257,7 @@ export async function addPet(input: PetInput): Promise<Pet | null> {
     photoPath: path,
     thumbUrl: local,
     photoUrl: local,
+    placeName: null,
     // The form on the site asks for a phone and nothing else: a username can
     // only arrive through the bot, which is what receives the message.
     contactPhone: input.contactPhone,

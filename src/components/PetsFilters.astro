@@ -4,6 +4,7 @@
 // moves it into its body. Two copies would be two copies of the chip state.
 import { PET_KIND_CHIPS, PET_SEX_CHIPS } from "../scripts/pets-filter";
 import { CHIP_BASE, CHIP_OFF } from "../scripts/ui/chip-group";
+import Select from "./Select.astro";
 
 const ROW_LABEL = "text-xs font-semibold uppercase tracking-wide text-slate-500";
 ---
@@ -20,11 +21,25 @@ const ROW_LABEL = "text-xs font-semibold uppercase tracking-wide text-slate-500"
     </button>
   </div>
 
+  <!-- The place goes first: it is the widest cut of the three — a whole vet's
+       worth of pets against everything else — and the one somebody arrives
+       already knowing. The place is not a catalog either: it is whatever the
+       published rows carry, so the control ships empty and hidden and
+       `features/pets-filter.ts` fills it with what there is. A select and not
+       chips because the list grows without a ceiling, and one choice at a time
+       because whoever uses it is looking for a place, not for several. -->
+  <div id="pets-place-row" class="mt-3" hidden>
+    <p class={ROW_LABEL}>Lugar</p>
+    <Select id="pets-place" label="Lugar donde está la mascota" class="mt-2">
+      <option value="">Todos los lugares</option>
+    </Select>
+  </div>
+
   <!-- Los chips salen apagados: una fila sin nada marcado no pide nada, y tocar
        «Perro» deja los perros en vez de quitarlos. Marcado toma el color que
        tiene en la tarjeta, así que la fila es también la leyenda de la
        cuadrícula. El estado vive en `aria-pressed`. -->
-  <div class="mt-3">
+  <div class="mt-4">
     <p class={ROW_LABEL}>Tipo</p>
     <div class="mt-2 flex flex-wrap gap-2">
       {
@@ -62,6 +77,7 @@ const ROW_LABEL = "text-xs font-semibold uppercase tracking-wide text-slate-500"
 
   <p class="mt-3 text-xs text-slate-500">
     Sin nada marcado se ven todas. «Sin dato» son las que se publicaron sin decir
-    si es macho o hembra.
+    si es macho o hembra, y «Sin lugar» las que tiene alguien en su casa y no una
+    veterinaria o un albergue.
   </p>
 </section>

@@ -57,7 +57,11 @@ Two kinds of data, and they must not mix:
   there is no update policy — and it is in `supabase/README.md`.
 - **Mascotas encontradas** — `pets`, the smallest table and the only one with a file behind
   it: a `kind` (`dog`, `cat`, `other`), an optional `sex` (`male`, `female` — «no sé» is
-  `null`, and so is every row published before the column), a mandatory `photo_path` and a
+  `null`, and so is every row published before the column), a mandatory `photo_path`, an
+  optional `place_name` — where the animal is when it is somewhere with a name, a vet or a
+  shelter, and not an address: the grid is also filled with pets held by institutions, and
+  only maintainer SQL writes it, no field in the form and no step in the bot; the card
+  draws it under the chips and skips the line when it is `null` — and a
   contact that is one of two columns, never both: `contact_phone`, or `contact_username`
   when the phone is hidden behind a WhatsApp username — a CHECK demands one of the two,
   the same shape as `volunteers`. The form on the site only ever writes a phone; a username
@@ -203,7 +207,17 @@ false` greys the marker out, `accepting_donations: false` only writes a line in 
     way round from `map-filter.ts`, and on purpose: there the chips are the legend of the
     pins and ship marked, so unticking one hides a kind; here an empty row asks for nothing
     and tapping «Perro» leaves the dogs. Within a row the marked chips add up, between rows
-    they narrow.
+    they narrow. The third axis is not a catalog and so is not a chip row: `place_name` is
+    free text a maintainer writes, so `petPlaceOptions()` derives the list from the
+    published pets and `features/pets-filter.ts` fills a `<select>` with it — one place at a
+    time, and the whole row hidden while nobody has written one. `NO_PLACE` («Sin lugar») is
+    the twin of «Sin dato»: most pets have none, and without a value naming them picking any
+    place would bury the majority of the grid. The place is also the one axis that travels
+    in the url — `/mascotas?lugar=<nombre>`, `sin-lugar` for `NO_PLACE` — so a vet hands out
+    a link that opens on its own animals; the feature reads it at boot and rewrites it with
+    `replaceState` on every change. It is the name and not an id because there is no table
+    of places, and a place that came in a link is only dropped once the store says `ready`,
+    or the link would be undone before the page it points at has loaded.
   - `volunteers.ts` — the catalog of trades someone can sign up with: one entry per
     `kind`, with its label, its chip colour and the notes placeholder it asks for. It is
     read three times — `VolunteerPanel.astro` builds the select and the filter chips off
