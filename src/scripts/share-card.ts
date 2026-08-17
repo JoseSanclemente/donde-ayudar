@@ -28,18 +28,16 @@
  */
 const DOMAIN = "dondeayudar.com.co";
 
-
 export type ShareChip = {
   label: string;
   category: string | null;
-  
+
   muted: boolean;
 };
 
 export type ShareCard = {
-  
   kicker: string;
-  
+
   accent: string;
   name: string;
   /**
@@ -54,11 +52,11 @@ export type ShareCard = {
    * donación no lo tiene: `null`.
    */
   updated: string | null;
-  
+
   lines: string[];
-  
+
   notes: string[];
-  
+
   chipsTitle: string;
   chips: ShareChip[];
   marker: "pulse" | "square";
@@ -108,10 +106,7 @@ const CHIP_HEX: Record<string, { bg: string; fg: string }> = {
   voluntarios: { bg: "#f5f3ff", fg: "#5b21b6" },
 };
 
-
 const CHIP_MUTED = { bg: "#f1f5f9", fg: "#64748b" };
-
-
 
 /**
  * Calle, no barrio: al tamaño con que se dibujan, a este zoom se reconoce la
@@ -132,7 +127,7 @@ const TILE_ZOOM = 16;
 const TILE_DRAW = 512;
 
 const TILE_URL =
-  "https:
+  "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png";
 const SUBDOMAINS = ["a", "b", "c", "d"];
 
 const TILE_TIMEOUT_MS = 6000;
@@ -150,7 +145,6 @@ const TILE_TIMEOUT_MS = 6000;
  */
 const MAP_TIMEOUT_MS = 8000;
 
-
 function worldPixel(lat: number, lng: number): { x: number; y: number } {
   const scale = TILE_DRAW * 2 ** TILE_ZOOM;
   const sin = Math.sin((lat * Math.PI) / 180);
@@ -163,9 +157,7 @@ function worldPixel(lat: number, lng: number): { x: number; y: number } {
 function loadTile(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    
-    
-    
+
     img.crossOrigin = "anonymous";
     const timer = setTimeout(
       () => reject(new Error("tile timeout")),
@@ -182,7 +174,6 @@ function loadTile(url: string): Promise<HTMLImageElement> {
     img.src = url;
   });
 }
-
 
 function tileJobs(
   lat: number,
@@ -265,8 +256,7 @@ async function drawMap(
   ctx.beginPath();
   ctx.rect(0, 0, WIDTH, mapHeight);
   ctx.clip();
-  
-  
+
   ctx.fillStyle = SLATE_200;
   ctx.fillRect(0, 0, WIDTH, mapHeight);
   jobs.forEach((job, i) => {
@@ -282,9 +272,6 @@ async function drawMap(
   });
   ctx.restore();
 }
-
-
-
 
 function pulseMarker(
   ctx: CanvasRenderingContext2D,
@@ -307,7 +294,6 @@ function pulseMarker(
   ctx.arc(cx, cy, 21, 0, Math.PI * 2);
   ctx.fill();
 }
-
 
 function squareMarker(
   ctx: CanvasRenderingContext2D,
@@ -342,9 +328,6 @@ function roundRect(
   ctx.closePath();
 }
 
-
-
-
 function wrap(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -357,8 +340,7 @@ function wrap(
   let cut = false;
   for (const word of words) {
     const candidate = current ? `${current} ${word}` : word;
-    
-    
+
     if (ctx.measureText(candidate).width <= maxWidth || !current) {
       current = candidate;
       continue;
@@ -372,8 +354,6 @@ function wrap(
   }
   if (!cut && current) lines.push(current);
 
-  
-  
   const last = lines[lines.length - 1];
   if (last !== undefined && (cut || ctx.measureText(last).width > maxWidth)) {
     let trimmed = last;
@@ -387,8 +367,6 @@ function wrap(
   }
   return lines;
 }
-
-
 
 /**
  * El chip encoge cuando hay muchos insumos, y no por gusto: la lista completa es
@@ -459,8 +437,6 @@ function drawChips(
   }
   ctx.textBaseline = "alphabetic";
 }
-
-
 
 const MAX_WIDTH = WIDTH - PAD * 2;
 
@@ -567,8 +543,6 @@ function measure(ctx: CanvasRenderingContext2D, card: ShareCard): Layout {
   };
 }
 
-
-
 function drawCard(
   ctx: CanvasRenderingContext2D,
   card: ShareCard,
@@ -577,8 +551,6 @@ function drawCard(
 ): void {
   const mapHeight = withMap ? layout.mapHeight : 0;
 
-  
-  
   ctx.fillStyle = WHITE;
   if (withMap) ctx.fillRect(0, mapHeight, WIDTH, HEIGHT - mapHeight);
   else ctx.fillRect(0, 0, WIDTH, HEIGHT);
@@ -592,8 +564,6 @@ function drawCard(
       squareMarker(ctx, WIDTH / 2, center, card.accent);
     else pulseMarker(ctx, WIDTH / 2, center, card.accent);
 
-    
-    
     ctx.font = `500 20px ${FONT}`;
     ctx.textAlign = "right";
     const label = "© OpenStreetMap · CARTO";
@@ -607,8 +577,6 @@ function drawCard(
     ctx.fillStyle = SLATE_200;
     ctx.fillRect(0, mapHeight, WIDTH, 2);
   } else {
-    
-    
     if (card.marker === "square")
       squareMarker(ctx, PAD + 40, BAR + 120, card.accent);
     else pulseMarker(ctx, PAD + 40, BAR + 120, card.accent);
@@ -641,8 +609,6 @@ function drawCard(
     y += 12;
   }
 
-  
-  
   if (layout.updatedLine) {
     ctx.font = UPDATED_FONT;
     ctx.fillStyle = SLATE_400;
@@ -659,8 +625,6 @@ function drawCard(
     }
   }
 
-  
-  
   if (layout.noteGroups.length > 0) {
     y += NOTES_GAP;
     ctx.font = NOTE_FONT;
@@ -719,15 +683,10 @@ function toBlob(canvas: HTMLCanvasElement): Promise<Blob> {
  * él: una imagen sin mapa sirve, un botón que lanza no.
  */
 export async function renderShareCard(card: ShareCard): Promise<Blob> {
-  
-  
-  
   try {
     await document.fonts.load(`700 64px ${FONT}`);
     await document.fonts.ready;
-  } catch {
-    
-  }
+  } catch {}
 
   const { canvas, ctx } = newCanvas();
 
@@ -743,10 +702,6 @@ export async function renderShareCard(card: ShareCard): Promise<Blob> {
     drawCard(ctx, card, layout, true);
     return await toBlob(canvas);
   } catch {
-    
-    
-    
-    
     const fallback = newCanvas();
     drawCard(fallback.ctx, card, layout, false);
     return toBlob(fallback.canvas);

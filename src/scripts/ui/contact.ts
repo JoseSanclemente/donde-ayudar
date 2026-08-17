@@ -7,7 +7,6 @@
 
 import { escapeHtml, INSTAGRAM_ICON, PHONE_ICON } from "./html";
 
-
 export const PHONE_PATTERN = /^[0-9+][0-9 ()+-]{6,19}$/;
 
 export function isValidPhone(value: string): boolean {
@@ -23,7 +22,7 @@ function toWhatsappDigits(phone: string): string | null {
   const digits = phone.replace(/\D/g, "");
   if (digits.length === 10 && digits.startsWith("3")) return `57${digits}`;
   if (digits.length === 12 && digits.startsWith("57")) return digits;
-  
+
   return digits.length >= 7 ? digits : null;
 }
 
@@ -38,14 +37,12 @@ function withText(url: string, text?: string): string {
 
 export function whatsappUrl(phone: string, text?: string): string | null {
   const digits = toWhatsappDigits(phone);
-  return digits ? withText(`https:
+  return digits ? withText(`https://wa.me/${digits}`, text) : null;
 }
 
 export function telUrl(phone: string): string {
   return `tel:${phone.replace(/[^\d+]/g, "")}`;
 }
-
-
 
 /**
  * Un usuario de WhatsApp, que es el contacto de quien esconde su número detrás
@@ -62,19 +59,15 @@ export function isValidWhatsappUsername(value: string): boolean {
 }
 
 export function whatsappUsernameUrl(username: string, text?: string): string {
-  return withText(`https:
+  return withText(`https://wa.me/${encodeURIComponent(username.trim())}`, text);
 }
 
-
-
-
 export const INSTAGRAM_PATTERN = /^[A-Za-z0-9._]{1,30}$/;
-
 
 export function instagramHandle(value: string): string {
   return value
     .trim()
-    .replace(/^https?:\/\/(www\.)?instagram\.com\
+    .replace(/^https?:\/\/(www\.)?instagram\.com\//i, "")
     .replace(/^@/, "")
     .replace(/\/.*$/, "");
 }
@@ -84,7 +77,7 @@ export function isValidInstagram(value: string): boolean {
 }
 
 export function instagramUrl(handle: string): string {
-  return `https:
+  return `https://instagram.com/${instagramHandle(handle)}`;
 }
 
 /**
@@ -112,8 +105,6 @@ export function contactLinksHtml(
   return `<div class="flex flex-col gap-1">${lines.join("")}</div>`;
 }
 
-
-
 /**
  * El CTA verde: icono de auricular y «nombre - teléfono». Estaba escrito a mano
  * en tres lados —el popup del mapa, la lista de reportes y la de ofertas— y ya
@@ -128,12 +119,10 @@ export function contactLinksHtml(
 export const CONTACT_CTA =
   "flex w-full text-center items-center justify-center gap-1.5 rounded-lg bg-emerald-600 p-4 text-sm font-semibold text-white no-underline shadow-sm transition hover:bg-emerald-700";
 
-
 function contactHref(phone: string): { href: string; external: boolean } {
   const wa = whatsappUrl(phone);
   return { href: wa ?? telUrl(phone), external: wa !== null };
 }
-
 
 function contactLabel(name: string, phone: string): string {
   return `${name} - ${phone}`;
@@ -150,9 +139,7 @@ export function contactCtaHtml(
   extra = "",
 ): string {
   const { href, external } = contactHref(phone);
-  
-  
-  
+
   return `<a
       class="center-cta ${extra} ${CONTACT_CTA}"
       href="${escapeHtml(href)}"
@@ -228,7 +215,7 @@ export function buildInstagramPostCta(url: string): HTMLAnchorElement {
  */
 export function buildPhoneCta(phone: string, text?: string): HTMLAnchorElement {
   const wa = whatsappUrl(phone, text);
-  
+
   return wa
     ? buildCta(wa, true, "Escribir al WhatsApp")
     : buildCta(telUrl(phone), false, phone);
@@ -302,13 +289,12 @@ function buildCta(
   return call;
 }
 
-
 export function buildContactCta(
   name: string,
   phone: string,
 ): HTMLAnchorElement {
   const call = buildPhoneCta(phone);
-  
+
   const who = call.lastElementChild as HTMLSpanElement;
   who.textContent = contactLabel(name, phone);
   return call;

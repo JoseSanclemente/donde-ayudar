@@ -3,21 +3,21 @@ import {
   ZONE_DISCLAIMER,
   ZONE_FILL,
   type AffectedZone,
-} from "./affected-zones";
-import type { ReportGroup } from "./cluster";
+} from "@/scripts/affected-zones";
+import type { ReportGroup } from "@/scripts/cluster";
 import {
   isCommunity,
   isExpired,
   type Center,
   type CenterType,
-} from "./centers";
-import { byCategory, categoryIdOf } from "./resources";
-import { readCachedCoords } from "./geolocation";
-import type { ShareCard } from "./share-card";
-import { markerEstado, statusInfo, type ReportStatus } from "./status";
-import { isMobile, onBreakpointChange } from "./ui/breakpoint";
-import { chipStyle, resourceChipHtml } from "./ui/chips";
-import { contactCtaHtml, contactLinksHtml } from "./ui/contact";
+} from "@/scripts/centers";
+import { byCategory, categoryIdOf } from "@/scripts/resources";
+import { readCachedCoords } from "@/scripts/geolocation";
+import type { ShareCard } from "@/scripts/share-card";
+import { markerEstado, statusInfo, type ReportStatus } from "@/scripts/status";
+import { isMobile, onBreakpointChange } from "@/scripts/ui/breakpoint";
+import { chipStyle, resourceChipHtml } from "@/scripts/ui/chips";
+import { contactCtaHtml, contactLinksHtml } from "@/scripts/ui/contact";
 import {
   directionsUrl,
   escapeHtml,
@@ -25,10 +25,9 @@ import {
   NAV_ICON,
   SHARE_ICON,
   stripUrls,
-} from "./ui/html";
-import { statusSelectHtml } from "./ui/status-select";
-import { relativeTime } from "./ui/time";
-
+} from "@/scripts/ui/html";
+import { statusSelectHtml } from "@/scripts/ui/status-select";
+import { relativeTime } from "@/scripts/ui/time";
 
 export const CALI_CENTER: [number, number] = [3.4516, -76.532];
 
@@ -75,9 +74,7 @@ const EMERGENCY_MAX_ZOOM = 11;
  */
 const TOWNS_ONLY_MAX_ZOOM = 12;
 
-
 let townsOnly = false;
-
 
 const USER_ZOOM = 14;
 
@@ -107,12 +104,7 @@ let pickHandler: ((latlng: L.LatLng) => void) | null = null;
 
 const pulseIcon = L.divIcon({
   className: "pulse-marker",
-  
-  
-  
-  
-  
-  
+
   html: '<span class="pulse-inner"><span class="pulse-ring"></span><span class="pulse-ring pulse-ring-2"></span><span class="pulse-dot"></span></span>',
   iconSize: [18, 18],
   iconAnchor: [9, 9],
@@ -125,14 +117,11 @@ const pulseIcon = L.divIcon({
  * `map.ts` no tenga que importar los stores.
  */
 export type MarkerExtra = {
-  
   freshAt: string;
-  
+
   lastUpdate?: string;
   stale: boolean;
 };
-
-
 
 /**
  * Lo que hay que saber de un punto para dibujar su imagen, listo desde que se
@@ -154,7 +143,6 @@ function dropShareCards(prefix: string): void {
   for (const key of [...shareCards.keys()])
     if (key.startsWith(prefix)) shareCards.delete(key);
 }
-
 
 const STATUS_ACCENT: Record<ReportStatus, string> = {
   activo: "#ef4444",
@@ -195,9 +183,6 @@ function contactHtml(name: string, phone: string | null): string {
  * orden que ya trae el grupo — pendientes primero, cubiertos al final.
  */
 function resourcesHtml(group: ReportGroup): string {
-  
-  
-  
   if (group.resources.length === 0)
     return `<p class="text-sm text-slate-500">Todavía no dice qué necesita.</p>`;
 
@@ -225,29 +210,18 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
       ? '<p class="text-xs font-medium text-emerald-700">Necesidades cubiertas</p>'
       : "";
 
-  
-  
   const count = group.reports.length;
   const cuantos =
     count > 1
       ? `<p class="text-xs text-slate-500">${count} reportes en este punto</p>`
       : "";
 
-  
   const fresh = `<p class="text-xs ${extra.stale ? "font-medium text-amber-700" : "text-slate-500"}">Actualizado ${escapeHtml(relativeTime(extra.freshAt))}${extra.stale ? " — confirma antes de ir" : ""}</p>`;
 
-  
-  
-  
-  
-  
-  
   const kicker = `
       ${statusSelectHtml(group.status, group.reportIds, lead.name)}
       ${fresh}`;
 
-  
-  
   const lugar = lead.placeName
     ? `<p class="text-base text-slate-600">${escapeHtml(lead.placeName)}</p>`
     : "";
@@ -256,8 +230,6 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
     ? `<p class="text-sm text-slate-600">«${escapeHtml(extra.lastUpdate)}»</p>`
     : "";
 
-  
-  
   const noteList = group.reports
     .filter((r) => r.note)
     .slice(0, 2)
@@ -269,29 +241,21 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
     )
     .join("");
 
-  
-  
   const contacto = group.reports
     .filter((r) => r.contactName)
     .slice(0, 2)
     .map((r) => contactHtml(r.contactName as string, r.contactPhone))
     .join("");
 
-  
-  
-  
   const shareKey = `r:${group.key}`;
   shareCards.set(shareKey, {
     kicker: statusInfo(group.status).label,
     accent: STATUS_ACCENT[group.status] ?? STATUS_ACCENT.activo,
     name: lead.name,
-    
-    
-    
-    
+
     address: lead.placeName,
     updated: `Actualizado ${relativeTime(extra.freshAt)}`,
-    
+
     lines: [count > 1 ? `${count} reportes en este punto` : ""].filter(Boolean),
     notes: noteList,
     chipsTitle: "Necesita",
@@ -325,8 +289,6 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
     </div>`;
 }
 
-
-
 /**
  * Lo que ve quien toca un marcador. Es el mismo HTML del popup: el sheet es otro
  * envase para el mismo contenido, no una segunda versión que mantener.
@@ -343,9 +305,7 @@ type DetailLayer = L.Marker | L.Circle;
 let selectHandler: ((selection: MarkerSelection | null) => void) | null = null;
 let selected: DetailLayer | null = null;
 
-
 const popupHtml = new WeakMap<DetailLayer, string>();
-
 
 export function onMarkerSelect(
   handler: (selection: MarkerSelection | null) => void,
@@ -363,7 +323,6 @@ function emit(marker: DetailLayer | null): void {
   selectHandler?.({ html: popupHtml.get(marker) ?? "", lat, lng });
 }
 
-
 export function clearSelection(): void {
   selected = null;
 }
@@ -374,9 +333,6 @@ export function clearSelection(): void {
  * el popup y cerrarlo a mano dejaría un parpadeo en cada toque.
  */
 function attachPopup(marker: DetailLayer, html: string): void {
-  
-  
-  
   if (popupHtml.get(marker) === html) return;
   popupHtml.set(marker, html);
   if (isMobile()) marker.unbindPopup();
@@ -388,7 +344,6 @@ function selectOnMobile(event: L.LeafletMouseEvent): void {
   if (!isMobile()) return;
   emit(event.target as DetailLayer);
 }
-
 
 function syncPopupMode(): void {
   const all: DetailLayer[] = [
@@ -403,32 +358,25 @@ function syncPopupMode(): void {
     else if (!marker.getPopup()) marker.bindPopup(html);
   }
   if (isMobile()) map?.closePopup();
-  
-  
   else if (selected) emit(null);
 }
 
 export function initMap(containerId: string): L.Map {
-  
-  
   const cached = readCachedCoords();
   map = L.map(containerId, { zoomControl: false }).setView(
     cached ? [cached.lat, cached.lng] : CALI_CENTER,
     cached ? USER_ZOOM : 13,
   );
 
-  
-  
   L.tileLayer(
-    "https:
+    "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
     {
       maxZoom: 20,
       subdomains: "abcd",
-      
-      
+
       updateWhenZooming: false,
       attribution:
-        '&copy; <a href="https:
+        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
     },
   ).addTo(map);
 
@@ -453,25 +401,15 @@ export function initMap(containerId: string): L.Map {
     handler(event.latlng);
   });
 
-  
-  
-  
   const container = map.getContainer();
   map.on("movestart zoomstart", () => container.classList.add("is-moving"));
   map.on("moveend zoomend", () => container.classList.remove("is-moving"));
 
-  
-  
-  
   const claim = () => claimView();
   for (const event of ["pointerdown", "wheel", "keydown"] as const) {
     container.addEventListener(event, claim, { once: true, passive: true });
   }
 
-  
-  
-  
-  
   const syncZoom = () => {
     const zoom = map.getZoom();
     const inRange = zoom <= ZONE_MAX_ZOOM;
@@ -508,11 +446,6 @@ function collapseAttribution(instance: L.Map): void {
   const container = instance.attributionControl?.getContainer();
   if (!container) return;
 
-  
-  
-  
-  
-  
   const credits = document.createElement("span");
   credits.className = "attr-credits";
   credits.append(...container.childNodes);
@@ -581,11 +514,9 @@ export function mountControl(
   new Mounted({ position }).addTo(map);
 }
 
-
 export function refreshSize(): void {
   map?.invalidateSize();
 }
-
 
 function claimView(): void {
   viewClaimed = true;
@@ -601,12 +532,6 @@ export function setInitialView(lat: number, lng: number): void {
   claimView();
   map.setView([lat, lng], USER_ZOOM);
 }
-
-
-
-
-
-
 
 const meIcon = L.divIcon({
   className: "me-marker",
@@ -628,24 +553,20 @@ export function setUserMarker(lat: number, lng: number): void {
   }
   meMarker = L.marker([lat, lng], {
     icon: meIcon,
-    
-    
+
     interactive: false,
     keyboard: false,
     zIndexOffset: -400,
   }).addTo(map);
 }
 
-
 export function flyToUser(): boolean {
   if (!meMarker) return false;
   const { lat, lng } = meMarker.getLatLng();
-  
+
   void flyTo(lat, lng, Math.max(map.getZoom(), USER_ZOOM));
   return true;
 }
-
-
 
 const draftIcon = L.divIcon({
   className: "draft-marker",
@@ -705,13 +626,10 @@ function paintEstado(
   if (!el) return;
   const covered = group.resources.length > 0 && group.pending === 0;
   const estado = markerEstado(group.status, covered);
-  
-  
-  
+
   if (el.dataset.estado !== estado) el.dataset.estado = estado;
   el.classList.toggle("is-stale", extra.stale);
 }
-
 
 export type MarkerEntry = { group: ReportGroup; extra: MarkerExtra };
 
@@ -726,7 +644,7 @@ export type MarkerEntry = { group: ReportGroup; extra: MarkerExtra };
  */
 export function syncReportMarkers(entries: MarkerEntry[]): void {
   keyByReport.clear();
-  
+
   dropShareCards("r:");
 
   for (const { group, extra } of entries) {
@@ -738,14 +656,11 @@ export function syncReportMarkers(entries: MarkerEntry[]): void {
       marker = existing.marker;
       existing.group = group;
       existing.extra = extra;
-      
-      
+
       const at = marker.getLatLng();
       if (at.lat !== group.lat || at.lng !== group.lng)
         marker.setLatLng([group.lat, group.lng]);
     } else {
-      
-      
       marker = L.marker([group.lat, group.lng], { icon: pulseIcon });
       marker.on("click", selectOnMobile);
       markers.set(group.key, { marker, group, extra });
@@ -753,8 +668,7 @@ export function syncReportMarkers(entries: MarkerEntry[]): void {
 
     attachPopup(marker, reportPopupHtml(group, extra));
     paintEstado(marker, group, extra);
-    
-    
+
     if (marker === selected) emit(marker);
   }
 
@@ -768,14 +682,12 @@ function dropMarker(key: string): void {
   const entry = markers.get(key);
   if (!entry) return;
   markers.delete(key);
-  
-  
+
   if (entry.marker === selected) emit(null);
   forgetFade(entry.marker);
   reportsLayer.removeLayer(entry.marker);
   entry.marker.remove();
 }
-
 
 export function markerKeyForReport(id: string): string | undefined {
   return keyByReport.get(id);
@@ -811,7 +723,7 @@ export function flyTo(
       map.off("moveend", finish);
       resolve();
     };
-    
+
     const timer = setTimeout(finish, 1500);
     map.once("moveend", () => {
       clearTimeout(timer);
@@ -854,9 +766,7 @@ export function flyToEmergency(reserveTop = 0): Promise<void> {
       map.off("moveend", finish);
       resolve();
     };
-    
-    
-    
+
     const timer = setTimeout(finish, 1500);
     map.once("moveend", () => {
       clearTimeout(timer);
@@ -866,11 +776,6 @@ export function flyToEmergency(reserveTop = 0): Promise<void> {
     map.flyToBounds(
       bounds.isValid() ? bounds : L.latLngBounds(EMERGENCY_BOUNDS),
       {
-        
-        
-        
-        
-        
         paddingTopLeft: [48, 48 + Math.max(reserveTop, 0)],
         paddingBottomRight: [48, 48],
         maxZoom: EMERGENCY_MAX_ZOOM,
@@ -880,8 +785,6 @@ export function flyToEmergency(reserveTop = 0): Promise<void> {
   });
 }
 
-
-
 /**
  * How long a pin takes to go, and it is the CSS that runs it — the rules for
  * `.leaflet-marker-icon` and `.affected-zone` in `global.css` carry the same
@@ -890,7 +793,6 @@ export function flyToEmergency(reserveTop = 0): Promise<void> {
  * frame, and leaving it in forever would keep a hidden pin catching clicks.
  */
 const FADE_MS = 220;
-
 
 const ZONE_FILL_OPACITY = 0.14;
 
@@ -964,8 +866,6 @@ function forgetFade(layer: L.Marker | L.Circle): void {
   fadeTimers.delete(layer);
 }
 
-
-
 /**
  * Report markers used to hang straight off the map. They live in a layer now for
  * the same reason the centers do: the filter has to be able to take them out
@@ -1003,24 +903,15 @@ function applyReports(): number {
     const visible =
       !townsOnly && reportsVisible && (!reportsOnlyRecent || !extra.stale);
     if (visible) shown += 1;
-    
-    
-    
     else if (marker === selected) closes = true;
     const entering = visible && !reportsLayer.hasLayer(marker);
     setLayerVisible(reportsLayer, marker, visible);
-    
-    
+
     if (entering) paintEstado(marker, group, extra);
   }
   if (closes) emit(null);
   return shown;
 }
-
-
-
-
-
 
 const centersLayer = L.layerGroup();
 /**
@@ -1064,10 +955,6 @@ const collectionIcon = L.divIcon({
   popupAnchor: [0, -10],
 });
 
-
-
-
-
 const communityIcon = L.divIcon({
   className: "center-marker",
   html: '<span class="center-pin" data-community></span>',
@@ -1076,9 +963,6 @@ const communityIcon = L.divIcon({
   popupAnchor: [0, -10],
 });
 
-
-
-
 const collectionPausedIcon = L.divIcon({
   className: "center-marker",
   html: '<span class="center-pin" data-paused></span>',
@@ -1086,8 +970,6 @@ const collectionPausedIcon = L.divIcon({
   iconAnchor: [8, 8],
   popupAnchor: [0, -10],
 });
-
-
 
 const bloodIcon = L.divIcon({
   className: "blood-marker",
@@ -1105,8 +987,6 @@ const bloodPausedIcon = L.divIcon({
   popupAnchor: [0, -2],
 });
 
-
-
 const shelterIcon = L.divIcon({
   className: "shelter-marker",
   html: '<span class="shelter-pin"></span>',
@@ -1122,8 +1002,6 @@ const shelterPausedIcon = L.divIcon({
   iconAnchor: [10, 10],
   popupAnchor: [0, -12],
 });
-
-
 
 const healthcareIcon = L.divIcon({
   className: "healthcare-marker",
@@ -1141,13 +1019,6 @@ const healthcarePausedIcon = L.divIcon({
   popupAnchor: [0, -11],
 });
 
-
-
-
-
-
-
-
 const municipioIcon = L.divIcon({
   className: "municipio-marker",
   html: '<span class="municipio-pin"></span>',
@@ -1163,7 +1034,6 @@ const municipioPausedIcon = L.divIcon({
   iconAnchor: [11, 11],
   popupAnchor: [0, -13],
 });
-
 
 const ICON: Record<Center["type"], { normal: L.DivIcon; paused: L.DivIcon }> = {
   acopio: { normal: collectionIcon, paused: collectionPausedIcon },
@@ -1253,8 +1123,6 @@ function chipsTitleFor(center: Center): string {
 function donationsHtml(center: Center, paused: boolean): string {
   if (center.donations.length === 0) return "";
   const blocks = byCategory(center.donations, (item) => item).map((bucket) => {
-    
-    
     const chips = bucket.items
       .map(
         (item) =>
@@ -1267,9 +1135,7 @@ function donationsHtml(center: Center, paused: boolean): string {
         <div class="mt-1 flex flex-wrap gap-1">${chips}</div>
       </div>`;
   });
-  
-  
-  
+
   return `
     <div class="space-y-2">
       <p class="text-xs m-0 font-semibold uppercase tracking-wide text-slate-500">${escapeHtml(chipsTitleFor(center))}</p>
@@ -1286,20 +1152,14 @@ export type CenterEntry = { data: Center; mine: boolean };
 
 function centerPopupHtml(center: Center, mine: boolean): string {
   const paused = isPaused(center);
-  
-  
-  
+
   const expired = center.isActive && isExpired(center);
   const donations = donationsHtml(center, paused);
   const contact = contactLinksHtml(
     center.contactWhatsapp,
     center.contactInstagram,
   );
-  
-  
-  
-  
-  
+
   const notes = center.notes
     ? `<p class="text-sm wrap-break-word text-slate-500">${
         isCommunity(center)
@@ -1307,8 +1167,7 @@ function centerPopupHtml(center: Center, mine: boolean): string {
           : linkifyHtml(center.notes)
       }</p>`
     : "";
-  
-  
+
   const { label, color, accent } = KICKER[center.type];
   const kickerLabel = expired
     ? `${label} · Sin confirmar`
@@ -1318,21 +1177,16 @@ function centerPopupHtml(center: Center, mine: boolean): string {
   const kicker = paused
     ? `<p class="text-xs font-semibold uppercase tracking-wide text-slate-500">${kickerLabel}</p>`
     : `<p class="text-xs font-semibold uppercase tracking-wide ${color}">${label}</p>`;
-  
-  
+
   const notAcceptingLabel =
     center.type === "sangre"
       ? "No recibe donantes por ahora"
       : "No recibe donaciones por ahora";
-  
-  
+
   const notAccepting = center.acceptingDonations
     ? ""
     : `<p class="text-xs font-medium text-amber-700">${notAcceptingLabel}</p>`;
-  
-  
-  
-  
+
   const notice = expired
     ? `<p
         class="text-xs font-medium text-amber-700"
@@ -1342,18 +1196,12 @@ function centerPopupHtml(center: Center, mine: boolean): string {
     : paused
       ? `<p class="text-xs font-medium text-amber-700">Cerrado por ahora</p>`
       : "";
-  
-  
-  
-  
-  
+
   const ctaClass = paused
     ? "center-cta center-cta-quiet flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-md font-semibold no-underline transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300"
     : "center-cta flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-md font-semibold no-underline shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300";
   const origin = `<p class="text-sm text-slate-500">${ORIGIN[center.origin]}</p>`;
-  
-  
-  
+
   const remove =
     mine && isCommunity(center)
       ? `<button
@@ -1363,9 +1211,7 @@ function centerPopupHtml(center: Center, mine: boolean): string {
         class="mt-1 w-full text-xs font-medium text-slate-400 transition hover:text-red-600"
       >Eliminar este punto</button>`
       : "";
-  
-  
-  
+
   const confirm = expired
     ? `<button
         type="button"
@@ -1382,8 +1228,7 @@ function centerPopupHtml(center: Center, mine: boolean): string {
     updated: null,
     lines: [
       center.hours,
-      
-      
+
       expired
         ? "Sin confirmar recientemente"
         : paused
@@ -1394,8 +1239,7 @@ function centerPopupHtml(center: Center, mine: boolean): string {
       center.contactInstagram ? `Instagram @${center.contactInstagram}` : "",
       ORIGIN[center.origin],
     ].filter(Boolean),
-    
-    
+
     notes: [center.notes]
       .map((note) => (note ? stripUrls(note) : ""))
       .filter(Boolean),
@@ -1410,8 +1254,6 @@ function centerPopupHtml(center: Center, mine: boolean): string {
     lng: center.lng,
   });
 
-  
-  
   return `
     <div class="space-y-2">
       <div class="space-y-1">
@@ -1441,10 +1283,6 @@ function centerPopupHtml(center: Center, mine: boolean): string {
 }
 
 function matchesFilter(center: Center): boolean {
-  
-  
-  
-  
   if (townsOnly !== (center.type === "municipio")) return false;
   if (!visibleCenterTypes.has(center.type)) return false;
   return !centersOnlyActive || !isPaused(center);
@@ -1462,8 +1300,6 @@ function applyCenters(): number {
   for (const { data, marker } of centers.values()) {
     const visible = matchesFilter(data);
     if (visible) shown += 1;
-    
-    
     else if (marker === selected) closes = true;
     setLayerVisible(centersLayer, marker, visible);
   }
@@ -1478,9 +1314,7 @@ function applyCenters(): number {
  */
 function centerIconFor(center: Center): L.DivIcon {
   const { normal, paused } = ICON[center.type];
-  
-  
-  
+
   const own =
     center.type === "acopio" && isCommunity(center) ? communityIcon : normal;
   return isPaused(center) ? paused : own;
@@ -1490,8 +1324,7 @@ export function setCenters(entries: CenterEntry[]): number {
   const live = new Set(entries.map(({ data }) => data.id));
   for (const [id, { marker }] of centers) {
     if (live.has(id)) continue;
-    
-    
+
     if (marker === selected) emit(null);
     forgetFade(marker);
     centersLayer.removeLayer(marker);
@@ -1505,15 +1338,13 @@ export function setCenters(entries: CenterEntry[]): number {
     if (existing) {
       existing.data = data;
       const icon = centerIconFor(data);
-      
-      
+
       if (existing.marker.options.icon !== icon) existing.marker.setIcon(icon);
       const at = existing.marker.getLatLng();
       if (at.lat !== data.lat || at.lng !== data.lng)
         existing.marker.setLatLng([data.lat, data.lng]);
       attachPopup(existing.marker, centerPopupHtml(data, mine));
-      
-      
+
       if (existing.marker === selected) emit(existing.marker);
       continue;
     }
@@ -1530,12 +1361,6 @@ export function setCenters(entries: CenterEntry[]): number {
   return applyCenters();
 }
 
-
-
-
-
-
-
 const affectedLayer = L.layerGroup();
 const zoneCircles: L.Circle[] = [];
 let zonesVisible = true;
@@ -1550,7 +1375,6 @@ let zonesVisible = true;
  * crece con el zoom, y a 20 el círculo más grande pasa de 6.000 px de radio.
  */
 const ZONE_MAX_ZOOM = 17;
-
 
 let zonesInRange = true;
 

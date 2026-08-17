@@ -44,12 +44,12 @@ export type GeocodeResult = {
   precision: "exacta" | "calculada" | "aproximada";
 };
 
-
-
 function fromEntry(entry: AddressEntry): GeocodeResult {
   return {
     label: entry.name || `${entry.street} # ${entry.number}`,
-    detail: entry.name ? `${entry.street} # ${entry.number}` : "dirección mapeada en OSM",
+    detail: entry.name
+      ? `${entry.street} # ${entry.number}`
+      : "dirección mapeada en OSM",
     lat: entry.lat,
     lng: entry.lng,
     precision: "exacta",
@@ -57,7 +57,10 @@ function fromEntry(entry: AddressEntry): GeocodeResult {
 }
 
 async function fromIndexes(address: CaliAddress): Promise<GeocodeResult[]> {
-  const [addresses, streets] = await Promise.all([loadAddresses(), loadStreets()]);
+  const [addresses, streets] = await Promise.all([
+    loadAddresses(),
+    loadStreets(),
+  ]);
 
   const number = address.label.split("#")[1]?.trim() ?? "";
   for (const via of address.via) {
@@ -94,23 +97,10 @@ async function fromIndexes(address: CaliAddress): Promise<GeocodeResult[]> {
   return [];
 }
 
-
-
-const ENDPOINT = "https:
-const REVERSE_ENDPOINT = "https:
-
-
-
-
-
-
-
-
+const ENDPOINT = "https://nominatim.openstreetmap.org/search";
+const REVERSE_ENDPOINT = "https://nominatim.openstreetmap.org/reverse";
 
 const VIEWBOX = "-76.62,3.52,-76.44,3.32";
-
-
-
 
 const MIN_INTERVAL_MS = 1100;
 let lastRequestAt = 0;
@@ -129,7 +119,6 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-
 function shortLabel(item: NominatimItem): { label: string; detail: string } {
   const address = item.address ?? {};
   const primary =
@@ -139,16 +128,15 @@ function shortLabel(item: NominatimItem): { label: string; detail: string } {
     address.road ||
     (item.display_name ?? "").split(",")[0];
 
-  
-  
-  
   const municipio = address.city || address.town || address.municipality;
 
   const context = [
     address.neighbourhood,
     address.suburb,
     address.city_district,
-    municipio && !/^(santiago de )?cali$/i.test(municipio) ? municipio : undefined,
+    municipio && !/^(santiago de )?cali$/i.test(municipio)
+      ? municipio
+      : undefined,
     address.postcode,
   ].filter(Boolean) as string[];
 
@@ -190,8 +178,7 @@ async function query(
   url.searchParams.set("format", "jsonv2");
   url.searchParams.set("addressdetails", "1");
   url.searchParams.set("limit", "8");
-  
-  
+
   url.searchParams.set("countrycodes", "co");
   if (preferCali) url.searchParams.set("viewbox", VIEWBOX);
 
@@ -207,9 +194,6 @@ async function query(
 function toResults(items: NominatimItem[]): GeocodeResult[] {
   return items
     .filter((item) => {
-      
-      
-      
       const rank = item.place_rank ?? 0;
       return rank >= 16 && item.category !== "boundary";
     })
@@ -225,9 +209,6 @@ function toResults(items: NominatimItem[]): GeocodeResult[] {
     })
     .filter((r) => r.label && Number.isFinite(r.lat) && Number.isFinite(r.lng));
 }
-
-
-
 
 const MAX_NAME = 120;
 
@@ -256,8 +237,7 @@ export async function reverseGeocode(
     url.searchParams.set("lon", String(coords.lng));
     url.searchParams.set("format", "jsonv2");
     url.searchParams.set("addressdetails", "1");
-    
-    
+
     url.searchParams.set("zoom", "18");
 
     const response = await fetch(url, {
@@ -284,8 +264,6 @@ export async function reverseGeocode(
   }
 }
 
-
-
 export async function geocode(
   input: string,
   signal?: AbortSignal,
@@ -300,22 +278,17 @@ export async function geocode(
       const results = await fromIndexes(address);
       if (results.length > 0 || signal?.aborted) return results;
     } catch (error) {
-      
       console.warn("Índice local no disponible:", error);
     }
   }
 
-  
-  
-  
-  
-  
-  const cali = { q: `${input}, Cali, Valle del Cauca, Colombia`, preferCali: true };
+  const cali = {
+    q: `${input}, Cali, Valle del Cauca, Colombia`,
+    preferCali: true,
+  };
   const pais = { q: `${input}, Colombia`, preferCali: false };
 
   for (const { q, preferCali } of otraCiudad ? [pais, cali] : [cali, pais]) {
-    
-    
     if (signal?.aborted) return [];
     const results = toResults(await query(q, { preferCali, signal }));
     if (results.length > 0) return results;

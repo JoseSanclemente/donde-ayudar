@@ -23,6 +23,8 @@ export const PETS_TITLE = "¿Dónde está mi mascota? — Mascotas encontradas";
 export const PETS_DESCRIPTION =
   "Fotos de mascotas encontradas en la calle después del sismo, con el teléfono de quien las tiene.";
 
+export const PRIVACY_NAME = "Privacidad";
+
 export const PRIVACY_TITLE = "Privacidad — ¿Dónde puedo ayudar?";
 
 export const PRIVACY_DESCRIPTION =
