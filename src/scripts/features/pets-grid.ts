@@ -140,7 +140,10 @@ const PHOTO_FRAME =
 const PHOTO_SPINNER =
   "h-8 w-8 animate-spin rounded-full border-2 border-slate-200 border-t-red-600";
 
-function buildDetailPhoto(pet: Pet): HTMLDivElement {
+function buildDetailPhoto(pet: Pet): {
+  frame: HTMLDivElement;
+  attach: () => void;
+} {
   const frame = document.createElement("div");
   frame.className = PHOTO_FRAME;
 
@@ -155,6 +158,7 @@ function buildDetailPhoto(pet: Pet): HTMLDivElement {
   );
 
   photo.loading = "eager";
+  photo.fetchPriority = "high";
 
   const settle = () => {
     spinner.remove();
@@ -163,10 +167,16 @@ function buildDetailPhoto(pet: Pet): HTMLDivElement {
   photo.addEventListener("load", settle);
   photo.addEventListener("error", () => spinner.remove());
 
-  if (photo.complete && photo.naturalWidth > 0) settle();
+  frame.append(spinner);
 
-  frame.append(spinner, photo);
-  return frame;
+  return {
+    frame,
+    attach() {
+      if (photo.isConnected) return;
+      frame.append(photo);
+      if (photo.complete && photo.naturalWidth > 0) settle();
+    },
+  };
 }
 
 /**
@@ -275,11 +285,15 @@ function petMessage(pet: Pet): string {
   return `Hola, escribo por la mascota ${pet.refCode} que vi en dondeayudar.com.co:\n${link}`;
 }
 
-function buildDetail(pet: Pet): HTMLElement {
+function buildDetail(pet: Pet): {
+  detail: HTMLElement;
+  attachPhoto: () => void;
+} {
   const detail = document.createElement("div");
   detail.className = "space-y-3";
 
-  detail.append(buildDetailPhoto(pet));
+  const { frame, attach } = buildDetailPhoto(pet);
+  detail.append(frame);
 
   const when = document.createElement("p");
   when.className = "text-sm text-slate-500";
@@ -293,7 +307,12 @@ function buildDetail(pet: Pet): HTMLElement {
 
   const cta = buildPetCta(pet, true);
   detail.append(when, meta, ...(place ? [place] : []), cta);
-  return detail;
+  return { detail, attachPhoto: attach };
+}
+
+function showPetSheet(pet: Pet): void {
+  const { detail, attachPhoto } = buildDetail(pet);
+  openPetSheet(detail, attachPhoto);
 }
 
 /**
@@ -336,7 +355,7 @@ function buildTapCard(pet: Pet): HTMLButtonElement {
   const card = document.createElement("button");
   card.type = "button";
   card.className = `${CARD} hover:border-slate-300`;
-  card.addEventListener("click", () => openPetSheet(buildDetail(pet)));
+  card.addEventListener("click", () => showPetSheet(pet));
   card.append(
     buildPhoto(pet, pet.thumbUrl, "aspect-square w-full object-cover"),
     buildCardFooter(pet),
@@ -381,24 +400,33 @@ export type PetsGrid = {
 const FOCUS_RING = ["ring-2", "ring-red-500", "ring-offset-2", "rounded-xl"];
 const FOCUS_MS = 2600;
 
+const PAGE = 24;
+const AHEAD = "800px 0px";
+
 export function initPetsGrid(): PetsGrid {
   const grid = $<HTMLUListElement>("pets-grid");
   const panel = $<HTMLDivElement>("pets-state");
   const spinner = $<HTMLSpanElement>("pets-spinner");
   const empty = $<HTMLParagraphElement>("pets-empty");
   const total = $<HTMLSpanElement>("pets-count");
+  const sentinel = $<HTMLDivElement>("pets-more");
 
   const entered = new Set<string>();
   let filter: PetsFilter = DEFAULT_PETS_FILTER;
+  let shown = PAGE;
+
+  function matching(): Pet[] {
+    return getPets().filter((pet) => matchesPetsFilter(pet, filter));
+  }
 
   /**
    * Mientras las mascotas vienen en camino no se puede decir «no hay
    * mascotas»: sería mentira, y quien está buscando a la suya la leería como un
    * no definitivo.
    */
-  function paintEmptyState(shown: number, published: number) {
+  function paintEmptyState(matches: number, published: number) {
     const { state, message } = getPetsState();
-    if (shown > 0 && state !== "error") {
+    if (matches > 0 && state !== "error") {
       panel.classList.add("hidden");
       return;
     }
@@ -421,30 +449,53 @@ export function initPetsGrid(): PetsGrid {
         : "Todavía no hay mascotas publicadas.";
   }
 
-  function render() {
-    const published = getPets();
-    const pets = published.filter((pet) => matchesPetsFilter(pet, filter));
-    total.textContent = String(pets.length);
-
+  function buildItems(pets: Pet[]): HTMLLIElement[] {
     let fresh = 0;
 
-    grid.replaceChildren(
-      ...pets.map((pet) => {
-        const item = document.createElement("li");
-        if (!entered.has(pet.id)) {
-          entered.add(pet.id);
-          item.dataset.enter = "";
-          item.style.animationDelay = `${Math.min(fresh, 11) * 0.11}s`;
-          fresh += 1;
-        }
+    return pets.map((pet) => {
+      const item = document.createElement("li");
+      if (!entered.has(pet.id)) {
+        entered.add(pet.id);
+        item.dataset.enter = "";
+        item.style.animationDelay = `${Math.min(fresh, 11) * 0.11}s`;
+        fresh += 1;
+      }
 
-        item.dataset.petId = pet.id;
-        item.append(isMobile() ? buildTapCard(pet) : buildOpenCard(pet));
-        return item;
-      }),
-    );
+      item.dataset.petId = pet.id;
+      item.append(isMobile() ? buildTapCard(pet) : buildOpenCard(pet));
+      return item;
+    });
+  }
+
+  const watcher = new IntersectionObserver(
+    (entries) => {
+      if (entries.some((entry) => entry.isIntersecting)) grow();
+    },
+    { rootMargin: AHEAD },
+  );
+
+  function arm(matches: number) {
+    watcher.unobserve(sentinel);
+    if (matches > shown) watcher.observe(sentinel);
+  }
+
+  function grow() {
+    const pets = matching();
+    const next = pets.slice(shown, shown + PAGE);
+    shown += next.length;
+    if (next.length) grid.append(...buildItems(next));
+    arm(pets.length);
+  }
+
+  function render() {
+    const published = getPets();
+    const pets = matching();
+    total.textContent = String(pets.length);
+
+    grid.replaceChildren(...buildItems(pets.slice(0, shown)));
 
     paintEmptyState(pets.length, published.length);
+    arm(pets.length);
   }
 
   const scheduled = scheduleRender(render);
@@ -461,6 +512,7 @@ export function initPetsGrid(): PetsGrid {
       filter = next;
 
       entered.clear();
+      shown = PAGE;
       scheduled();
     },
 
@@ -469,8 +521,18 @@ export function initPetsGrid(): PetsGrid {
       if (!pet) return;
 
       if (isMobile()) {
-        openPetSheet(buildDetail(pet));
+        showPetSheet(pet);
         return;
+      }
+
+      const index = matching().findIndex(
+        (candidate) => candidate.id === pet.id,
+      );
+      if (index < 0) return;
+
+      if (index >= shown) {
+        shown = index + PAGE;
+        render();
       }
 
       requestAnimationFrame(() => {

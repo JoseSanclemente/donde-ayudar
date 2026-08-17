@@ -30,6 +30,14 @@ function isOpen(): boolean {
   return sheet?.dataset.state === "open";
 }
 
+function lift(el: HTMLElement | null, value: string): void {
+  if (el) el.style.willChange = value;
+}
+
+function drop(el: HTMLElement | null): void {
+  if (el) el.style.willChange = "";
+}
+
 function measure(): void {
   if (!sheet) return;
 
@@ -41,27 +49,40 @@ function paintScrim(open: boolean, animate: boolean): void {
   gsap.killTweensOf(scrim);
   if (open) {
     scrim.hidden = false;
-    if (!animate || reduceMotion) gsap.set(scrim, { opacity: 1 });
-    else gsap.to(scrim, { opacity: 1, duration: 0.35, ease: "power3.out" });
+    if (!animate || reduceMotion) {
+      gsap.set(scrim, { opacity: 1 });
+      drop(scrim);
+      return;
+    }
+    lift(scrim, "opacity");
+    gsap.to(scrim, {
+      opacity: 1,
+      duration: 0.35,
+      ease: "power3.out",
+      onComplete: () => drop(scrim),
+    });
     return;
   }
   if (!animate || reduceMotion) {
     gsap.set(scrim, { opacity: 0 });
     scrim.hidden = true;
+    drop(scrim);
     return;
   }
+  lift(scrim, "opacity");
   gsap.to(scrim, {
     opacity: 0,
     duration: 0.3,
     ease: "power3.out",
 
     onComplete: () => {
+      drop(scrim);
       if (!isOpen() && scrim) scrim.hidden = true;
     },
   });
 }
 
-function moveTo(open: boolean, animate = true): void {
+function moveTo(open: boolean, animate = true, settled?: () => void): void {
   if (!sheet) return;
   sheet.dataset.state = open ? "open" : "closed";
   paintScrim(open, animate);
@@ -69,27 +90,40 @@ function moveTo(open: boolean, animate = true): void {
   if (!open) measure();
   const y = open ? 0 : closedY;
   if (!animate || reduceMotion) {
-    gsap.set(sheet, { y });
+    gsap.set(sheet, { y, force3D: true });
+    drop(sheet);
+    settled?.();
     return;
   }
+  lift(sheet, "transform");
   gsap.to(sheet, {
     y,
     duration: 0.35,
     ease: "power3.out",
+    force3D: true,
     onComplete: () => {
-      if (isOpen() || !sheet) return;
+      drop(sheet);
+      if (isOpen() || !sheet) {
+        settled?.();
+        return;
+      }
       measure();
-      gsap.set(sheet, { y: closedY });
+      gsap.set(sheet, { y: closedY, force3D: true });
+      settled?.();
     },
   });
 }
 
-export function openPetSheet(content: HTMLElement): void {
-  if (!sheet || !body) return;
+export function openPetSheet(content: HTMLElement, settled?: () => void): void {
+  if (!sheet || !body) {
+    settled?.();
+    return;
+  }
   body.replaceChildren(content);
   body.scrollTop = 0;
   measure();
-  moveTo(true);
+  lift(sheet, "transform");
+  requestAnimationFrame(() => moveTo(true, true, settled));
 }
 
 export function closePetSheet(): void {
@@ -109,6 +143,17 @@ function initDrag(): void {
   let velocity = 0;
   let dragging = false;
   let moved = 0;
+  let pendingY = 0;
+  let frame = 0;
+
+  const flush = () => {
+    frame = 0;
+    if (!dragging) return;
+    gsap.set(panel, { y: pendingY, force3D: true });
+    if (scrim && !scrim.hidden) {
+      gsap.set(scrim, { opacity: 1 - pendingY / closedY });
+    }
+  };
 
   handle.addEventListener("pointerdown", (event: PointerEvent) => {
     if ((event.target as HTMLElement).closest("button")) return;
@@ -118,30 +163,41 @@ function initDrag(): void {
     velocity = 0;
     startY = lastY = event.clientY;
     lastTime = event.timeStamp;
-    startTranslate = (gsap.getProperty(panel, "y") as number) ?? 0;
+    startTranslate = pendingY = (gsap.getProperty(panel, "y") as number) ?? 0;
     handle.setPointerCapture(event.pointerId);
     gsap.killTweensOf(panel);
+    lift(panel, "transform");
+    if (scrim && !scrim.hidden) lift(scrim, "opacity");
   });
 
   handle.addEventListener("pointermove", (event: PointerEvent) => {
     if (!dragging) return;
-    const delta = event.clientY - startY;
+    const last = event.getCoalescedEvents?.().at(-1) ?? event;
+    const delta = last.clientY - startY;
     moved = Math.max(moved, Math.abs(delta));
 
-    const dt = event.timeStamp - lastTime;
-    if (dt > 0) velocity = (event.clientY - lastY) / dt;
-    lastY = event.clientY;
-    lastTime = event.timeStamp;
+    const dt = last.timeStamp - lastTime;
+    if (dt > 0) velocity = (last.clientY - lastY) / dt;
+    lastY = last.clientY;
+    lastTime = last.timeStamp;
 
-    const y = Math.min(closedY, Math.max(0, startTranslate + delta));
-    gsap.set(panel, { y });
-
-    if (scrim && !scrim.hidden) gsap.set(scrim, { opacity: 1 - y / closedY });
+    pendingY = Math.min(closedY, Math.max(0, startTranslate + delta));
+    frame ||= requestAnimationFrame(flush);
   });
 
   const end = (event: PointerEvent) => {
     if (!dragging) return;
     dragging = false;
+    if (frame) {
+      cancelAnimationFrame(frame);
+      frame = 0;
+      gsap.set(panel, { y: pendingY, force3D: true });
+      if (scrim && !scrim.hidden) {
+        gsap.set(scrim, { opacity: 1 - pendingY / closedY });
+      }
+    }
+    drop(panel);
+    drop(scrim);
     if (handle.hasPointerCapture(event.pointerId)) {
       handle.releasePointerCapture(event.pointerId);
     }
@@ -184,7 +240,7 @@ export function initPetSheet(): void {
   new ResizeObserver(() => {
     if (gsap.isTweening(sheet as HTMLDivElement)) return;
     measure();
-    if (!isOpen()) gsap.set(sheet, { y: closedY });
+    if (!isOpen()) gsap.set(sheet, { y: closedY, force3D: true });
   }).observe(sheet);
 
   measure();
