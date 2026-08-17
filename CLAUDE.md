@@ -14,6 +14,8 @@
 
 - **Typechecking**: Run `pnpm check` before committing, as Astro builds do not
   typecheck.
+- **Imports**: Always use absolute imports with the `@/` alias (e.g. `@/scripts/...`,
+  `@/components/...`) instead of relative paths (`../`, `./`).
 
 ## Security Headers
 
