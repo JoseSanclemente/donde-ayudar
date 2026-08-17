@@ -10,8 +10,9 @@
  *
  * A batch does not always come off Instagram, so each half of an entry has two
  * shapes and the file picks one of each: the photo is an `image_url` to download
- * or an `image_path` already on disk, and the contact is the `instagram` post or
- * a `contact_username`, the WhatsApp handle an organization answers at. On top
+ * or an `image_path` already on disk, and the contact is an `instagram` link —
+ * the post the animal appeared in, or the profile of whoever holds the batch —
+ * or a `contact_username`, the WhatsApp handle an organization answers at. On top
  * of those, two things only a batch has: the `place_name` of whoever holds the
  * animals, and the `ref_code` each one carries in that place's own register —
  * with one contact for twenty pets, the code is what tells the messages apart.
@@ -44,8 +45,11 @@ const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 const KINDS = ["dog", "cat", "other"];
 const SEXES = ["male", "female"];
 
-const INSTAGRAM_POST =
-  /^https:\/\/(www\.)?instagram\.com\/(p|reel)\/[A-Za-z0-9_-]{5,30}\/?$/;
+/** What the CHECK on `pets.contact_instagram_url` takes: a post permalink, or a
+ *  profile — the whole address of a batch that came from one institution, where
+ *  there is no post per animal. */
+const INSTAGRAM_ALLOWED =
+  /^https:\/\/(www\.)?instagram\.com\/((p|reel)\/[A-Za-z0-9_-]{5,30}|[A-Za-z0-9._]{1,30})\/?$/;
 
 /**
  * What «copiar enlace» hands over and what gets stored are not the same string.
@@ -53,16 +57,25 @@ const INSTAGRAM_POST =
  * an `igsh` that changes each time — and some links carry the account in front of
  * the code. None of that identifies the post: two copies of the same publication
  * would go in as two different values, and the query string would ride along into
- * the `href` of the button. So the entry is read loosely and only the permalink is
- * kept, which is what the CHECK in the base then demands.
+ * the `href` of the button. So the entry is read loosely and only the permalink —
+ * or the profile — is kept, which is what the CHECK in the base then demands.
  */
-const INSTAGRAM_ANY =
+const INSTAGRAM_POST_ANY =
   /^https?:\/\/(?:www\.)?instagram\.com\/(?:[A-Za-z0-9._]+\/)?(p|reel)\/([A-Za-z0-9_-]{5,30})\/?(?:[?#].*)?$/;
 
+const INSTAGRAM_PROFILE_ANY =
+  /^https?:\/\/(?:www\.)?instagram\.com\/([A-Za-z0-9._]{1,30})\/?(?:[?#].*)?$/;
+
 function normalizeInstagram(value) {
-  const match = INSTAGRAM_ANY.exec(String(value ?? "").trim());
-  if (!match) return null;
-  return `https://www.instagram.com/${match[1]}/${match[2]}/`;
+  const raw = String(value ?? "").trim();
+
+  const post = INSTAGRAM_POST_ANY.exec(raw);
+  if (post) return `https://www.instagram.com/${post[1]}/${post[2]}/`;
+
+  const profile = INSTAGRAM_PROFILE_ANY.exec(raw);
+  if (profile) return `https://www.instagram.com/${profile[1]}/`;
+
+  return null;
 }
 
 const WHATSAPP_USERNAME = /^[A-Za-z0-9._-]{3,30}$/;
@@ -135,10 +148,10 @@ function validate(entry, index) {
   if (wantsInstagram) {
     const instagram = normalizeInstagram(entry.instagram);
     if (!instagram) {
-      return `${where}: instagram "${entry.instagram}" no es el enlace de una publicación.`;
+      return `${where}: instagram "${entry.instagram}" no es el enlace de una publicación ni de un perfil.`;
     }
 
-    if (!INSTAGRAM_POST.test(instagram)) {
+    if (!INSTAGRAM_ALLOWED.test(instagram)) {
       return `${where}: "${instagram}" quedó fuera de lo que acepta la base.`;
     }
   }

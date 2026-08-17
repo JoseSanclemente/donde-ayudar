@@ -18,7 +18,7 @@ const FIELD =
   data-panel-card
   class="border-b border-slate-200 pb-5 pt-3"
 >
-  <div class="flex items-baseline justify-start gap-2">
+  <div class="flex w-full items-baseline justify-start gap-2">
     <h2 class="text-lg font-semibold text-slate-900">¿En qué puedes ayudar?</h2>
     <span
       id="volunteer-count"
@@ -160,3 +160,20 @@ const FIELD =
     </button>
   </div>
 </section>
+
+<script>
+  // Mirrors initAccordion("volunteer") — wires the toggle button and caret for
+  // the desktop fold. On mobile this card is a full tab, so data-collapsed
+  // has no visual effect; only aria-expanded matters for screen readers.
+  const card = document.getElementById("volunteer-panel-card")!;
+  const toggle = document.getElementById("volunteer-toggle") as HTMLButtonElement;
+  const caret = document.getElementById("volunteer-caret") as HTMLSpanElement;
+
+  card.dataset.collapsed = "true";
+  toggle.addEventListener("click", () => {
+    const open = card.dataset.collapsed === "true";
+    card.dataset.collapsed = String(!open);
+    toggle.setAttribute("aria-expanded", String(open));
+    caret.textContent = open ? "▴" : "▾";
+  });
+</script>

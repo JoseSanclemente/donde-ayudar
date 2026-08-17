@@ -10,7 +10,6 @@ import { isMine } from "../data/session";
 import { flyTo } from "../map";
 import { categoryChip, categoryTitle } from "../resources";
 import { closeSheet, setTabDot } from "../sheet";
-import { initAccordion } from "../ui/accordion";
 import { CHIP_SHAPE } from "@/components/ui/ResourceChip";
 import { isValidPhone } from "@/lib/contact";
 import { buildContactCta } from "@/components/ui/ContactCta";
@@ -211,7 +210,6 @@ export function initOffersPanel(): void {
 
   onChange(scheduled);
 
-  initAccordion("offers");
-
   renderList();
+
 }

@@ -53,9 +53,22 @@ export type Pet = {
    * the form or the bot — only the seeder writes it.
    */
   refCode: string | null;
+  /**
+   * Which app the button opens, and nothing more: the contact itself is not
+   * readable from the browser and arrives one pet at a time. It is what lets the
+   * button be painted right the first time instead of guessing WhatsApp and
+   * changing its label when the contact lands.
+   */
+  contactType: PetContactType;
   createdAt: string;
   userId: string;
 };
+
+export type PetContactType =
+  | "phone"
+  | "username"
+  | "instagram_post"
+  | "instagram_profile";
 
 /**
  * How to write to whoever found a pet, and it is one of the three — never
@@ -86,6 +99,7 @@ type Row = {
   photo_path: string;
   place_name: string | null;
   ref_code: string | null;
+  contact_type?: string | null;
   created_at: string;
 };
 
@@ -98,7 +112,7 @@ const BUCKET = "pets";
  * it would come back a permission error instead of a grid.
  */
 const COLUMNS =
-  "id, user_id, kind, sex, photo_path, place_name, ref_code, created_at";
+  "id, user_id, kind, sex, photo_path, place_name, ref_code, contact_type, created_at";
 
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 export const PHOTO_TYPES: Record<string, string> = {
@@ -180,6 +194,20 @@ function photoUrl(path: string, transform: typeof CARD | typeof FULL): string {
     .publicUrl;
 }
 
+const CONTACT_TYPES: PetContactType[] = [
+  "phone",
+  "username",
+  "instagram_post",
+  "instagram_profile",
+];
+
+/** A column the base computes, so it is always one of the four. `phone` is the
+ *  fallback because it is what the vast majority of pets carry. */
+function contactType(value: string | null | undefined): PetContactType {
+  const type = value as PetContactType;
+  return CONTACT_TYPES.includes(type) ? type : "phone";
+}
+
 function fromRow(row: Row): Pet {
   return {
     id: row.id,
@@ -190,6 +218,7 @@ function fromRow(row: Row): Pet {
     photoUrl: photoUrl(row.photo_path, FULL),
     placeName: row.place_name ?? null,
     refCode: row.ref_code ?? null,
+    contactType: contactType(row.contact_type),
     createdAt: row.created_at,
     userId: row.user_id,
   };
@@ -270,6 +299,7 @@ export async function addPet(input: PetInput): Promise<Pet | null> {
     photoUrl: local,
     placeName: null,
     refCode: null,
+    contactType: "phone",
     createdAt: new Date().toISOString(),
     userId,
   };

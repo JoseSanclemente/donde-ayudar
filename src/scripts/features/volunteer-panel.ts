@@ -5,7 +5,6 @@ import {
   onVolunteers,
   removeVolunteer,
 } from "../data/volunteers";
-import { initAccordion } from "../ui/accordion";
 import { createChipGroup } from "../ui/chip-group";
 import { CHIP_SHAPE } from "@/components/ui/ResourceChip";
 import {
@@ -198,6 +197,5 @@ export function initVolunteerPanel(): void {
   });
 
   onVolunteers(scheduleRender(renderList));
-  initAccordion("volunteer");
   renderList();
 }

@@ -607,11 +607,25 @@ create table public.pets (
   -- about is a photo nobody can claim.
   -- A third address, and the one a pet that came off Instagram carries: the
   -- permalink of the post it was published in, which is all there is of whoever
-  -- has it. Not `contact_instagram` — `centers` and `volunteers` keep a bare
-  -- handle under that name and link to a profile; this points at one post.
+  -- has it — or the profile, when a whole batch came from one institution and
+  -- there is no post per animal. Not `contact_instagram` — `centers` and
+  -- `volunteers` keep a bare handle under that name; this keeps the whole url.
   contact_phone    text check (contact_phone ~ '^[0-9+][0-9 ()+-]{6,19}$'),
   contact_username text check (contact_username ~ '^[A-Za-z0-9._-]{3,30}$'),
-  contact_instagram_url text check (contact_instagram_url ~ '^https://(www\.)?instagram\.com/(p|reel)/[A-Za-z0-9_-]{5,30}/?$'),
+  contact_instagram_url text check (contact_instagram_url ~ '^https://(www\.)?instagram\.com/((p|reel)/[A-Za-z0-9_-]{5,30}|[A-Za-z0-9._]{1,30})/?$'),
+  -- Which of the four the row carries, and no identifier. The three columns
+  -- above are revoked from the browser, so a card paints its button before
+  -- knowing where it leads: without this it guessed WhatsApp and swapped the
+  -- label when the contact arrived on hover. This is granted, and it is enough
+  -- for the right label, icon and colour on the first render.
+  contact_type  text generated always as (
+    case
+      when contact_phone is not null then 'phone'
+      when contact_username is not null then 'username'
+      when contact_instagram_url ~ '/(p|reel)/' then 'instagram_post'
+      else 'instagram_profile'
+    end
+  ) stored,
   created_at    timestamptz not null default now(),
   constraint pets_kind_check check (kind in ('dog', 'cat', 'other')),
   constraint pets_contact_check
@@ -652,6 +666,7 @@ grant select (
   photo_path,
   place_name,
   ref_code,
+  contact_type,
   created_at
 ) on public.pets to anon, authenticated;
 

@@ -51,3 +51,10 @@ export function isValidInstagram(value: string): boolean {
 export function instagramUrl(handle: string): string {
   return `https://instagram.com/${instagramHandle(handle)}`;
 }
+
+export const INSTAGRAM_POST_URL_PATTERN =
+  /^https?:\/\/(www\.)?instagram\.com\/(p|reel)\/[A-Za-z0-9_-]{5,30}\/?$/;
+
+export function isInstagramPostUrl(value: string): boolean {
+  return INSTAGRAM_POST_URL_PATTERN.test(value.trim());
+}

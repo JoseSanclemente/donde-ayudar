@@ -28,7 +28,6 @@ import {
   STATUSES,
   type ReportStatus,
 } from "../status";
-import { initAccordion } from "../ui/accordion";
 import { buildResourceChip } from "@/components/ui/ResourceChip";
 import { buildContactCta } from "@/components/ui/ContactCta";
 import { $, scheduleRender } from "../ui/dom";
@@ -446,8 +445,6 @@ export function initReportList(): void {
 
     scheduled();
   });
-
-  initAccordion("report", "report-card");
 
   paintFilterChips();
   render();

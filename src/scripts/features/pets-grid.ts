@@ -7,6 +7,7 @@ import {
   onPetsState,
   type Pet,
   type PetContact,
+  type PetContactType,
 } from "../data/pets";
 import {
   DEFAULT_PETS_FILTER,
@@ -184,6 +185,25 @@ function buildContactCta(pet: Pet, contact: PetContact): HTMLAnchorElement {
   return buildInstagramPostCta(contact.instagramUrl ?? "");
 }
 
+/**
+ * El mismo botón, antes de que llegue el contacto. La fila no trae el contacto
+ * —dos columnas revocadas— pero sí trae `contact_type`, que dice qué app abre y
+ * ningún dato de nadie: sin eso el botón adivinaba WhatsApp y a las mascotas de
+ * Instagram les cambiaba el texto y el color al pasar el mouse, justo encima de
+ * lo único que hay que tocar.
+ */
+const PENDING_LABEL: Record<PetContactType, string> = {
+  phone: "Escribir al WhatsApp",
+  username: "Escribir al WhatsApp",
+  instagram_post: "Ver publicación",
+  instagram_profile: "Ver perfil",
+};
+
+function buildPetPendingCta(pet: Pet): HTMLButtonElement {
+  const instagram = pet.contactType.startsWith("instagram");
+  return buildPendingCta(PENDING_LABEL[pet.contactType], instagram);
+}
+
 /** El destino ya resuelto, abierto sin depender de un `click` sintético: un
  *  `target="_blank"` después de una espera lo bloquean varios navegadores. */
 function openContact(url: string): void {
@@ -213,7 +233,7 @@ function buildPetCta(
   const known = getPetContact(pet.id);
   if (known) return buildContactCta(pet, known);
 
-  const pending = buildPendingCta();
+  const pending = buildPetPendingCta(pet);
   let asked: Promise<PetContact | null> | null = null;
 
   const resolve = () => (asked ??= fetchPetContact(pet.id));

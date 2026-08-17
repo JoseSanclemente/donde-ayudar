@@ -7,6 +7,7 @@ import type {
 import {
   instagramHandle,
   instagramUrl,
+  isInstagramPostUrl,
   telUrl,
   whatsappUrl,
   whatsappUsernameUrl,
@@ -320,7 +321,7 @@ export function buildInstagramPostCta(url: string): HTMLAnchorElement {
   icon.innerHTML = INSTAGRAM_ICON;
 
   const label = document.createElement("span");
-  label.textContent = "Ver publicación";
+  label.textContent = isInstagramPostUrl(url) ? "Ver publicación" : "Ver perfil";
 
   post.append(icon, label);
   return post;
@@ -344,16 +345,21 @@ export function buildUsernameCta(
   );
 }
 
+/** `instagram` paints the button the destination already deserves — the same
+ *  gradient and icon `buildInstagramPostCta` ends up with — so what arrives
+ *  replaces the placeholder without the label or the colour changing under the
+ *  pointer. */
 export function buildPendingCta(
   label = "Escribir al WhatsApp",
+  instagram = false,
 ): HTMLButtonElement {
   const pending = document.createElement("button");
   pending.type = "button";
-  pending.className = CONTACT_CTA;
+  pending.className = instagram ? INSTAGRAM_CTA : CONTACT_CTA;
 
   const icon = document.createElement("span");
   icon.className = "contents";
-  icon.innerHTML = PHONE_ICON;
+  icon.innerHTML = instagram ? INSTAGRAM_ICON : PHONE_ICON;
 
   const who = document.createElement("span");
   who.textContent = label;

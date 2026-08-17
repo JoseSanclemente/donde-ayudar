@@ -9,7 +9,7 @@ import Select from "./Select.astro";
   data-panel-card
   class="border-b border-slate-200 pb-5 pt-3"
 >
-  <div class="flex items-baseline justify-start gap-2">
+  <div class="flex w-full items-baseline justify-start gap-2">
     <h2 class="text-lg font-semibold text-slate-900">
       ¿Tienes algo para donar?
     </h2>
@@ -130,3 +130,20 @@ import Select from "./Select.astro";
     </button>
   </div>
 </section>
+
+<script>
+  // Mirrors initAccordion("offers") — wires the toggle button and caret for
+  // the desktop fold. On mobile this card is a full tab, so data-collapsed
+  // has no visual effect; only aria-expanded matters for screen readers.
+  const card = document.getElementById("offers-panel-card")!;
+  const toggle = document.getElementById("offers-toggle") as HTMLButtonElement;
+  const caret = document.getElementById("offers-caret") as HTMLSpanElement;
+
+  card.dataset.collapsed = "true";
+  toggle.addEventListener("click", () => {
+    const open = card.dataset.collapsed === "true";
+    card.dataset.collapsed = String(!open);
+    toggle.setAttribute("aria-expanded", String(open));
+    caret.textContent = open ? "▴" : "▾";
+  });
+</script>
