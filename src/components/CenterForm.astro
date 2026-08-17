@@ -5,11 +5,15 @@ import ResourcePicker from "./ResourcePicker.astro";
 
 <form id="center-form" novalidate class="space-y-5">
   <p class="text-sm text-slate-500">
-    Un sitio que está recibiendo donaciones: una bodega, un parqueadero, un colegio.
+    Un sitio que está recibiendo donaciones: una bodega, un parqueadero, un
+    colegio.
   </p>
 
   <div>
-    <label for="center-point-name" class="block text-sm font-medium text-slate-700">
+    <label
+      for="center-point-name"
+      class="block text-sm font-medium text-slate-700"
+    >
       Nombre del punto
     </label>
     <input
@@ -20,7 +24,11 @@ import ResourcePicker from "./ResourcePicker.astro";
       placeholder="Ej. Coliseo del Pueblo"
       class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm outline-none focus:border-slate-400"
     />
-    <p id="center-point-name-error" class="mt-1 hidden text-xs font-medium text-red-600"></p>
+    <p
+      id="center-point-name-error"
+      class="mt-1 hidden text-xs font-medium text-red-600"
+    >
+    </p>
   </div>
 
   <div>
@@ -54,7 +62,10 @@ import ResourcePicker from "./ResourcePicker.astro";
   />
 
   <div>
-    <label for="center-whatsapp" class="block text-sm font-medium text-slate-700">
+    <label
+      for="center-whatsapp"
+      class="block text-sm font-medium text-slate-700"
+    >
       WhatsApp <span class="font-normal text-slate-400">(opcional)</span>
     </label>
     <input
@@ -65,9 +76,16 @@ import ResourcePicker from "./ResourcePicker.astro";
       placeholder="Ej. 310 123 4567"
       class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm outline-none focus:border-slate-400"
     />
-    <p id="center-whatsapp-error" class="mt-1 hidden text-xs font-medium text-red-600"></p>
+    <p
+      id="center-whatsapp-error"
+      class="mt-1 hidden text-xs font-medium text-red-600"
+    >
+    </p>
 
-    <label for="center-instagram" class="mt-4 block text-sm font-medium text-slate-700">
+    <label
+      for="center-instagram"
+      class="mt-4 block text-sm font-medium text-slate-700"
+    >
       Instagram <span class="font-normal text-slate-400">(opcional)</span>
     </label>
     <input
@@ -78,7 +96,11 @@ import ResourcePicker from "./ResourcePicker.astro";
       placeholder="Ej. @alcaldiadecali"
       class="mt-1 w-full rounded-lg border border-slate-300 px-3 py-2 text-sm shadow-sm outline-none focus:border-slate-400"
     />
-    <p id="center-instagram-error" class="mt-1 hidden text-xs font-medium text-red-600"></p>
+    <p
+      id="center-instagram-error"
+      class="mt-1 hidden text-xs font-medium text-red-600"
+    >
+    </p>
 
     <!-- The same blue notice as the other two forms: publishing a contact is
          the same decision in all of them. -->
@@ -120,8 +142,8 @@ import ResourcePicker from "./ResourcePicker.astro";
     class="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800"
   >
     <p>
-      El punto aparece en el mapa de inmediato, marcado como <span class="font-semibold"
-        >«Creado por la comunidad»</span
+      El punto aparece en el mapa de inmediato, marcado como <span
+        class="font-semibold">«Creado por la comunidad»</span
       >. Regístralo solo si sabes que está recibiendo.
     </p>
   </div>
@@ -135,7 +157,6 @@ import ResourcePicker from "./ResourcePicker.astro";
 </form>
 
 <style>
-  /* No text, no error to show; the margin of an invisible one shows anyway. */
   #center-point-name-error:empty,
   #center-whatsapp-error:empty,
   #center-instagram-error:empty {

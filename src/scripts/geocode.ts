@@ -44,7 +44,7 @@ export type GeocodeResult = {
   precision: "exacta" | "calculada" | "aproximada";
 };
 
-/* ---- Niveles 1 y 2: índices locales ------------------------------------ */
+
 
 function fromEntry(entry: AddressEntry): GeocodeResult {
   return {
@@ -94,24 +94,24 @@ async function fromIndexes(address: CaliAddress): Promise<GeocodeResult[]> {
   return [];
 }
 
-/* ---- Nivel 3: Nominatim ------------------------------------------------ */
 
-const ENDPOINT = "https://nominatim.openstreetmap.org/search";
-const REVERSE_ENDPOINT = "https://nominatim.openstreetmap.org/reverse";
 
-// Cali bounding box (left, top, right, bottom). Va sin `bounded`, así que es una
-// preferencia y no un recorte: Nominatim pone primero lo que cae adentro y sigue
-// devolviendo el resto. Con `bounded=1` una dirección de Buga no aparecía, y la
-// ayuda ya se está coordinando con otros municipios.
-//
-// Y cuando quien escribe ya nombró el municipio, la preferencia se retira del
-// todo: pedir Palmira y que Cali siga pesando en el orden es empujar la
-// respuesta hacia donde nadie la pidió.
+const ENDPOINT = "https:
+const REVERSE_ENDPOINT = "https:
+
+
+
+
+
+
+
+
+
 const VIEWBOX = "-76.62,3.52,-76.44,3.32";
 
-// Nominatim usage policy: at most 1 request per second. El freno es uno solo
-// para todo el módulo: buscar y resolver al revés son el mismo servidor, así que
-// contarlos por separado sería pedirle el doble.
+
+
+
 const MIN_INTERVAL_MS = 1100;
 let lastRequestAt = 0;
 
@@ -129,7 +129,7 @@ function wait(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Quita la cola administrativa ("RAP Pacífico, Colombia") del display_name. */
+
 function shortLabel(item: NominatimItem): { label: string; detail: string } {
   const address = item.address ?? {};
   const primary =
@@ -139,9 +139,9 @@ function shortLabel(item: NominatimItem): { label: string; detail: string } {
     address.road ||
     (item.display_name ?? "").split(",")[0];
 
-  // El municipio va en la lista salvo que sea Cali: una sugerencia de Palmira y
-  // una de Cali se leen idénticas, y es la única señal que tiene quien elige de
-  // dónde va a caer el punto.
+  
+  
+  
   const municipio = address.city || address.town || address.municipality;
 
   const context = [
@@ -190,8 +190,8 @@ async function query(
   url.searchParams.set("format", "jsonv2");
   url.searchParams.set("addressdetails", "1");
   url.searchParams.set("limit", "8");
-  // El país sí se queda en los dos caminos: la ayuda se coordina por Colombia,
-  // no por el mundo.
+  
+  
   url.searchParams.set("countrycodes", "co");
   if (preferCali) url.searchParams.set("viewbox", VIEWBOX);
 
@@ -207,9 +207,9 @@ async function query(
 function toResults(items: NominatimItem[]): GeocodeResult[] {
   return items
     .filter((item) => {
-      // place_rank 12/14 = municipio y ciudad. Devolver "Cali, Valle del Cauca"
-      // como ubicación de un edificio no sirve de nada. En jsonv2 la clase del
-      // objeto viene en `category`, no en `class`.
+      
+      
+      
       const rank = item.place_rank ?? 0;
       return rank >= 16 && item.category !== "boundary";
     })
@@ -226,9 +226,9 @@ function toResults(items: NominatimItem[]): GeocodeResult[] {
     .filter((r) => r.label && Number.isFinite(r.lat) && Number.isFinite(r.lng));
 }
 
-/* ---- El camino de vuelta: de un punto a una dirección ------------------ */
 
-/** El `check` de `reports.name` topa en 120 caracteres. */
+
+
 const MAX_NAME = 120;
 
 /**
@@ -256,8 +256,8 @@ export async function reverseGeocode(
     url.searchParams.set("lon", String(coords.lng));
     url.searchParams.set("format", "jsonv2");
     url.searchParams.set("addressdetails", "1");
-    // 18 = número de casa si lo hay, y si no la vía. Más lejos devuelve el
-    // barrio, que no es una dirección a la que alguien pueda llegar.
+    
+    
     url.searchParams.set("zoom", "18");
 
     const response = await fetch(url, {
@@ -284,7 +284,7 @@ export async function reverseGeocode(
   }
 }
 
-/* ---- Orquestación ------------------------------------------------------ */
+
 
 export async function geocode(
   input: string,
@@ -300,22 +300,22 @@ export async function geocode(
       const results = await fromIndexes(address);
       if (results.length > 0 || signal?.aborted) return results;
     } catch (error) {
-      // Si el índice no cargó, Nominatim sigue siendo mejor que nada.
+      
       console.warn("Índice local no disponible:", error);
     }
   }
 
-  // Los dos intentos existen siempre; la cola de la dirección solo decide cuál
-  // va primero. Preguntar por "Lomitas, La Cumbre" con "Cali" pegado detrás
-  // devuelve cero —no un resultado malo, cero—, y esa es la señal que dispara
-  // el otro. Equivocarse en el orden cuesta una vuelta de red; no cuesta un
-  // punto en la ciudad equivocada, que es lo que costaba adivinar.
+  
+  
+  
+  
+  
   const cali = { q: `${input}, Cali, Valle del Cauca, Colombia`, preferCali: true };
   const pais = { q: `${input}, Colombia`, preferCali: false };
 
   for (const { q, preferCali } of otraCiudad ? [pais, cali] : [cali, pais]) {
-    // La segunda vuelta arranca un segundo más tarde por el freno de Nominatim,
-    // y en ese segundo quien escribe pudo haber seguido escribiendo.
+    
+    
     if (signal?.aborted) return [];
     const results = toResults(await query(q, { preferCali, signal }));
     if (results.length > 0) return results;

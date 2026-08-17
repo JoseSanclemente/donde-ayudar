@@ -10,7 +10,6 @@ export function isMobile(): boolean {
   return mobile.matches;
 }
 
-/** Se dispara al cruzar el corte, no en cada píxel de un `resize`. */
 export function onBreakpointChange(handler: () => void): void {
   mobile.addEventListener("change", handler);
 }

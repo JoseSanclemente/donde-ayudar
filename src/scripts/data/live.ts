@@ -17,7 +17,10 @@ let wasSubscribed = false;
  * Registra una tabla en el canal compartido. No abre nada: solo apunta. Cada
  * store llama esto al cargarse y `startLive()` va una sola vez en el boot.
  */
-export function bindTable(table: string, handler: (payload: RealtimePayload) => void): void {
+export function bindTable(
+  table: string,
+  handler: (payload: RealtimePayload) => void,
+): void {
   bindings.push({ table, handler });
 }
 
@@ -48,9 +51,7 @@ export function startLive(): void {
   }
   channel.subscribe((status) => {
     if (status !== "SUBSCRIBED") return;
-    // La primera suscripción va justo detrás de la carga inicial: releer ahí
-    // sería un viaje perdido. De la segunda en adelante hubo caída, y lo que
-    // pasó mientras tanto no se reenvía nunca.
+
     if (wasSubscribed) for (const cb of reconnects) cb();
     wasSubscribed = true;
   });

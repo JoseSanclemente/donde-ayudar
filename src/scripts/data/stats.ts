@@ -78,14 +78,12 @@ function fromRow(row: Row): Snapshot {
   };
 }
 
-/** Del más nuevo al más viejo. El orden es el que la tarjeta da por hecho. */
 function sorted(list: Snapshot[]): Snapshot[] {
   return [...list].sort((a, b) => b.cutAt.localeCompare(a.cutAt));
 }
 
 export const onStats = changes.on;
 
-/** El balance más reciente, o `null` si todavía no llegó ninguno. */
 export function getNationalCut(): Snapshot | null {
   return cache[0] ?? null;
 }
@@ -121,10 +119,10 @@ function applyRealtime(payload: RealtimePayload): void {
 
   if (!isRow(payload.new)) return;
   const snapshot = fromRow(payload.new);
-  cache = sorted([...cache.filter((s) => s.id !== snapshot.id), snapshot]).slice(
-    0,
-    RECENT_CUTS,
-  );
+  cache = sorted([
+    ...cache.filter((s) => s.id !== snapshot.id),
+    snapshot,
+  ]).slice(0, RECENT_CUTS);
   emit();
 }
 

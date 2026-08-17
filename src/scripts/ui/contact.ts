@@ -7,7 +7,7 @@
 
 import { escapeHtml, INSTAGRAM_ICON, PHONE_ICON } from "./html";
 
-/** Mismo patrón que el CHECK de la base. Validar dos veces es a propósito. */
+
 export const PHONE_PATTERN = /^[0-9+][0-9 ()+-]{6,19}$/;
 
 export function isValidPhone(value: string): boolean {
@@ -23,7 +23,7 @@ function toWhatsappDigits(phone: string): string | null {
   const digits = phone.replace(/\D/g, "");
   if (digits.length === 10 && digits.startsWith("3")) return `57${digits}`;
   if (digits.length === 12 && digits.startsWith("57")) return digits;
-  // Fijos de Cali (602 + 7 dígitos) y cualquier otra cosa: no se asume nada.
+  
   return digits.length >= 7 ? digits : null;
 }
 
@@ -38,14 +38,14 @@ function withText(url: string, text?: string): string {
 
 export function whatsappUrl(phone: string, text?: string): string | null {
   const digits = toWhatsappDigits(phone);
-  return digits ? withText(`https://wa.me/${digits}`, text) : null;
+  return digits ? withText(`https:
 }
 
 export function telUrl(phone: string): string {
   return `tel:${phone.replace(/[^\d+]/g, "")}`;
 }
 
-/* ---- Usuarios de WhatsApp ---- */
+
 
 /**
  * Un usuario de WhatsApp, que es el contacto de quien esconde su número detrás
@@ -62,19 +62,19 @@ export function isValidWhatsappUsername(value: string): boolean {
 }
 
 export function whatsappUsernameUrl(username: string, text?: string): string {
-  return withText(`https://wa.me/${encodeURIComponent(username.trim())}`, text);
+  return withText(`https:
 }
 
-/* ---- Instagram ---- */
 
-/** Same pattern Instagram itself accepts, minus the `@` nobody stores. */
+
+
 export const INSTAGRAM_PATTERN = /^[A-Za-z0-9._]{1,30}$/;
 
-/** Whatever the visitor typed — `@name`, a url — down to the handle. */
+
 export function instagramHandle(value: string): string {
   return value
     .trim()
-    .replace(/^https?:\/\/(www\.)?instagram\.com\//i, "")
+    .replace(/^https?:\/\/(www\.)?instagram\.com\
     .replace(/^@/, "")
     .replace(/\/.*$/, "");
 }
@@ -84,7 +84,7 @@ export function isValidInstagram(value: string): boolean {
 }
 
 export function instagramUrl(handle: string): string {
-  return `https://instagram.com/${instagramHandle(handle)}`;
+  return `https:
 }
 
 /**
@@ -112,7 +112,7 @@ export function contactLinksHtml(
   return `<div class="flex flex-col gap-1">${lines.join("")}</div>`;
 }
 
-/* ---- El botón de llamar, en las dos formas en que se arma ---- */
+
 
 /**
  * El CTA verde: icono de auricular y «nombre - teléfono». Estaba escrito a mano
@@ -128,13 +128,13 @@ export function contactLinksHtml(
 export const CONTACT_CTA =
   "flex w-full text-center items-center justify-center gap-1.5 rounded-lg bg-emerald-600 p-4 text-sm font-semibold text-white no-underline shadow-sm transition hover:bg-emerald-700";
 
-/** A dónde va el botón: al chat si el número lo arma, si no a marcarlo. */
+
 function contactHref(phone: string): { href: string; external: boolean } {
   const wa = whatsappUrl(phone);
   return { href: wa ?? telUrl(phone), external: wa !== null };
 }
 
-/** El texto del botón: por quién preguntar y a qué número. */
+
 function contactLabel(name: string, phone: string): string {
   return `${name} - ${phone}`;
 }
@@ -150,9 +150,9 @@ export function contactCtaHtml(
   extra = "",
 ): string {
   const { href, external } = contactHref(phone);
-  // El margen va en el propio `a` y no en un envoltorio: el sheet móvil anula
-  // el margen de `a.center-cta` para repartir el aire con su `gap`, y una capa
-  // de por medio le escondería el elemento a esa regla.
+  
+  
+  
   return `<a
       class="center-cta ${extra} ${CONTACT_CTA}"
       href="${escapeHtml(href)}"
@@ -228,7 +228,7 @@ export function buildInstagramPostCta(url: string): HTMLAnchorElement {
  */
 export function buildPhoneCta(phone: string, text?: string): HTMLAnchorElement {
   const wa = whatsappUrl(phone, text);
-  // El texto solo existe si hay chat: en un `tel:` no hay nada que redactar.
+  
   return wa
     ? buildCta(wa, true, "Escribir al WhatsApp")
     : buildCta(telUrl(phone), false, phone);
@@ -302,13 +302,13 @@ function buildCta(
   return call;
 }
 
-/** El mismo CTA como elemento, para los paneles que arman DOM. */
+
 export function buildContactCta(
   name: string,
   phone: string,
 ): HTMLAnchorElement {
   const call = buildPhoneCta(phone);
-  // El botón ya está armado: lo único que cambia es por quién preguntar.
+  
   const who = call.lastElementChild as HTMLSpanElement;
   who.textContent = contactLabel(name, phone);
   return call;

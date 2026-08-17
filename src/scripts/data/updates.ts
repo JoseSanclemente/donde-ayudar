@@ -15,7 +15,7 @@ import { getUserId } from "./session";
 export type Update = {
   id: string;
   body: string;
-  /** `null` = novedad general de la ciudad. */
+
   reportId: string | null;
   createdAt: string;
   userId: string;
@@ -59,9 +59,10 @@ function fromRow(row: Row): Update {
   };
 }
 
-/** Más reciente primero: en una emergencia lo viejo se lee después, o nunca. */
 function sorted(updates: Update[]): Update[] {
-  return [...updates].sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  return [...updates].sort(
+    (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
+  );
 }
 
 export function getUpdates(): Update[] {
@@ -80,10 +81,10 @@ let latest = new Map<string, Update>();
 
 function reindex(): void {
   latest = new Map();
-  // `cache` ya viene ordenada desc, así que la primera que se ve de cada
-  // reporte es la más reciente.
+
   for (const update of cache) {
-    if (update.reportId && !latest.has(update.reportId)) latest.set(update.reportId, update);
+    if (update.reportId && !latest.has(update.reportId))
+      latest.set(update.reportId, update);
   }
 }
 
@@ -93,7 +94,10 @@ export function latestUpdateFor(reportId: string): Update | null {
 
 export const onUpdates = changes.on;
 
-export function addUpdate(input: { body: string; reportId: string | null }): Update {
+export function addUpdate(input: {
+  body: string;
+  reportId: string | null;
+}): Update {
   const update: Update = {
     id: crypto.randomUUID(),
     body: input.body,
@@ -133,7 +137,12 @@ async function push(update: Update): Promise<void> {
 
   if (error || !isRow(data)) {
     dropLocally(update.id);
-    reportError(errorMessage(error, "No se pudo publicar la novedad. Revisa la conexión."));
+    reportError(
+      errorMessage(
+        error,
+        "No se pudo publicar la novedad. Revisa la conexión.",
+      ),
+    );
     return;
   }
 
@@ -160,7 +169,9 @@ export function removeUpdate(id: string): void {
     cache = sorted([...cache, previous]);
     reindex();
     emit();
-    reportError("Solo puedes borrar las novedades que publicaste en este navegador.");
+    reportError(
+      "Solo puedes borrar las novedades que publicaste en este navegador.",
+    );
   })();
 }
 
@@ -170,8 +181,7 @@ export async function loadUpdates(): Promise<void> {
     .from(TABLE)
     .select("*")
     .order("created_at", { ascending: false })
-    // Un feed de emergencia no necesita memoria infinita, y sí necesita abrir
-    // rápido en un celular con mala señal.
+
     .limit(200);
   if (error) throw error;
   cache = (data ?? []).filter(isRow).map(fromRow);

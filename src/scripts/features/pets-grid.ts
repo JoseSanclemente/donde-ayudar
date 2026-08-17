@@ -76,7 +76,6 @@ function buildSexChip(pet: Pet): HTMLSpanElement | null {
   return chip;
 }
 
-/** Los dos chips en el orden en que se leen, y sin huecos cuando falta el sexo. */
 function buildChips(pet: Pet): HTMLSpanElement[] {
   const sex = buildSexChip(pet);
   return sex ? [buildChip(pet), sex] : [buildChip(pet)];
@@ -153,20 +152,16 @@ function buildDetailPhoto(pet: Pet): HTMLDivElement {
     pet.photoUrl,
     "absolute inset-0 h-full w-full object-contain opacity-0 transition-opacity duration-300",
   );
-  // La ficha se abre porque alguien la tocó: la foto es lo que vino a ver y no
-  // hay nada más abajo que pueda entrar antes.
+
   photo.loading = "eager";
 
-  // Que falle también termina la espera. Una ruedita que gira para siempre dice
-  // «ya casi» de una foto que no va a llegar.
   const settle = () => {
     spinner.remove();
     photo.classList.replace("opacity-0", "opacity-100");
   };
   photo.addEventListener("load", settle);
   photo.addEventListener("error", () => spinner.remove());
-  // Una foto que ya está en caché puede completarse antes de que se escuche el
-  // `load`, y entonces el evento no vuelve a dispararse.
+
   if (photo.complete && photo.naturalWidth > 0) settle();
 
   frame.append(spinner, photo);
@@ -210,15 +205,17 @@ function openContact(url: string): void {
  * llega —sin conexión, la mascota retirada mientras se miraba— se queda como
  * está, que es lo que un botón que no puede cumplir tiene que hacer.
  */
-function buildPetCta(pet: Pet, eager: boolean, hover?: HTMLElement): HTMLElement {
+function buildPetCta(
+  pet: Pet,
+  eager: boolean,
+  hover?: HTMLElement,
+): HTMLElement {
   const known = getPetContact(pet.id);
   if (known) return buildContactCta(pet, known);
 
   const pending = buildPendingCta();
   let asked: Promise<PetContact | null> | null = null;
 
-  // Una sola petición por mascota por más veces que se pase el mouse: la
-  // promesa se guarda, no el hecho de haber preguntado.
   const resolve = () => (asked ??= fetchPetContact(pet.id));
 
   const settle = async (): Promise<HTMLAnchorElement | null> => {
@@ -233,9 +230,7 @@ function buildPetCta(pet: Pet, eager: boolean, hover?: HTMLElement): HTMLElement
   pending.addEventListener("click", () => {
     void settle().then((cta) => cta && openContact(cta.href));
   });
-  // La tarjeta entera y no solo el botón: el mouse llega al borde de arriba
-  // mucho antes que al botón del pie, y el de Instagram cambia de color al
-  // resolverse — que lo haga mientras se lee la foto y no bajo el dedo.
+
   (hover ?? pending).addEventListener("pointerenter", () => void settle());
 
   if (eager) void settle();
@@ -260,16 +255,12 @@ function petMessage(pet: Pet): string {
   return `Hola, escribo por la mascota ${pet.refCode} que vi en dondeayudar.com.co:\n${link}`;
 }
 
-/** La ficha del panel de abajo: la foto grande, cuándo apareció y a quién escribirle. */
 function buildDetail(pet: Pet): HTMLElement {
   const detail = document.createElement("div");
   detail.className = "space-y-3";
 
   detail.append(buildDetailPhoto(pet));
 
-  // Cuándo apareció va arriba y solo: es lo primero que decide si vale la pena
-  // escribir —un perro visto hace tres días ya no está donde lo vieron— y
-  // metido entre los chips se leía como un tercer chip descolorido.
   const when = document.createElement("p");
   when.className = "text-sm text-slate-500";
   paintTime(when, pet.createdAt, "Encontrada ");
@@ -279,8 +270,7 @@ function buildDetail(pet: Pet): HTMLElement {
   meta.append(...buildChips(pet));
 
   const place = buildPlace(pet);
-  // La ficha se abrió porque alguien tocó esta mascota: el contacto es lo que
-  // vino a buscar y no hay a qué esperar.
+
   const cta = buildPetCta(pet, true);
   detail.append(when, meta, ...(place ? [place] : []), cta);
   return detail;
@@ -295,27 +285,21 @@ function buildDetail(pet: Pet): HTMLElement {
 const CARD =
   "flex h-full w-full flex-col overflow-hidden rounded-xl border border-slate-200 bg-white text-left shadow-sm transition";
 
-/** Cuándo apareció y de qué clase es: el pie de la tarjeta, en los dos anchos. */
 function buildCardFooter(pet: Pet): HTMLDivElement {
   const footer = document.createElement("div");
-  // `flex-1` takes the slack of the stretched card, and `justify-between` keeps
-  // the time at the bottom of it: across a row of uneven cards the time lands at
-  // the same height in all of them.
+
   footer.className =
     "flex flex-1 flex-col items-start justify-between gap-4 p-3";
   const when = document.createElement("span");
   when.className = "text-xs text-slate-400";
   paintTime(when, pet.createdAt);
-  // Los chips van juntos en su propia caja: con `justify-between` sobre tres
-  // hijos el sexo se iría al centro, lejos de la clase de animal.
+
   const chips = document.createElement("div");
   chips.className = "flex flex-wrap items-center gap-1";
   chips.append(...buildChips(pet));
-  // The place sits against the chips and not loose between them and the time:
-  // the `gap-4` of the footer separates two blocks, and as a third child the
-  // name floated the same distance from everything.
+
   const head = document.createElement("div");
-  head.className = "flex flex-col items-start gap-1.5";
+  head.className = "flex flex-col items-start gap-4";
   const place = buildPlace(pet);
   head.append(chips, ...(place ? [place] : []));
   footer.append(head, when);
@@ -410,8 +394,7 @@ export function initPetsGrid(): PetsGrid {
       empty.textContent = "Cargando mascotas…";
       return;
     }
-    // Que las escondió el filtro y que no hay ninguna publicada no son lo
-    // mismo: lo primero se arregla tocando un chip, lo segundo no.
+
     empty.textContent =
       published > 0
         ? "Ninguna mascota coincide con el filtro."
@@ -435,7 +418,6 @@ export function initPetsGrid(): PetsGrid {
           fresh += 1;
         }
 
-        // Lo que `focusPet` busca en la cuadrícula ya pintada.
         item.dataset.petId = pet.id;
         item.append(isMobile() ? buildTapCard(pet) : buildOpenCard(pet));
         return item;
@@ -447,11 +429,9 @@ export function initPetsGrid(): PetsGrid {
 
   const scheduled = scheduleRender(render);
   onPets(scheduled);
-  // El estado del store no cambia la lista, pero sí lo que dice el párrafo
-  // cuando está vacía: «cargando» y «no hay» no son lo mismo.
+
   onPetsState(scheduled);
-  // Las dos tarjetas son marcado distinto, no una clase que se apague: cruzar el
-  // corte hay que rearmarlo.
+
   onBreakpointChange(scheduled);
 
   render();
@@ -459,10 +439,7 @@ export function initPetsGrid(): PetsGrid {
   return {
     setFilter(next) {
       filter = next;
-      // Cambiar el filtro rearma la cuadrícula entera, no le agrega una
-      // tarjeta: sin olvidar quién ya entró, las que sobreviven aparecerían
-      // secas al lado de las que no, y lo que se pierde es justamente la señal
-      // de que la lista contestó. Un dato que llega solo sigue animando solo.
+
       entered.clear();
       scheduled();
     },
@@ -476,10 +453,6 @@ export function initPetsGrid(): PetsGrid {
         return;
       }
 
-      // El repintado de la cuadrícula está encolado en un `requestAnimationFrame`
-      // (`scheduleRender`), así que la tarjeta de una mascota que acaba de
-      // llegar todavía no está en el DOM: esto va después de ese cuadro. Si el
-      // filtro la esconde no hay a dónde ir, y no se toca el filtro por eso.
       requestAnimationFrame(() => {
         const item = grid.querySelector<HTMLLIElement>(
           `[data-pet-id="${CSS.escape(pet.id)}"]`,

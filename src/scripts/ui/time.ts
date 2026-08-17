@@ -19,7 +19,9 @@ export function relativeTime(iso: string): string {
 export function relativeTimeExact(iso: string): string {
   const seconds = Math.round((Date.now() - new Date(iso).getTime()) / 1000);
   if (seconds < 60) {
-    const formatter = new Intl.RelativeTimeFormat("es-CO", { numeric: "always" });
+    const formatter = new Intl.RelativeTimeFormat("es-CO", {
+      numeric: "always",
+    });
     return formatter.format(-Math.max(seconds, 1), "second");
   }
   return relativeTime(iso);
@@ -71,7 +73,6 @@ export function isFresh(iso: string): boolean {
   return hoursSince(iso) < FRESH_HOURS;
 }
 
-/** La más reciente de varias fechas ISO. Ignora las vacías. */
 export function newestIso(...dates: Array<string | null | undefined>): string {
   let best = "";
   for (const date of dates) {
@@ -106,7 +107,6 @@ export function startTimeTicker(): void {
   }, 60_000);
 }
 
-/** Escribe la fecha en el elemento y lo deja marcado para el ticker. */
 export function paintTime(el: HTMLElement, iso: string, prefix = ""): void {
   el.dataset.time = iso;
   if (prefix) el.dataset.timePrefix = prefix;

@@ -27,9 +27,9 @@ export type VolunteerKind =
 
 export type VolunteerLabel = {
   label: string;
-  /** The chip on the roster card, and the marked chip in the filter. */
+
   chip: string;
-  /** What the notes field asks for once this trade is picked. */
+
   notesPlaceholder: string;
 };
 
@@ -65,7 +65,6 @@ export const VOLUNTEER_KINDS: Record<VolunteerKind, VolunteerLabel> = {
   },
 };
 
-/** What the form opens on, and what it goes back to after a signup. */
 export const DEFAULT_VOLUNTEER_KIND: VolunteerKind = "salud_mental";
 
 export const VOLUNTEER_KIND_IDS = Object.keys(
@@ -76,7 +75,6 @@ export function volunteerLabel(kind: VolunteerKind): VolunteerLabel {
   return VOLUNTEER_KINDS[kind] ?? VOLUNTEER_KINDS.otra;
 }
 
-/** The filter chip is the legend of the card chip: the same colour, both places. */
 export const VOLUNTEER_KIND_CHIPS: (ChipOption<VolunteerKind> &
   VolunteerLabel)[] = VOLUNTEER_KIND_IDS.map((id) => ({
   id,

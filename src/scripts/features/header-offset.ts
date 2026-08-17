@@ -13,8 +13,6 @@ export function initHeaderOffset(): void {
   const header = $<HTMLElement>("site-header");
 
   const publish = () => {
-    // `offsetHeight` y no `getBoundingClientRect()`: la entrada con GSAP deja un
-    // `translateY` sobre el header, y el rect lo incluye. La altura de layout no.
     document.documentElement.style.setProperty(
       "--header-h",
       `${header.offsetHeight}px`,

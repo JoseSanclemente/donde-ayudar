@@ -14,7 +14,7 @@ import { CATEGORIES, CHIP_OFF } from "@/scripts/resources";
 interface Props {
   prefix: string;
   label: string;
-  /** Marca el campo como opcional y pinta la ayuda debajo del título. */
+
   hint?: string;
 }
 
@@ -85,7 +85,6 @@ const { prefix, label, hint } = Astro.props;
 </div>
 
 <style>
-  /* Safari sigue pintando el triángulo nativo aunque `list-none` esté puesto. */
   summary::-webkit-details-marker {
     display: none;
   }

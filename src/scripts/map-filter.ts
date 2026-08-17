@@ -17,9 +17,9 @@ export type MarkerKind = "reporte" | "afectada" | CenterType;
 
 export type MapFilter = {
   kinds: Set<MarkerKind>;
-  /** Esconde los puntos que hoy van grises: inactivos o vencidos. */
+
   onlyActiveCenters: boolean;
-  /** Esconde los reportes que nadie confirma hace más de `STALE_HOURS`. */
+
   onlyRecentReports: boolean;
 };
 
@@ -35,7 +35,7 @@ export type MapFilter = {
 export type KindInfo = {
   id: MarkerKind;
   label: string;
-  /** Clase de la figura, gemela del marcador del mapa. */
+
   pin: string;
   /** El chip marcado, con el color de su marcador. Apagado lo pinta
    *  `ui/chip-group.ts`, que es de donde salen la forma y el gris. */
@@ -79,8 +79,7 @@ export const MARKER_KINDS: KindInfo[] = [
     pin: "filter-pin-healthcare",
     chipOn: "border-blue-300 bg-blue-50 text-blue-800",
   },
-  // El chip va más oscuro que el de «Reportes», que es el otro rojo: ahí las dos
-  // figuras miden lo mismo y el color del chip es lo que las separa.
+
   {
     id: "municipio",
     label: "Municipios que piden ayuda",
@@ -108,7 +107,6 @@ export const DEFAULT_MAP_FILTER: MapFilter = {
   onlyRecentReports: false,
 };
 
-/** Si el filtro sigue como salió de fábrica: el botón lo anuncia. */
 export function isDefaultFilter(filter: MapFilter): boolean {
   return (
     filter.kinds.size === MARKER_KINDS.length &&

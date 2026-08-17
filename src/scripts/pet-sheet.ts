@@ -13,16 +13,17 @@ import gsap from "gsap";
  * módulo no depende de nada más que del DOM.
  */
 
-const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const reduceMotion = window.matchMedia(
+  "(prefers-reduced-motion: reduce)",
+).matches;
 
-/** Un arrastre más corto que esto cuenta como tap, igual que en el otro sheet. */
 const TAP_SLOP = 6;
 
 let sheet: HTMLDivElement | null = null;
 let grab: HTMLDivElement | null = null;
 let body: HTMLDivElement | null = null;
 let scrim: HTMLDivElement | null = null;
-/** Desplazamiento que deja el panel completamente fuera de la pantalla. */
+
 let closedY = 0;
 
 function isOpen(): boolean {
@@ -31,7 +32,7 @@ function isOpen(): boolean {
 
 function measure(): void {
   if (!sheet) return;
-  // El extra cubre la sombra, que si no asoma por abajo.
+
   closedY = sheet.offsetHeight + 24;
 }
 
@@ -53,8 +54,7 @@ function paintScrim(open: boolean, animate: boolean): void {
     opacity: 0,
     duration: 0.3,
     ease: "power3.out",
-    // Esconderlo antes de que termine el fundido lo dejaría parpadeando; y si
-    // mientras tanto se volvió a abrir, no hay que tocarlo.
+
     onComplete: () => {
       if (!isOpen() && scrim) scrim.hidden = true;
     },
@@ -65,8 +65,7 @@ function moveTo(open: boolean, animate = true): void {
   if (!sheet) return;
   sheet.dataset.state = open ? "open" : "closed";
   paintScrim(open, animate);
-  // Al cerrar manda el alto: si el contenido cambió, el `closedY` de la última
-  // medición se queda corto y el panel no sale del todo.
+
   if (!open) measure();
   const y = open ? 0 : closedY;
   if (!animate || reduceMotion) {
@@ -85,7 +84,6 @@ function moveTo(open: boolean, animate = true): void {
   });
 }
 
-/** Cambia el contenido y sube el panel. La foto anterior se suelta acá. */
 export function openPetSheet(content: HTMLElement): void {
   if (!sheet || !body) return;
   body.replaceChildren(content);
@@ -113,7 +111,6 @@ function initDrag(): void {
   let moved = 0;
 
   handle.addEventListener("pointerdown", (event: PointerEvent) => {
-    // La ✕ se maneja con su propio click.
     if ((event.target as HTMLElement).closest("button")) return;
 
     dragging = true;
@@ -132,14 +129,13 @@ function initDrag(): void {
     moved = Math.max(moved, Math.abs(delta));
 
     const dt = event.timeStamp - lastTime;
-    if (dt > 0) velocity = (event.clientY - lastY) / dt; // px/ms, + hacia abajo
+    if (dt > 0) velocity = (event.clientY - lastY) / dt;
     lastY = event.clientY;
     lastTime = event.timeStamp;
 
     const y = Math.min(closedY, Math.max(0, startTranslate + delta));
     gsap.set(panel, { y });
-    // El scrim sigue al dedo: si no, el arrastre no se sentiría como si
-    // estuviera cerrando algo.
+
     if (scrim && !scrim.hidden) gsap.set(scrim, { opacity: 1 - y / closedY });
   });
 
@@ -150,13 +146,11 @@ function initDrag(): void {
       handle.releasePointerCapture(event.pointerId);
     }
 
-    // Tap en el asa: cierra, igual que la ✕.
     if (moved < TAP_SLOP) {
       closePetSheet();
       return;
     }
 
-    // Un flick rápido gana sobre la posición; si no, manda la mitad.
     if (Math.abs(velocity) > 0.5) {
       moveTo(velocity < 0);
       return;
@@ -178,14 +172,15 @@ export function initPetSheet(): void {
   scrim = document.getElementById("pet-sheet-scrim") as HTMLDivElement | null;
 
   scrim?.addEventListener("click", closePetSheet);
-  document.getElementById("pet-sheet-close")?.addEventListener("click", closePetSheet);
+  document
+    .getElementById("pet-sheet-close")
+    ?.addEventListener("click", closePetSheet);
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") closePetSheet();
   });
 
   initDrag();
 
-  // El alto cambia con la foto de cada mascota, que llega después de abrir.
   new ResizeObserver(() => {
     if (gsap.isTweening(sheet as HTMLDivElement)) return;
     measure();

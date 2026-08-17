@@ -16,9 +16,9 @@ import { confirmClose } from "../ui/status-select";
  */
 export function initMarkerActions(): void {
   document.addEventListener("change", (event) => {
-    const select = (event.target as HTMLElement | null)?.closest<HTMLSelectElement>(
-      "[data-status-select]",
-    );
+    const select = (
+      event.target as HTMLElement | null
+    )?.closest<HTMLSelectElement>("[data-status-select]");
     if (!select) return;
 
     const next = select.value;
@@ -36,9 +36,9 @@ export function initMarkerActions(): void {
   });
 
   document.addEventListener("click", (event) => {
-    const chip = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>(
-      "[data-cover-resource]",
-    );
+    const chip = (
+      event.target as HTMLElement | null
+    )?.closest<HTMLButtonElement>("[data-cover-resource]");
     if (!chip) return;
 
     const resource = chip.dataset.coverResource;
@@ -47,45 +47,34 @@ export function initMarkerActions(): void {
     const ids = (chip.dataset.reportIds ?? "").split(",").filter(Boolean);
     if (ids.length === 0) return;
 
-    // No `confirm()`: whoever is standing at the point is who knows the water
-    // arrived, and the same chip takes it back. The list chip does not ask
-    // either, and it is the same action.
     setResourceCovered(ids, resource, chip.dataset.covered !== "true");
   });
 
   document.addEventListener("click", (event) => {
-    const button = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>(
-      "[data-delete-center]",
-    );
+    const button = (
+      event.target as HTMLElement | null
+    )?.closest<HTMLButtonElement>("[data-delete-center]");
     if (!button) return;
 
     const id = button.dataset.deleteCenter;
     if (!id) return;
 
-    // A point cannot be edited after publishing, so deleting it is the only
-    // correction there is and it does not come back. Same native `confirm` as
-    // closing a point — the other action that changes the map for everybody.
     const name = button.dataset.pointName ?? "este punto";
-    if (!confirm(`¿Eliminar «${name}» del mapa? Deja de verlo todo el mundo.`)) return;
+    if (!confirm(`¿Eliminar «${name}» del mapa? Deja de verlo todo el mundo.`))
+      return;
 
-    // The open detail closes on its own: repainting the layer without this
-    // point makes `setCenters` drop the selected marker, and `marker-sheet`
-    // answers.
     removeCenter(id);
   });
 
   document.addEventListener("click", (event) => {
-    const button = (event.target as HTMLElement | null)?.closest<HTMLButtonElement>(
-      "[data-confirm-center]",
-    );
+    const button = (
+      event.target as HTMLElement | null
+    )?.closest<HTMLButtonElement>("[data-confirm-center]");
     if (!button) return;
 
     const id = button.dataset.confirmCenter;
     if (!id) return;
 
-    // No `confirm()`, the other way round from deleting: this takes nothing
-    // away from anybody and time undoes it on its own. Asking twice for
-    // something that expires in a day is what stops people from touching it.
     confirmCenter(id);
   });
 }

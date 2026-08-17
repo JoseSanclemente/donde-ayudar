@@ -13,9 +13,10 @@ function mount(): boolean {
   if (bar) return true;
   bar = document.getElementById("pick-hint") as HTMLDivElement | null;
   if (!bar) return false;
-  cancelButton = document.getElementById("pick-hint-cancel") as HTMLButtonElement | null;
-  // Attached once: the callback changes with every `showPickHint`, the listener
-  // does not.
+  cancelButton = document.getElementById(
+    "pick-hint-cancel",
+  ) as HTMLButtonElement | null;
+
   cancelButton?.addEventListener("click", () => onCancelClick?.());
   return true;
 }

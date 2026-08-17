@@ -10,9 +10,7 @@
 import { chipClass, COVERED_CHIP } from "../resources";
 import { escapeHtml } from "./html";
 
-/** The shape of the chip; the colour comes from `resources.ts`. */
-export const CHIP_SHAPE =
-  "rounded-full border px-2 py-0.5 text-sm font-medium";
+export const CHIP_SHAPE = "rounded-full border px-2 py-0.5 text-sm font-medium";
 
 export function chipStyle(resource: string, covered: boolean): string {
   return `${CHIP_SHAPE} ${covered ? COVERED_CHIP : chipClass(resource)}`;
@@ -22,7 +20,6 @@ export function chipLabel(resource: string, covered: boolean): string {
   return covered ? `✓ ${resource}` : resource;
 }
 
-/** What the chip toggles, and on which reports: the scope of the toggle. */
 export type ChipResource = {
   name: string;
   covered: boolean;
@@ -44,12 +41,7 @@ function chipParts(resource: ChipResource): ChipParts {
     action: resource.covered
       ? `Volver a marcar ${resource.name} como necesario`
       : `Marcar ${resource.name} como cubierto`,
-    // Ids are uuids, so a comma separates them without ambiguity — the same
-    // format `data-report-ids` already uses on the status select. Only the
-    // string shape carries them: it has no node to hang a listener on, so a
-    // feature has to read the scope back off the DOM. The element shape does
-    // not, and must not — its chips live under the same `document` as the
-    // popup's, and a shared attribute would fire both handlers on one click.
+
     ids: resource.reportIds.join(","),
     covered: String(resource.covered),
   };

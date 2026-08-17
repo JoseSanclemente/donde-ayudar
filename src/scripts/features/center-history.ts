@@ -32,7 +32,7 @@ const PAGE = 6;
 
 type Item = {
   center: Center;
-  /** `null` when we do not know where whoever is looking stands. */
+
   distanceM: number | null;
 };
 
@@ -67,7 +67,9 @@ function pickItems(): Item[] {
 }
 
 function formatDistance(meters: number): string {
-  return meters < 1000 ? `a ${Math.round(meters)} m` : `a ${(meters / 1000).toFixed(1)} km`;
+  return meters < 1000
+    ? `a ${Math.round(meters)} m`
+    : `a ${(meters / 1000).toFixed(1)} km`;
 }
 
 export function initCenterHistory(): void {
@@ -76,14 +78,11 @@ export function initCenterHistory(): void {
   const list = $<HTMLUListElement>("center-history-list");
   const more = $<HTMLButtonElement>("center-history-more");
 
-  /** How many cards are unfolded right now. Grows by taps, never shrinks. */
   let shown = PAGE;
 
   function buildItem({ center, distanceM }: Item): HTMLLIElement {
     const item = document.createElement("li");
 
-    // The whole card is the button: on a phone, held in one hand and in the
-    // rain, the target has to be the card and not a line of text inside it.
     const card = document.createElement("button");
     card.type = "button";
     card.className =
@@ -101,10 +100,9 @@ export function initCenterHistory(): void {
     card.append(address);
 
     const meta = document.createElement("p");
-    meta.className = "mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-slate-400";
+    meta.className =
+      "mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-slate-400";
 
-    // The publication date and not the last confirmation: it is what the list is
-    // sorted by, and an order nobody can read is not an order.
     const time = document.createElement("span");
     paintTime(time, center.createdAt, "Registrado ");
     meta.append(time);
@@ -115,8 +113,6 @@ export function initCenterHistory(): void {
       meta.append(distance);
     }
 
-    // Every point on this list is expired by construction, so the badge is fixed:
-    // whoever taps has to know the map is showing that square grey.
     const badge = document.createElement("span");
     badge.className = "font-medium text-amber-600";
     badge.textContent = "sin confirmar hace más de un día";
@@ -136,8 +132,7 @@ export function initCenterHistory(): void {
         contactInstagram: center.contactInstagram,
         notes: center.notes,
       });
-      // The place chosen, the list has nothing left to say and the filled form
-      // is what has to be seen.
+
       section.open = false;
     });
 
@@ -148,8 +143,6 @@ export function initCenterHistory(): void {
     const items = pickItems();
     list.replaceChildren(...items.slice(0, shown).map(buildItem));
 
-    // The count is the whole list and not what is unfolded: the header is what
-    // says whether it is worth opening.
     count.textContent = items.length > 0 ? String(items.length) : "";
     section.hidden = items.length === 0;
 

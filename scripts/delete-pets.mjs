@@ -29,7 +29,9 @@ function fail(message) {
 function required(name) {
   const value = process.env[name];
   if (!value) {
-    fail(`Falta ${name}. Ponelo en .env (sin commitear) y corré con --env-file=.env.`);
+    fail(
+      `Falta ${name}. Ponelo en .env (sin commitear) y corré con --env-file=.env.`,
+    );
   }
   return value;
 }
@@ -37,7 +39,8 @@ function required(name) {
 const args = process.argv.slice(2);
 const apply = args.includes("--apply");
 const place = args.find((arg) => arg !== "--apply");
-if (!place) fail('Falta el lugar. Ejemplo: node scripts/delete-pets.mjs "Royi Pets"');
+if (!place)
+  fail('Falta el lugar. Ejemplo: node scripts/delete-pets.mjs "Royi Pets"');
 
 const admin = createClient(
   required("PUBLIC_SUPABASE_URL"),
@@ -54,8 +57,6 @@ if (error) fail(error.message);
 console.log(`${pets.length} mascotas publicadas en «${place}».`);
 if (pets.length === 0) process.exit(0);
 
-// Sin `--apply` no se toca nada: el nombre del lugar se escribe a mano y un
-// error de tipeo que no coincide con nada es más barato que uno que sí.
 if (!apply) {
   console.log("Prueba en seco. Corré de nuevo con --apply para retirarlas.");
   process.exit(0);
@@ -64,7 +65,10 @@ if (!apply) {
 const deleted = await admin
   .from(TABLE)
   .delete()
-  .in("id", pets.map((pet) => pet.id));
+  .in(
+    "id",
+    pets.map((pet) => pet.id),
+  );
 if (deleted.error) fail(deleted.error.message);
 console.log(`✓ ${pets.length} filas retiradas.`);
 

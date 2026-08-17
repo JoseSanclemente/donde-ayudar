@@ -17,7 +17,6 @@ import { loadPets, setPetsState } from "./pets";
  * entera por delante de la primera foto.
  */
 
-/** Dos relecturas seguidas no aportan nada y sí gastan datos del celular. */
 const THROTTLE_MS = 30_000;
 
 let lastSyncAt = 0;
@@ -32,8 +31,10 @@ async function resync(force: boolean): Promise<void> {
     lastSyncAt = Date.now();
     setPetsState("ready");
   } catch {
-    // La caché anterior sigue en pie: se avisa que está vieja, no se borra.
-    setPetsState("error", "No se pudieron cargar las mascotas. Revisa la conexión.");
+    setPetsState(
+      "error",
+      "No se pudieron cargar las mascotas. Revisa la conexión.",
+    );
   } finally {
     inFlight = false;
   }
@@ -47,12 +48,9 @@ export async function initPetsData(): Promise<void> {
   setPetsState("loading");
   await resync(true);
 
-  // Antes de `startLive()`: el canal se suscribe de inmediato, y realtime no
-  // reenvía lo que pasó mientras el socket estuvo caído.
   onReconnect(() => void resync(true));
   startLive();
 
-  // Vuelve la pestaña al frente: pudo dormir horas.
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") void resync(false);
   });

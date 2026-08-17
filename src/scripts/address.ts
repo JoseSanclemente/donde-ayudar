@@ -11,15 +11,13 @@
  * calcular el punto.
  */
 
-/** Nombres tal y como los escribe OSM: "Calle 8B", "Avenida 3 Bis Norte". */
 export type CaliAddress = {
-  /** Candidatos para la vía principal, el más probable primero. */
   via: string[];
-  /** Candidatos para la vía que cruza. Vacío si la dirección no trae placa. */
+
   cross: string[];
-  /** Metros desde la esquina. `null` si no venían en la dirección. */
+
   placa: number | null;
-  /** Forma canónica para mostrar: "Calle 8B # 45-17". */
+
   label: string;
   /**
    * Lo que quedó sin leer después de la vía y la placa, ya normalizado. Casi
@@ -43,7 +41,6 @@ const ABBREVIATIONS: Array<[RegExp, string]> = [
   [/\b(autop)\b/g, "autopista"],
 ];
 
-/** Ruido que la gente arrastra al final y que no ayuda a ubicar. */
 const NOISE =
   /\b(barrio|b\/|apto|apartamento|torre|bloque|casa|interior|int|piso|conjunto|urbanizacion|urbanización|edificio|cali|valle del cauca|colombia)\b.*$/;
 
@@ -90,10 +87,9 @@ const titleCase = (value: string) =>
 
 function normalize(input: string): string {
   let value = input.toLowerCase();
-  // "Cra." y "Cra" son la misma vía: el punto solo estorba al matcher.
+
   value = value.replace(/[.,]/g, " ");
-  // "No. 45-17" es la almohadilla escrita en letra. El lookahead es lo que
-  // evita que se coma el "no" de "norte".
+
   value = value.replace(/\bn(o|ro)\b\s*(?=[\d#])/g, "#");
   for (const [pattern, replacement] of ABBREVIATIONS) {
     value = value.replace(pattern, replacement);
@@ -109,14 +105,12 @@ function buildName(
   bis: boolean,
   cardinal: string,
 ): string {
-  // OSM Colombia: letra pegada al número y en mayúscula, Bis antes del cardinal.
   const parts = [type, ` ${number}${letter.toUpperCase()}`];
   if (bis) parts.push(" Bis");
   if (cardinal) parts.push(` ${cardinal}`);
   return parts.join("");
 }
 
-/** Une los candidatos sin repetir y conservando el orden de preferencia. */
 const unique = (values: string[]) => [...new Set(values.filter(Boolean))];
 
 type Token = { number: string; letter: string; bis: boolean; cardinal: string };
@@ -125,12 +119,18 @@ type Token = { number: string; letter: string; bis: boolean; cardinal: string };
  * Todas las formas en que ese tramo puede estar escrito en OSM, de la más
  * literal a la más laxa. Resuelve la primera que exista en el índice.
  */
-function candidates(types: string[], token: Token, inherited: string): string[] {
+function candidates(
+  types: string[],
+  token: Token,
+  inherited: string,
+): string[] {
   const names: string[] = [];
 
   for (const type of types) {
     const cardinal = token.cardinal || inherited;
-    names.push(buildName(type, token.number, token.letter, token.bis, cardinal));
+    names.push(
+      buildName(type, token.number, token.letter, token.bis, cardinal),
+    );
     // "6N" es ambiguo: puede ser la letra N o el cardinal ("Avenida 6 Norte").
     const asCardinal = CARDINALS[token.letter.toLowerCase()];
     if (asCardinal) {
@@ -155,7 +155,6 @@ function candidates(types: string[], token: Token, inherited: string): string[] 
   return unique(names);
 }
 
-/** Una letra suelta: "8b" sí, la "o" de "oeste" no. */
 const LETTER = "([a-z](?![a-z]))?";
 const CARDINAL = "(norte|sur|este|oeste)?";
 
@@ -178,7 +177,9 @@ const PLACA_PATTERN = new RegExp(
 );
 
 /** Sin almohadilla: "Calle 8B 45-17". El guion es lo único que lo delata. */
-const BARE_PLACA_PATTERN = new RegExp(`^\\s*(\\d+)\\s*${LETTER}\\s*[-–]\\s*(\\d+)`);
+const BARE_PLACA_PATTERN = new RegExp(
+  `^\\s*(\\d+)\\s*${LETTER}\\s*[-–]\\s*(\\d+)`,
+);
 
 /** Solo el cruce, sin metros: "Calle 6A # 31" ubica la esquina y nada más. */
 const CORNER_PATTERN = new RegExp(
@@ -193,7 +194,12 @@ function parsePlaca(rest: string): Placa | null {
   if (full) {
     const [, number, letter, bis, cardinal, metres] = full;
     return {
-      token: { number, letter: letter ?? "", bis: Boolean(bis), cardinal: cardinal ? CARDINALS[cardinal] : "" },
+      token: {
+        number,
+        letter: letter ?? "",
+        bis: Boolean(bis),
+        cardinal: cardinal ? CARDINALS[cardinal] : "",
+      },
       metres: Number(metres),
       end: full.index + full[0].length,
     };
@@ -213,7 +219,12 @@ function parsePlaca(rest: string): Placa | null {
   if (corner) {
     const [, number, letter, bis, cardinal] = corner;
     return {
-      token: { number, letter: letter ?? "", bis: Boolean(bis), cardinal: cardinal ? CARDINALS[cardinal] : "" },
+      token: {
+        number,
+        letter: letter ?? "",
+        bis: Boolean(bis),
+        cardinal: cardinal ? CARDINALS[cardinal] : "",
+      },
       metres: 0,
       end: corner.index + corner[0].length,
     };
@@ -227,7 +238,8 @@ function parsePlaca(rest: string): Placa | null {
  * esquina —"Calle 5 con Carrera 100"— no lleva placa, así que el cruce entero
  * cae en `rest` y hay que descontarlo antes de mirar si quedó un municipio.
  */
-const CONNECTORS = /\b(con|esquina|esq|cruce|entre|y|sector|via|vía|frente|al?)\b/g;
+const CONNECTORS =
+  /\b(con|esquina|esq|cruce|entre|y|sector|via|vía|frente|al?)\b/g;
 
 /**
  * Una palabra de tres letras o más entre lo que sobró. El umbral es lo que
@@ -294,6 +306,9 @@ export function parseAddress(input: string): CaliAddress | null {
     cross: candidates(crossTypes, token, cardinal),
     placa: metres,
     label: `${viaName} # ${token.number}${token.letter.toUpperCase()}-${metres}`,
-    rest: tail.slice(end).replace(/^[\s,-]+/, "").trim(),
+    rest: tail
+      .slice(end)
+      .replace(/^[\s,-]+/, "")
+      .trim(),
   };
 }

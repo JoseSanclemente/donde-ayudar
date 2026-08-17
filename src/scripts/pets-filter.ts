@@ -52,7 +52,6 @@ export function petSexLabel(sex: PetSexFilter): PetLabel {
   return sex === "unknown" ? UNKNOWN_SEX : PET_SEXES[sex];
 }
 
-/** The filter chip is the legend of the card chip: the same colour, both rows. */
 export const PET_KIND_CHIPS: (ChipOption<PetKind> & PetLabel)[] = (
   Object.keys(PET_KINDS) as PetKind[]
 ).map((id) => ({ id, ...PET_KINDS[id], chipOn: PET_KINDS[id].chip }));
@@ -74,7 +73,6 @@ export const PET_SEX_CHIPS: (ChipOption<PetSexFilter> & PetLabel)[] = (
  */
 export const NO_PLACE = "__none__";
 
-/** `null` is every place, which is what the select opens on. */
 export type PetPlaceFilter = string | null;
 
 export type PetPlaceOption = { id: string; label: string };
@@ -113,18 +111,16 @@ export function petPlaceOptions(pets: Pet[]): PetPlaceOption[] {
 export type PetsFilter = {
   kinds: Set<PetKind>;
   sexes: Set<PetSexFilter>;
-  /** One place or every place, never a set: see `petPlaceOptions`. */
+
   place: PetPlaceFilter;
 };
 
-/** The grid opens on everything, with nothing asked for. */
 export const DEFAULT_PETS_FILTER: PetsFilter = {
   kinds: new Set(),
   sexes: new Set(),
   place: null,
 };
 
-/** If nothing is being asked for: the button says so. */
 export function isDefaultPetsFilter(filter: PetsFilter): boolean {
   return (
     filter.kinds.size === 0 && filter.sexes.size === 0 && filter.place === null

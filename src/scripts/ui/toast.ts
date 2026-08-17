@@ -1,4 +1,3 @@
-/** Aviso efímero para fallos de escritura — la lista ya volvió a su estado real. */
 export function showToast(message: string): void {
   const toast = document.createElement("p");
   toast.setAttribute("role", "status");

@@ -11,7 +11,6 @@
  */
 import { mkdir, writeFile } from "node:fs/promises";
 
-/** El WebSocket de realtime va al mismo host que el REST, en `wss:`. */
 function supabaseOrigins(rawUrl) {
   const url = new URL(rawUrl);
   return [`https://${url.host}`, `wss://${url.host}`];
@@ -26,25 +25,17 @@ function csp(supabaseUrl) {
     "frame-ancestors 'none'",
     "form-action 'self'",
     "script-src 'self'",
-    // Leaflet y GSAP posicionan y animan escribiendo en `element.style`.
+
     "style-src 'self' 'unsafe-inline'",
     "font-src 'self'",
-    // Supabase entra acá además de en `connect-src`: las fotos de las mascotas
-    // se sirven del bucket público, que va por el mismo host que el REST. Sin
-    // esto el navegador las bloquea en producción y el build no dice nada.
-    // `blob:` es la foto recién elegida: la ficha se dibuja con el archivo local
-    // mientras la fila viaja.
+
     `img-src 'self' data: blob: ${rest} https://*.basemaps.cartocdn.com`,
-    // Los tres destinos que el sitio necesita y nada más: Supabase (REST y el
-    // WebSocket de realtime), y Nominatim para buscar direcciones. Las teselas
-    // de CARTO no entran acá: van por `img-src`.
+
     `connect-src 'self' ${rest} ${realtime} https://nominatim.openstreetmap.org`,
   ].join("; ");
 }
 
 function headersFile(supabaseUrl) {
-  // Los comentarios van todos acá arriba, en la columna 0: dentro del bloque,
-  // una línea más con sangría es lo mismo que una cabecera para el parser.
   return `# Generado por scripts/headers.mjs en cada build — no editar a mano.
 #
 # Referrer-Policy: Nominatim recibe cada dirección que alguien escribe; que no
@@ -79,15 +70,11 @@ function headersFile(supabaseUrl) {
 `;
 }
 
-/** `supabaseUrl` lo lee `astro.config.mjs` del entorno, con Vite. */
 export function headers(supabaseUrl) {
   return {
     name: "headers",
     hooks: {
       "astro:build:done": async ({ dir, logger }) => {
-        // Sin la variable no se puede escribir la CSP, y publicar sin CSP —o con
-        // una que no deje hablar con la base— es peor que no publicar: falla acá,
-        // donde se ve.
         if (!supabaseUrl) {
           throw new Error(
             "Falta PUBLIC_SUPABASE_URL: sin ella no se puede generar la CSP de dist/_headers.",

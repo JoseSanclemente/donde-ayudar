@@ -40,19 +40,15 @@ const reduceMotion = window.matchMedia(
   "(prefers-reduced-motion: reduce)",
 ).matches;
 
-/** Grupos del último render: quién comparte punto con quién, al borrar. */
 let lastGroups: ReportGroup[] = [];
 
 let storeState: StoreState = "loading";
 let storeMessage: string | null = null;
 
-/** `null` = todos; `"urgente"` = solo urgentes; `"abiertos"` = sin llenos ni cerrados. */
 let listFilter: string | null = DEFAULT_LIST_FILTER;
 
-/** Whether the visitor picked a filter: the fallback below never overrides one. */
 let filterChosen = false;
 
-/** La novedad más reciente de la zona, sin importar de qué reporte cuelgue. */
 function groupLastUpdate(
   group: ReportGroup,
 ): { body: string; createdAt: string } | null {
@@ -73,14 +69,10 @@ export function initReportList(): void {
   const filterRow = $<HTMLDivElement>("report-filter");
   const emptyState = $<HTMLParagraphElement>("empty-state");
 
-  /** Chips de la zona: cada uno alterna «cubierto» en todos los que lo piden. */
   function buildGroupChips(group: ReportGroup): HTMLDivElement {
     const chips = document.createElement("div");
     chips.className = "mt-2 flex flex-wrap gap-1";
 
-    // Reportar no exige insumos —la dirección es lo único obligatorio—, así que
-    // la fila puede quedar vacía. La línea ocupa su lugar: el hueco solo se leía
-    // como una tarjeta rota.
     if (group.resources.length === 0) {
       const empty = document.createElement("p");
       empty.className = "text-sm text-slate-500";
@@ -193,7 +185,6 @@ export function initReportList(): void {
         continue;
       }
 
-      // El aire entre CTAs lo pone el `gap` del contenedor: acá no va margen.
       box.append(buildContactCta(name, report.contactPhone));
     }
     return box;
@@ -214,17 +205,11 @@ export function initReportList(): void {
     const item = document.createElement("li");
     item.dataset.groupKey = group.key;
     item.dataset.leadId = group.lead.id;
-    // Mismo guardia que el mapa: un reporte sin insumos tiene cero pendientes
-    // sin haber cubierto nada, y pintarlo verde diría que la zona ya está
-    // resuelta cuando lo único que pasa es que nadie ha dicho qué falta.
+
     const resolved = group.resources.length > 0 && group.pending === 0;
-    // Un punto cerrado se apaga: sigue en la lista —quien lo vio ayer merece
-    // saber que ya no recibe— pero deja de competir por la atención con los que
-    // sí necesitan gente. Solo «cerrado»: un saturado vuelve a recibir en un
-    // rato, un cerrado no.
+
     const dim = group.status === "cerrado" ? " opacity-60" : "";
-    // Un punto cubierto se pinta verde pase lo que pase — que ya no falta nada
-    // pesa más que cómo esté el sitio. Si falta algo, el color lo pone el estado.
+
     item.className = resolved
       ? `rounded-xl flex flex-col gap-3 border border-emerald-200 bg-emerald-50/40 px-3 py-4${dim}`
       : `rounded-xl flex flex-col gap-3 border px-3 py-4 ${statusInfo(group.status).card}${dim}`;
@@ -232,9 +217,6 @@ export function initReportList(): void {
     const head = document.createElement("div");
     head.className = "flex items-start justify-between gap-2";
 
-    // El nombre del lugar va encima de la dirección y más pequeño, igual que en
-    // el popup. Los dos van en la misma columna: `head` es una fila con las
-    // insignias a la derecha, y colgarlo de ahí lo mandaría a competir con ellas.
     const titles = document.createElement("div");
     if (group.lead.placeName) {
       const place = document.createElement("p");
@@ -270,8 +252,6 @@ export function initReportList(): void {
 
     head.append(badges);
 
-    // The status select gets its own row above the title: on a long address the
-    // title wrapped around it and the select ended up floating mid-card.
     const statusRow = document.createElement("div");
     statusRow.className = "flex justify-end";
     statusRow.append(buildStatusChip(group));
@@ -279,9 +259,6 @@ export function initReportList(): void {
     const meta = document.createElement("div");
     meta.className = "mt-2 flex items-center justify-between gap-2";
 
-    // `latestAt` ya trae la novedad más reciente de la zona: la mezcla la hace
-    // `groupReports` con `reportFreshAt`, que es la misma que decide si el punto
-    // sigue en el mapa. La tarjeta y el pin no pueden discrepar.
     const freshAt = group.latestAt;
     const stale = isStale(freshAt);
     const time = document.createElement("span");
@@ -308,8 +285,6 @@ export function initReportList(): void {
 
     item.append(statusRow, head, buildGroupChips(group));
 
-    // La última novedad va antes que la nota del reporte: es lo que alguien vio
-    // en la calle más recientemente, y suele contradecir lo de arriba.
     const last = groupLastUpdate(group);
     if (last) {
       const line = document.createElement("p");
@@ -325,14 +300,8 @@ export function initReportList(): void {
     if (contacts) item.append(contacts);
     item.append(meta);
 
-    // La tarjeta del grupo es la fila del reporte principal, así deleteReport la
-    // anima; los demás reportes del punto ya no tienen fila propia.
     item.dataset.id = group.lead.id;
 
-    // Sin sublista, este es el único sitio donde alguien puede borrar lo suyo, y
-    // en un punto compartido lo suyo no tiene por qué ser el reporte principal.
-    // Solo el autor puede borrar (policy de RLS): mostrarle el botón a los demás
-    // sería ofrecer una acción que el servidor va a rechazar.
     for (const report of group.reports) {
       if (isMine(report)) actions.append(buildDeleteButton(report.id));
     }
@@ -341,11 +310,8 @@ export function initReportList(): void {
     return item;
   }
 
-  /** Lo que el mapa necesita de cada punto. Reconciliar es cosa de `map.ts`. */
   function markerEntries(groups: ReportGroup[]): MarkerEntry[] {
     return groups.map((group) => {
-      // La frescura es la de la zona, la misma que pinta la tarjeta: si no, el
-      // popup y la lista se contradicen sobre el mismo punto.
       const freshAt = group.latestAt;
       return {
         group,
@@ -358,8 +324,6 @@ export function initReportList(): void {
     });
   }
 
-  // Mientras los reportes vienen en camino no se puede decir «no hay reportes»:
-  // sería mentira, y sobre una emergencia es una mentira cara.
   function paintEmptyState(shown: number, total: number) {
     if (shown > 0 && storeState !== "error") {
       emptyState.classList.add("hidden");
@@ -377,7 +341,7 @@ export function initReportList(): void {
       emptyState.textContent = "Cargando reportes…";
       return;
     }
-    // Con el filtro puesto, «no hay reportes» sería falso: los hay, pero otros.
+
     emptyState.textContent =
       total > 0
         ? "Ningún punto coincide con ese filtro."
@@ -387,10 +351,7 @@ export function initReportList(): void {
   function deleteReport(id: string) {
     const key = markerKeyForReport(id);
     const group = lastGroups.find((g) => g.key === key);
-    // Deleting one report out of a shared point does not delete the point: the
-    // marker stays for whoever is still there, so animating it away would leave
-    // an invisible pin behind. Only the last report of a point takes it with it,
-    // and the re-render after `removeReport` is what actually detaches it.
+
     const alone = !group || group.reports.length === 1;
     const item = reportList.querySelector<HTMLLIElement>(`[data-id="${id}"]`);
     const finish = () => removeReport(id);
@@ -450,9 +411,6 @@ export function initReportList(): void {
     const groups = groupReports(reports, reportFreshAt);
     lastGroups = groups;
 
-    // La lista abre en «Urgentes», pero un filtro que no deja nada a la vista
-    // esconde la ciudad entera: sin urgentes, cae a «Todos». Sólo mientras
-    // nadie haya tocado los chips —después, el filtro es de quien lo eligió.
     if (
       !filterChosen &&
       listFilter === DEFAULT_LIST_FILTER &&
@@ -466,37 +424,29 @@ export function initReportList(): void {
     const shown = groups.filter(matchesFilter);
     reportList.replaceChildren(...shown.map(buildGroupItem));
 
-    // Lo único que se resume arriba son los urgentes. El resto de cifras se
-    // contradecían entre sí —una contaba reportes y otra puntos— y «saturados»
-    // metía en el mismo saco a los cerrados, que no es lo mismo.
     const urgentes = groups.filter((g) => g.status === "urgente").length;
     reportUrgent.textContent = `${urgentes} urgente${urgentes === 1 ? "" : "s"}`;
     reportUrgent.classList.toggle("hidden", urgentes === 0);
-    // Collapsed, the header is all there is to see: without the number it would
-    // not say whether one zone was reported or forty.
+
     reportCount.textContent = String(groups.length);
 
     paintEmptyState(shown.length, groups.length);
-    // Sobre todos los grupos, no sobre `shown`: el filtro de la lista nunca ha
-    // escondido marcadores.
+
     syncReportMarkers(markerEntries(groups));
   }
 
   const scheduled = scheduleRender(render);
 
   onChange(scheduled);
-  // Una novedad cambia la frescura de un punto y la línea que se ve en la
-  // tarjeta, aunque el reporte en sí no se haya tocado.
+
   onUpdates(scheduled);
   onState((state, message) => {
     storeState = state;
     storeMessage = message;
-    // Los reportes ajenos cambian quién puede borrar qué: hay que repintar.
+
     scheduled();
   });
 
-  // The card of the list is `report-card`, not `report-panel-card`: it is the
-  // one that predates the shared shell.
   initAccordion("report", "report-card");
 
   paintFilterChips();

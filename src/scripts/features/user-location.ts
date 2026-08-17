@@ -35,7 +35,6 @@ function remember(next: Coords): void {
   setUserMarker(next.lat, next.lng);
 }
 
-/** Segundo intento, ya con alguien esperando la respuesta. */
 function locateAndFly(): void {
   if (inFlight) return;
   inFlight = true;
@@ -69,14 +68,12 @@ export function initUserLocation(onLocate?: () => void): void {
   });
 
   const button = $("locate-me");
-  // Debajo del zoom, en la misma esquina y con la misma alineación: los tres
-  // botones son un solo grupo.
+
   mountControl(button);
 
   button.addEventListener("click", () => {
     onLocate?.();
-    // Sin posición todavía: el permiso pudo negarse, vencerse o seguir abierto.
-    // Un navegador que ya lo tiene contesta de una; uno que lo negó, también.
+
     if (coords) flyToUser();
     else locateAndFly();
   });

@@ -21,10 +21,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { registerHooks } from "node:module";
 
-// Los módulos de src/ se importan sin extensión, como espera Vite; Node no
-// resuelve eso por su cuenta, así que se le enseña a probar con ".ts". Igual que
-// en `eval-geo.mjs`, y por eso los imports de abajo son dinámicos: los estáticos
-// se izan por encima del registro del hook.
 registerHooks({
   resolve(specifier, context, next) {
     try {
@@ -46,13 +42,11 @@ const STREETS = new URL("../public/geo/streets.json", import.meta.url);
 const OUT = new URL("../public/geo/affected-zones.json", import.meta.url);
 
 const ENDPOINT = "https://nominatim.openstreetmap.org/search";
-// El mismo viewbox que usa `src/scripts/geocode.ts`, y por lo mismo: es una
-// preferencia, no un recorte.
+
 const VIEWBOX = "-76.62,3.52,-76.44,3.32";
-// Nominatim usage policy: como mucho una petición por segundo.
+
 const MIN_INTERVAL_MS = 1100;
 
-/** Dos direcciones a menos de esto caen en la misma zona. */
 const CLUSTER_M = 500;
 /**
  * Ninguna zona baja de acá.
@@ -64,7 +58,7 @@ const CLUSTER_M = 500;
  * cualquier parte del círculo, que es lo que la fuente dice de él.
  */
 const MIN_RADIUS_M = 400;
-/** Aire alrededor del punto más lejano del grupo. */
+
 const PADDING_M = 150;
 /**
  * Dos zonas que se llaman igual y están a menos de esto son una sola.
@@ -78,8 +72,6 @@ const PADDING_M = 150;
 const MERGE_LABEL_M = 1200;
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-
-/* ---- La lista ---------------------------------------------------------- */
 
 /**
  * Una entrada por línea, campos separados por `|`:
@@ -123,7 +115,9 @@ async function readSource() {
     if (coords) {
       const [lat, lng] = coords.split(",").map(Number);
       if (!Number.isFinite(lat) || !Number.isFinite(lng)) {
-        throw new Error(`Línea ${index + 1}: coordenada ilegible — "${coords}"`);
+        throw new Error(
+          `Línea ${index + 1}: coordenada ilegible — "${coords}"`,
+        );
       }
       manual = { lat, lng };
     }
@@ -133,8 +127,6 @@ async function readSource() {
 
   return entries;
 }
-
-/* ---- Nivel 2: la malla vial -------------------------------------------- */
 
 /**
  * El índice que `geo-index.ts` arma en el navegador, pero desde disco: allá se
@@ -162,8 +154,6 @@ function fromGrid(address, streets) {
   const located = locate(parsed, streets);
   return located ? { lat: located.lat, lng: located.lng } : null;
 }
-
-/* ---- Nivel 3: Nominatim ------------------------------------------------ */
 
 async function readCache() {
   try {
@@ -201,8 +191,6 @@ async function fromNominatim(query) {
   if (!item) return null;
   return { lat: Number(item.lat), lng: Number(item.lon) };
 }
-
-/* ---- Fundir ------------------------------------------------------------ */
 
 const distance = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
@@ -264,7 +252,6 @@ const centroidOf = (group) =>
     group.reduce((sum, { coords }) => sum + coords.lng, 0) / group.length,
   );
 
-/** Junta los grupos que ya se llaman igual y están cerca. Ver `MERGE_LABEL_M`. */
 function mergeByLabel(groups) {
   const merged = [];
   for (const group of groups) {
@@ -280,14 +267,14 @@ function mergeByLabel(groups) {
 }
 
 function toZone(group) {
-  const lat = group.reduce((sum, { coords }) => sum + coords.lat, 0) / group.length;
-  const lng = group.reduce((sum, { coords }) => sum + coords.lng, 0) / group.length;
+  const lat =
+    group.reduce((sum, { coords }) => sum + coords.lat, 0) / group.length;
+  const lng =
+    group.reduce((sum, { coords }) => sum + coords.lng, 0) / group.length;
   const centre = project(lat, lng);
   const spread = Math.max(...group.map(({ point }) => distance(point, centre)));
 
   return [
-    // Tres decimales ≈ 110 m. Es el redondeo que separa una zona de una
-    // dirección, y va acá y no en el navegador: lo que se publica es el archivo.
     Number(lat.toFixed(3)),
     Number(lng.toFixed(3)),
     Math.round(Math.max(MIN_RADIUS_M, spread + PADDING_M) / 10) * 10,
@@ -296,8 +283,6 @@ function toZone(group) {
     labelOf(group),
   ];
 }
-
-/* ---- Orquestación ------------------------------------------------------ */
 
 const entries = await readSource();
 if (entries.length === 0) {
@@ -322,13 +307,17 @@ for (const entry of entries) {
   }
 
   if (!coords) {
-    const query = entry.sector ? `${entry.address}, ${entry.sector}` : entry.address;
+    const query = entry.sector
+      ? `${entry.address}, ${entry.sector}`
+      : entry.address;
     if (!(query in cache)) cache[query] = await fromNominatim(query);
     coords = cache[query];
     level = "nominatim";
   }
 
-  const at = coords ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}` : "—";
+  const at = coords
+    ? `${coords.lat.toFixed(5)}, ${coords.lng.toFixed(5)}`
+    : "—";
   console.log(
     `  ${entry.code.padEnd(4)} ${(coords ? level : "SIN UBICAR").padEnd(10)} ${at.padEnd(22)} ${entry.address}`,
   );
@@ -341,8 +330,6 @@ for (const entry of entries) {
   located.push({ entry, coords, point: project(coords.lat, coords.lng) });
 }
 
-// El caché se guarda pase lo que pase: una coordenada corregida a mano sobrevive
-// a la siguiente corrida, y una lista larga no se vuelve a pedir entera.
 await writeFile(CACHE, `${JSON.stringify(cache, null, 2)}\n`);
 
 console.log(
@@ -351,7 +338,8 @@ console.log(
 
 if (failed.length > 0) {
   console.error(`\n${failed.length} sin ubicar:`);
-  for (const entry of failed) console.error(`  ${entry.code} — ${entry.address}`);
+  for (const entry of failed)
+    console.error(`  ${entry.code} — ${entry.address}`);
   console.error(
     "\nCorregí la dirección en la lista, o poné la coordenada en el quinto campo.",
   );

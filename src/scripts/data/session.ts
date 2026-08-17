@@ -2,7 +2,6 @@ import { supabase } from "../supabase";
 
 let userId: string | null = null;
 
-/** `null` mientras no haya sesión anónima. */
 export function getUserId(): string | null {
   return userId;
 }

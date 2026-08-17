@@ -16,10 +16,8 @@ import { buildContactCta, isValidPhone } from "../ui/contact";
 import { $, clearError, scheduleRender, showError } from "../ui/dom";
 import { paintTime } from "../ui/time";
 
-/** Cuántas ofertas se ven antes de «Ver más». */
 const PAGE = 10;
 
-/** Panel al que apunta el punto de «hay ayuda sin despachar». */
 const TAB = "ayuda";
 
 export function initOffersPanel(): void {
@@ -69,11 +67,9 @@ export function initOffersPanel(): void {
     const available = offers.filter(
       (offer) => !offer.reportId && !offer.finishedAt,
     ).length;
-    // Cuenta lo que todavía se puede mover: una oferta ya despachada no es
-    // capacidad disponible.
+
     total.textContent = String(available);
-    // Unlike the «Novedades» dot, this one is not an unread mark: it flags help
-    // still waiting for a destination, so opening the tab does not clear it.
+
     setTabDot(TAB, available > 0);
     empty.classList.toggle("hidden", offers.length > 0);
     more.classList.toggle("hidden", offers.length <= limit);
@@ -137,7 +133,6 @@ export function initOffersPanel(): void {
           item.append(text);
         }
 
-        // El contacto es obligatorio en esta tabla, así que el CTA siempre va.
         const call = buildContactCta(offer.contactName, offer.contactPhone);
         call.classList.add("mt-2");
         item.append(call);
@@ -173,8 +168,6 @@ export function initOffersPanel(): void {
   form.addEventListener("submit", (event) => {
     event.preventDefault();
 
-    // Espejo de los CHECK de la base: título 3–80, nombre 2–60, teléfono con el
-    // mismo patrón. Validar dos veces es a propósito.
     const text = title.value.trim();
     if (text.length < 3) {
       showError(error, "Escribe qué tienes disponible (mínimo 3 caracteres).");
@@ -214,8 +207,7 @@ export function initOffersPanel(): void {
 
   const scheduled = scheduleRender(renderList);
   onOffers(scheduled);
-  // A deleted report takes the name away from the offer pointing at it, so the
-  // «↦ Ver punto» button has to be repainted too.
+
   onChange(scheduled);
 
   initAccordion("offers");

@@ -17,15 +17,15 @@ export type Offer = {
   id: string;
   title: string;
   detail: string | null;
-  /** Id de categoría de `resources.ts`, o `null` si no encaja en ninguna. */
+
   category: string | null;
-  /** Acá el contacto no es opcional: una oferta sin a quién llamar no se despacha. */
+
   contactName: string;
   contactPhone: string;
-  /** Punto al que ya se despachó, o `null` mientras siga disponible. */
+
   reportId: string | null;
   assignedAt: string | null;
-  /** When it was called done, or `null` while it still stands. */
+
   finishedAt: string | null;
   createdAt: string;
   userId: string;
@@ -107,7 +107,6 @@ export function getOffers(): Offer[] {
   return cache;
 }
 
-/** Lo que ya se despachó a un punto. Lo usa la lista para mostrarlo en su ficha. */
 export function getOffersFor(reportId: string): Offer[] {
   return cache.filter((offer) => offer.reportId === reportId);
 }
@@ -164,7 +163,9 @@ async function push(offer: Offer): Promise<void> {
 
   if (error || !isRow(data)) {
     dropLocally(offer.id);
-    reportError(errorMessage(error, "No se pudo publicar la ayuda. Revisa la conexión."));
+    reportError(
+      errorMessage(error, "No se pudo publicar la ayuda. Revisa la conexión."),
+    );
     return;
   }
 
@@ -188,7 +189,9 @@ export function removeOffer(id: string): void {
     if (!error) return;
     cache = sorted([...cache, previous]);
     emit();
-    reportError("Solo puedes retirar las ofertas que publicaste en este navegador.");
+    reportError(
+      "Solo puedes retirar las ofertas que publicaste en este navegador.",
+    );
   })();
 }
 
@@ -205,7 +208,11 @@ export function assignOffer(id: string, reportId: string | null): void {
   cache = sorted(
     cache.map((offer) =>
       offer.id === id
-        ? { ...offer, reportId, assignedAt: reportId ? new Date().toISOString() : null }
+        ? {
+            ...offer,
+            reportId,
+            assignedAt: reportId ? new Date().toISOString() : null,
+          }
         : offer,
     ),
   );
@@ -219,7 +226,7 @@ export function assignOffer(id: string, reportId: string | null): void {
     });
     if (!error) return;
     reportError(errorMessage(error, "No se pudo asignar la ayuda."));
-    // Vuelta a la verdad del servidor: el cambio optimista ya no vale.
+
     try {
       await loadOffers();
     } catch {
@@ -256,8 +263,10 @@ export function setOfferFinished(id: string, finished: boolean): void {
       p_finished: finished,
     });
     if (!error) return;
-    reportError(errorMessage(error, "No se pudo marcar la ayuda como finalizada."));
-    // Vuelta a la verdad del servidor: el cambio optimista ya no vale.
+    reportError(
+      errorMessage(error, "No se pudo marcar la ayuda como finalizada."),
+    );
+
     try {
       await loadOffers();
     } catch {

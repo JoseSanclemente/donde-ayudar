@@ -4,9 +4,9 @@ import { newestIso } from "./ui/time";
 
 export type GroupResource = {
   name: string;
-  /** true solo si todos los reportes que lo piden ya lo tienen cubierto. */
+
   covered: boolean;
-  /** Reportes del grupo que piden este recurso — el alcance del toggle. */
+
   reportIds: string[];
 };
 
@@ -15,7 +15,7 @@ export type ReportGroup = {
   lead: Report;
   reports: Report[];
   resources: GroupResource[];
-  /** Recursos aún sin cubrir. 0 = zona resuelta. */
+
   pending: number;
   lat: number;
   lng: number;
@@ -31,7 +31,7 @@ export type ReportGroup = {
    * y en una emergencia gana lo último que alguien vio en la calle.
    */
   status: ReportStatus;
-  /** Ids que comparten ese estado — el alcance de un cambio desde la lista. */
+
   reportIds: string[];
 };
 
@@ -48,7 +48,8 @@ export function distanceMeters(a: Coords, b: Coords): number {
   const lat1 = toRad(a.lat);
   const lat2 = toRad(b.lat);
   const h =
-    Math.sin(dLat / 2) ** 2 + Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
   return 2 * EARTH_RADIUS_M * Math.asin(Math.min(1, Math.sqrt(h)));
 }
 
@@ -129,38 +130,41 @@ function buildGroups(
     const byName = new Map<string, GroupResource>();
     for (const report of group.reports) {
       for (const name of report.resources) {
-        const entry = byName.get(name) ?? { name, covered: true, reportIds: [] };
+        const entry = byName.get(name) ?? {
+          name,
+          covered: true,
+          reportIds: [],
+        };
         entry.reportIds.push(report.id);
-        // Basta con que un reporte lo siga pidiendo para que la zona lo necesite.
+
         entry.covered &&= report.covered.includes(name);
         byName.set(name, entry);
       }
     }
 
     const all = [...byName.values()];
-    // Pendientes arriba, cubiertos al final; estable dentro de cada bloque.
-    group.resources = [...all.filter((r) => !r.covered), ...all.filter((r) => r.covered)];
+
+    group.resources = [
+      ...all.filter((r) => !r.covered),
+      ...all.filter((r) => r.covered),
+    ];
     group.pending = all.filter((r) => !r.covered).length;
 
-    const oldest = group.reports.reduce((a, b) => (a.createdAt <= b.createdAt ? a : b));
+    const oldest = group.reports.reduce((a, b) =>
+      a.createdAt <= b.createdAt ? a : b,
+    );
     group.key = oldest.id;
 
-    // The map draws one marker per group, so the anchor is the same report that
-    // gives the group its identity — not the lead. The lead is the newest report,
-    // and anchoring there would make the pin hop up to `radiusM` every time a
-    // neighbour is reported.
     group.lat = oldest.lat;
     group.lng = oldest.lng;
 
     group.reportIds = group.reports.map((r) => r.id);
 
-    // `latestAt` se calcula acá y no al crear el grupo: el lead es el más nuevo
-    // por creación, pero el estado que se tocó hace un minuto —o la novedad que
-    // alguien acaba de escribir— puede ser el de un reporte viejo del mismo
-    // edificio.
     group.latestAt = newestIso(...group.reports.map(freshAt));
 
-    const freshest = group.reports.reduce((a, b) => (a.statusAt >= b.statusAt ? a : b));
+    const freshest = group.reports.reduce((a, b) =>
+      a.statusAt >= b.statusAt ? a : b,
+    );
     group.status = freshest.status;
   }
 

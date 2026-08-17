@@ -30,8 +30,6 @@ const filter: MapFilter = {
   onlyRecentReports: DEFAULT_MAP_FILTER.onlyRecentReports,
 };
 
-// Literales, como en `resources.ts`: el escáner de Tailwind lee este archivo
-// como texto plano y una clase interpolada nunca se compila.
 const BUTTON_OFF = "border-slate-200 bg-white text-slate-700";
 const BUTTON_ON = "border-red-300 bg-red-50 text-red-700";
 
@@ -47,7 +45,6 @@ function apply(): void {
   paintButton();
 }
 
-/** Que se note que hay pines escondidos a propósito y no que falten datos. */
 function paintButton(): void {
   if (!button) return;
   const filtering = !isDefaultFilter(filter);
@@ -57,13 +54,13 @@ function paintButton(): void {
     button.classList.toggle(cls, filtering);
 }
 
-/** Las casillas se pintan solas al tocarlas; esto es para el arranque y el reinicio. */
 function paintFlags(card: HTMLElement): void {
   for (const box of card.querySelectorAll<HTMLInputElement>(
     "[data-filter-flag]",
   )) {
     const flag = box.dataset.filterFlag as
-      "onlyActiveCenters" | "onlyRecentReports";
+      | "onlyActiveCenters"
+      | "onlyRecentReports";
     box.checked = filter[flag];
   }
 }
@@ -72,8 +69,6 @@ export function initMapFilter(): void {
   const card = $<HTMLElement>("filters-card");
   button = document.getElementById("fab-filter") as HTMLButtonElement | null;
 
-  // Los chips son los mismos de `/mascotas`: el color lo pone el tipo y el
-  // apagado lo pone el helper, que es el único que sabe cómo se ve un chip.
   const kinds = createChipGroup<MarkerKind>(card, {
     attribute: "filter-kind",
     chips: MARKER_KINDS,
@@ -87,7 +82,9 @@ export function initMapFilter(): void {
   card.addEventListener("change", (event) => {
     const box = event.target as HTMLInputElement;
     const flag = box.dataset.filterFlag as
-      "onlyActiveCenters" | "onlyRecentReports" | undefined;
+      | "onlyActiveCenters"
+      | "onlyRecentReports"
+      | undefined;
     if (!flag) return;
     filter[flag] = box.checked;
     apply();
@@ -102,9 +99,6 @@ export function initMapFilter(): void {
     apply();
   });
 
-  // El marcado ya viene con los chips puestos, pero el mapa no sabe nada: esto
-  // es lo que le lleva los valores por defecto antes de que llegue el primer
-  // dato.
   kinds.paint();
   paintFlags(card);
   apply();

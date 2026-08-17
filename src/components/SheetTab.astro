@@ -1,16 +1,11 @@
 ---
-// One pill of the mobile tab strip. The icon is drawn stroke-only and the
-// selected tab is marked by filling it (`global.css`), which is why it is one
-// `<path>` plus, at most, a direct-child `<circle>` for its hole: a second path
-// would disappear into the silhouette.
 import NewDot from "./NewDot.astro";
 
 interface Props {
-  /** The `data-tab-btn` value, matched against `#sheet`'s `data-tab`. */
   tab: string;
   label: string;
   icon: { path: string; circle?: { cx: number; cy: number; r: number } };
-  /** Id of the «something new» dot, when the tab has one. */
+
   dot?: string;
 }
 
@@ -34,7 +29,11 @@ const { tab, label, icon, dot } = Astro.props;
     stroke-linejoin="round"
   >
     <path d={icon.path}></path>
-    {icon.circle && <circle cx={icon.circle.cx} cy={icon.circle.cy} r={icon.circle.r} />}
+    {
+      icon.circle && (
+        <circle cx={icon.circle.cx} cy={icon.circle.cy} r={icon.circle.r} />
+      )
+    }
   </svg>
   {label}
   {dot && <NewDot id={dot} hidden />}

@@ -24,13 +24,8 @@ const SLATE_900 = "#0f172a";
 const SLATE_600 = "#475569";
 const SLATE_400 = "#94a3b8";
 
-// Duplicados de `src/consts.ts` a mano: este script es Node puro y no puede
-// importar de un módulo TypeScript sin sumar un paso de compilación.
 const SITE_NAME = "Dónde Ayudar";
-const DOMAIN = "dondeayudar.com.co";
 
-// Pila de fuentes, no una sola: la primera que exista gana. Sans-serif al final
-// para que nunca caiga en la serif por defecto de resvg.
 const FONTS = "Segoe UI, Inter, Helvetica Neue, Arial, sans-serif";
 
 /**
@@ -57,7 +52,6 @@ const og = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" vi
   </g>
 </svg>`;
 
-/** Icono cuadrado. `pad` deja margen para el recorte circular de Android (maskable). */
 function icon(size, pad = 0.86) {
   const half = size / 2;
   return `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}" viewBox="0 0 ${size} ${size}">
@@ -78,10 +72,9 @@ async function render(name, svg, width) {
 }
 
 await render("og.png", og, 1200);
-// iOS no respeta la transparencia en el icono de inicio: fondo blanco explícito.
+
 await render("apple-touch-icon.png", icon(180), 180);
 await render("icon-192.png", icon(192), 192);
 await render("icon-512.png", icon(512), 512);
-// Android recorta el maskable a un círculo inscrito: el contenido se encoge
-// para caber en la zona segura (~80% del lado).
+
 await render("icon-512-maskable.png", icon(512, 0.62), 512);

@@ -13,16 +13,15 @@ import { $, clearError, showError } from "../ui/dom";
  * formulario desde su propia pestaña.
  */
 export type ResourcePicker = {
-  /** Lo elegido, en el orden en que se fue eligiendo. */
   values(): string[];
-  /** Vacía la selección y repinta. Va con el `form.reset()`. */
+
   clear(): void;
   /**
    * Reemplaza la selección — llenar el formulario desde un punto ya registrado.
    * Recorta en `max`, el mismo techo que respeta un toque.
    */
   setValues(values: string[]): void;
-  /** Cierra las categorías, sin perder lo marcado. */
+
   collapse(): void;
   showError(message: string): void;
   clearError(): void;
@@ -37,7 +36,9 @@ export type ResourcePickerOptions = {
   max: number;
 };
 
-const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const reduceMotion = window.matchMedia(
+  "(prefers-reduced-motion: reduce)",
+).matches;
 
 export function createResourcePicker(
   prefix: string,
@@ -49,10 +50,6 @@ export function createResourcePicker(
 
   const resources = new Set<string>();
 
-  // El formulario no se destruye al cerrarlo, así que las categorías conservan
-  // lo que se dejó abierto la vez pasada y abrirlo de nuevo empieza a media
-  // altura. Plegarlas no pierde nada: lo elegido sigue en `resources`, se ve en
-  // los chips de abajo y la cuenta del encabezado lo dice sin desplegar.
   function collapse() {
     presetChips.querySelectorAll("details").forEach((panel) => {
       panel.open = false;
@@ -60,35 +57,38 @@ export function createResourcePicker(
   }
 
   function syncPresetChips() {
-    presetChips.querySelectorAll<HTMLButtonElement>("[data-preset]").forEach((chip) => {
-      const active = resources.has(chip.dataset.preset as string);
-      chip.className = active ? chipOnClass(chip.dataset.category) : CHIP_OFF;
-      chip.setAttribute("aria-pressed", String(active));
-    });
+    presetChips
+      .querySelectorAll<HTMLButtonElement>("[data-preset]")
+      .forEach((chip) => {
+        const active = resources.has(chip.dataset.preset as string);
+        chip.className = active ? chipOnClass(chip.dataset.category) : CHIP_OFF;
+        chip.setAttribute("aria-pressed", String(active));
+      });
     syncCategoryCounts();
   }
 
-  // Las categorías cerradas esconderían lo ya seleccionado, así que el encabezado
-  // lleva la cuenta de lo elegido dentro.
   function syncCategoryCounts() {
     for (const category of CATEGORIES) {
-      const badge = presetChips.querySelector<HTMLElement>(`[data-count="${category.id}"]`);
+      const badge = presetChips.querySelector<HTMLElement>(
+        `[data-count="${category.id}"]`,
+      );
       if (!badge) continue;
-      const selected = category.items.filter((item) => resources.has(item.trim())).length;
+      const selected = category.items.filter((item) =>
+        resources.has(item.trim()),
+      ).length;
       badge.textContent =
         selected === 0
           ? String(category.items.length)
           : selected === 1
             ? "1 elegido"
             : `${selected} elegidos`;
-      // Sin color propio: el encabezado ya va tintado con el de la categoría y
-      // un rojo encima competiría con él. Lo elegido se marca con el peso.
-      badge.className = selected > 0 ? "text-xs font-bold" : "text-xs opacity-70";
+
+      badge.className =
+        selected > 0 ? "text-xs font-bold" : "text-xs opacity-70";
     }
     syncSelectAllButtons();
   }
 
-  /** Marcada entera, el botón se ofrece a desmarcarla. */
   function isWholeCategorySelected(items: string[]): boolean {
     return items.every((item) => resources.has(item.trim()));
   }
@@ -130,9 +130,6 @@ export function createResourcePicker(
       resources.add(item);
     }
 
-    // Lo que cupo queda marcado: devolver la categoría vacía porque sobraban
-    // tres ítems obligaría a marcarlos a mano, que es lo que este botón vino a
-    // evitar. El aviso va después de repintar, que es quien limpia el error.
     renderSelectedResources();
     if (full) showError(resourcesError, `Máximo ${max} insumos.`);
   }
@@ -175,15 +172,15 @@ export function createResourcePicker(
   presetChips.addEventListener("click", (event) => {
     const target = event.target as HTMLElement;
 
-    // El botón vive dentro del `summary`, y el clic en un `summary` pliega el
-    // acordeón: sin esto, marcar la categoría entera la cierra en la cara.
     const selectAll = target.closest<HTMLButtonElement>("[data-select-all]");
     if (selectAll) {
       event.preventDefault();
       const categoryId = selectAll.dataset.selectAll as string;
       toggleCategory(categoryId);
       if (!reduceMotion) {
-        const chips = presetChips.querySelectorAll(`[data-preset][data-category="${categoryId}"]`);
+        const chips = presetChips.querySelectorAll(
+          `[data-preset][data-category="${categoryId}"]`,
+        );
         gsap.fromTo(
           chips,
           { scale: 0.92 },
@@ -197,7 +194,11 @@ export function createResourcePicker(
     if (!chip) return;
     toggleResource(chip.dataset.preset as string);
     if (!reduceMotion) {
-      gsap.fromTo(chip, { scale: 0.92 }, { scale: 1, duration: 0.25, ease: "back.out(3)" });
+      gsap.fromTo(
+        chip,
+        { scale: 0.92 },
+        { scale: 1, duration: 0.25, ease: "back.out(3)" },
+      );
     }
   });
 

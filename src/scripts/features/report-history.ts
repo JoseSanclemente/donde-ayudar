@@ -1,5 +1,10 @@
 import { distanceMeters, groupZones, type ReportGroup } from "../cluster";
-import { getReports, onChange, reportFreshAt, type Report } from "../data/reports";
+import {
+  getReports,
+  onChange,
+  reportFreshAt,
+  type Report,
+} from "../data/reports";
 import { onUpdates } from "../data/updates";
 import { readCachedCoords, type Coords } from "../geolocation";
 import { isRetired } from "../status";
@@ -24,14 +29,13 @@ import { getUserCoords } from "./user-location";
  * reporte viejo y confirmar uno vigente no son la misma cosa.
  */
 
-/** Cuántos lugares se ofrecen. Una lista larga es otro formulario que leer. */
 const MAX_ZONES = 6;
 
 type Zone = {
   group: ReportGroup;
-  /** `null` cuando no sabemos dónde está quien mira. */
+
   distanceM: number | null;
-  /** El reporte vivo más reciente de la zona, o `null` si ya se cayó del mapa. */
+
   live: Report | null;
 };
 
@@ -58,9 +62,7 @@ function anchor(): Coords | null {
  */
 function pickZones(): Zone[] {
   const at = anchor();
-  // `groupZones` respeta el orden del store —más reciente primero—, así que los
-  // grupos ya salen en el orden que hace falta y el primer reporte vivo de cada
-  // uno es el vivo más nuevo.
+
   return groupZones(getReports(), reportFreshAt)
     .slice(0, MAX_ZONES)
     .map((group) => ({
@@ -71,7 +73,9 @@ function pickZones(): Zone[] {
 }
 
 function formatDistance(meters: number): string {
-  return meters < 1000 ? `a ${Math.round(meters)} m` : `a ${(meters / 1000).toFixed(1)} km`;
+  return meters < 1000
+    ? `a ${Math.round(meters)} m`
+    : `a ${(meters / 1000).toFixed(1)} km`;
 }
 
 export function initReportHistory(): void {
@@ -83,9 +87,6 @@ export function initReportHistory(): void {
     const { group, live } = zone;
     const item = document.createElement("li");
 
-    // La tarjeta entera es el botón: en un celular, sostenido con una mano y
-    // bajo lluvia, el blanco tiene que ser la tarjeta y no una línea de texto
-    // dentro de ella.
     const card = document.createElement("button");
     card.type = "button";
     card.className =
@@ -105,7 +106,8 @@ export function initReportHistory(): void {
     card.append(title);
 
     const meta = document.createElement("p");
-    meta.className = "mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-slate-400";
+    meta.className =
+      "mt-0.5 flex flex-wrap items-center gap-x-2 text-[11px] text-slate-400";
 
     const time = document.createElement("span");
     paintTime(time, group.latestAt, "Actualizado ");
@@ -118,8 +120,6 @@ export function initReportHistory(): void {
     }
 
     if (!live) {
-      // El punto no está en el mapa, y quien lo toque tiene que saber que lo que
-      // está reponiendo es un reporte viejo, no confirmando uno vigente.
       const badge = document.createElement("span");
       badge.className = "font-medium text-amber-600";
       badge.textContent = "ya no está en el mapa";
@@ -129,17 +129,13 @@ export function initReportHistory(): void {
     card.append(meta);
 
     card.addEventListener("click", () => {
-      // Del `lead` y no del grupo: `group.lat/lng` son los del reporte más
-      // viejo —el ancla del marcador— y la dirección de arriba es la del más
-      // nuevo. Mezclarlos pondría el pin a hasta 50 m de lo que dice el campo.
       prefillReport({
         name: group.lead.name,
         placeName: group.lead.placeName,
         lat: group.lead.lat,
         lng: group.lead.lng,
       });
-      // Elegido el lugar, la lista ya no tiene nada que decir y el formulario
-      // relleno es lo que hay que ver.
+
       section.open = false;
     });
 
@@ -155,8 +151,7 @@ export function initReportHistory(): void {
 
   const scheduled = scheduleRender(render);
   onChange(scheduled);
-  // Una novedad mueve `reportFreshAt`: puede pasar un lugar de retirado a vivo y
-  // con eso cambia lo que dice la tarjeta.
+
   onUpdates(scheduled);
 
   render();

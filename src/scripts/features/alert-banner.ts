@@ -23,7 +23,6 @@ export function initAlertBanner(): void {
   let shaken = false;
 
   function render() {
-    // `data/updates` keeps the cache sorted newest first.
     const latest = getUpdates()[0];
 
     banner.classList.toggle("hidden", !latest);

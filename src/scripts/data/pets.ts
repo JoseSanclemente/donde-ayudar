@@ -32,11 +32,11 @@ export type Pet = {
   id: string;
   kind: PetKind;
   sex: PetSex | null;
-  /** The object key inside the bucket — what the row stores. */
+
   photoPath: string;
-  /** The grid card. Not a column: built from `photoPath` on read. */
+
   thumbUrl: string;
-  /** The sheet. Same object, an order of magnitude more bytes. */
+
   photoUrl: string;
   /**
    * Where the animal is, when it is somewhere with a name: a vet, a shelter, an
@@ -100,7 +100,6 @@ const BUCKET = "pets";
 const COLUMNS =
   "id, user_id, kind, sex, photo_path, place_name, ref_code, created_at";
 
-/** The same ceiling and the same list the bucket enforces, checked here first. */
 export const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 export const PHOTO_TYPES: Record<string, string> = {
   "image/jpeg": "jpg",
@@ -121,8 +120,10 @@ function emit(): void {
   changes.emit(cache);
 }
 
-/** La expone el arranque (`data/boot-pets.ts`) para marcar carga, listo o error. */
-export function setPetsState(next: StoreState, message: string | null = null): void {
+export function setPetsState(
+  next: StoreState,
+  message: string | null = null,
+): void {
   state = next;
   stateMessage = message;
   states.emit({ state, message: stateMessage });
@@ -194,7 +195,6 @@ function fromRow(row: Row): Pet {
   };
 }
 
-/** Newest first: a pet found this morning is the one being looked for. */
 function sorted(pets: Pet[]): Pet[] {
   return [...pets].sort(
     (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
@@ -210,7 +210,7 @@ export const onPets = changes.on;
 export type PetInput = {
   file: File;
   kind: PetKind;
-  /** Optional: whoever picks up a stray does not always know. */
+
   sex?: PetSex | null;
   contactPhone: string;
 };
@@ -246,24 +246,20 @@ export async function addPet(input: PetInput): Promise<Pet | null> {
   }
 
   const id = crypto.randomUUID();
-  // The uid in front is only for reading the bucket later: what enforces
-  // ownership is the `owner` check in the storage policy.
+
   const path = `${userId}/${id}.${extension}`;
 
-  // The path carries a uuid, so these bytes never change and the object can
-  // take whatever cache the CDN grants. Same value the bot writes.
-  const uploaded = await supabase.storage.from(BUCKET).upload(path, input.file, {
-    contentType: input.file.type,
-    cacheControl: "31536000",
-  });
+  const uploaded = await supabase.storage
+    .from(BUCKET)
+    .upload(path, input.file, {
+      contentType: input.file.type,
+      cacheControl: "31536000",
+    });
   if (uploaded.error) {
     reportError("No se pudo subir la foto. Revisa la conexión.");
     return null;
   }
 
-  // The photo is already up, so the card can be drawn while the row travels.
-  // The local url is replaced by the public one as soon as the insert answers.
-  // One blob for both sizes: there is nothing to resize on this side.
   const local = URL.createObjectURL(input.file);
   const pending: Pet = {
     id,
@@ -288,12 +284,10 @@ export async function addPet(input: PetInput): Promise<Pet | null> {
       kind: input.kind,
       sex: input.sex ?? null,
       photo_path: path,
-      // The form on the site asks for a phone and nothing else: a username can
-      // only arrive through the bot, which is what receives the message.
+
       contact_phone: input.contactPhone,
     })
-    // Writing a column and reading it back are separate privileges, and the row
-    // only comes back with what the browser is still allowed to see.
+
     .select(COLUMNS)
     .single();
 
@@ -301,7 +295,10 @@ export async function addPet(input: PetInput): Promise<Pet | null> {
     dropLocally(id);
     void supabase.storage.from(BUCKET).remove([path]);
     reportError(
-      errorMessage(error, "No se pudo publicar la mascota. Revisa la conexión."),
+      errorMessage(
+        error,
+        "No se pudo publicar la mascota. Revisa la conexión.",
+      ),
     );
     return null;
   }
@@ -329,12 +326,12 @@ export function removePet(id: string): void {
     if (error) {
       cache = sorted([...cache, previous]);
       emit();
-      reportError("Solo puedes retirar las mascotas que publicaste en este navegador.");
+      reportError(
+        "Solo puedes retirar las mascotas que publicaste en este navegador.",
+      );
       return;
     }
-    // The row is what the page reads, so it goes first and the photo after. A
-    // failure here leaves an orphan object nobody can reach, which is the
-    // cheapest of the two ways this can end badly.
+
     void supabase.storage.from(BUCKET).remove([previous.photoPath]);
   })();
 }

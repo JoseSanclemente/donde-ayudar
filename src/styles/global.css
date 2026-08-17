@@ -26,8 +26,6 @@ button:not(:disabled) {
   cursor: pointer;
 }
 
-/* ---- Marcador rojo con pulso ---- */
-
 /* `position` NO se toca: Leaflet ancla cada marcador con `position: absolute` +
    un `transform`, y un `relative` acá le gana por orden al CSS de Leaflet — el
    marcador vuelve al flujo del pane y queda con un desfase fijo en píxeles, que
@@ -89,7 +87,6 @@ button:not(:disabled) {
   animation-play-state: paused;
 }
 
-/* El segundo anillo solo existe para «urgente»; en los demás estados estorba. */
 .pulse-marker .pulse-ring-2 {
   display: none;
 }
@@ -152,7 +149,6 @@ button:not(:disabled) {
   animation-delay: 0.55s;
 }
 
-/* Cubierto: el marcador sigue ahí, pero deja de pedir atención. */
 .pulse-marker[data-estado="cubierto"] .pulse-dot {
   background: #94a3b8;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
@@ -194,7 +190,6 @@ button:not(:disabled) {
   right: 5px;
 }
 
-/* Cerrado: círculo apagado con una × — no vayas. */
 .pulse-marker[data-estado="cerrado"] .pulse-dot {
   width: 14px;
   height: 14px;
@@ -225,7 +220,6 @@ button:not(:disabled) {
   transform: rotate(-45deg);
 }
 
-/* Sin noticias hace horas: el dato sigue en pie pero ya no se respalda solo. */
 .pulse-marker.is-stale .pulse-dot {
   outline: 2px dashed #94a3b8;
   outline-offset: 4px;
@@ -580,8 +574,6 @@ button:not(:disabled) {
   opacity: 0.45;
 }
 
-/* ---- Marcador provisional (arrastrable) ---- */
-
 .draft-marker {
   cursor: grab;
 }
@@ -612,8 +604,6 @@ option {
   font-weight: 400;
 }
 
-/* ---- «Estás acá» ---- */
-
 /* El halo es una sombra y no una animación: solo los reportes laten, y esa
    diferencia es lo que hace que un punto rojo se lea como «acá pasa algo». */
 .me-marker .me-dot {
@@ -627,8 +617,6 @@ option {
     0 0 0 4px rgba(37, 99, 235, 0.22),
     0 1px 4px rgba(15, 23, 42, 0.45);
 }
-
-/* ---- Mapa ---- */
 
 /* Leaflet ships its own `font-family` on the container, and it wins over the
    inherited one — popups and the attribution would be the only Helvetica left. */
@@ -737,7 +725,6 @@ option {
   display: contents;
 }
 
-/* Same grey line as the map credit, one separator apart. */
 .attr-people {
   display: inline;
   margin: 0;
@@ -804,7 +791,6 @@ option {
   gap: 0.375rem;
 }
 
-/* Los envases de un chip con su detalle debajo: los únicos `div` sin clase. */
 #detail-body div:not([class]) {
   gap: 0.25rem;
 }
@@ -905,7 +891,6 @@ option {
     bottom: 3.5rem;
   }
 
-  /* El menú no existe acá: la pila baja un escalón entero. */
   .fab-filter,
   #sheet-toggle[hidden] ~ .fab-filter {
     bottom: 7rem;
@@ -928,8 +913,6 @@ option {
     bottom: 7rem;
   }
 }
-
-/* ---- Bottom sheet (solo móvil; en lg el sheet es `display: contents`) ---- */
 
 /* El formulario ya no es una tarjeta fija de la barra lateral: se abre desde el
    FAB. La pestaña `reportar` sigue siendo el estado que lo gobierna, así que en
@@ -1002,7 +985,7 @@ option {
     top: 1.25rem;
     right: 1.25rem;
     bottom: 1.25rem;
-    /* Above Leaflet's popup pane (700), below the floating buttons (1050). */
+
     z-index: 900;
     width: 22rem;
     overflow-y: auto;
@@ -1029,7 +1012,6 @@ option {
     font-size: 16px;
   }
 
-  /* El handle arrastra: el navegador no debe interpretar el gesto como scroll. */
   #sheet-grab {
     touch-action: none;
   }
@@ -1217,7 +1199,6 @@ option {
     display: none;
   }
 
-  /* The FAB column owns the right edge; the card stops before it. */
   .attr-card {
     display: block;
     max-width: min(20rem, calc(100vw - 6.5rem));
@@ -1249,7 +1230,6 @@ option {
     text-underline-offset: 2px;
   }
 
-  /* The map data credit is the fine print of the card, not its message. */
   .attr-credits {
     display: block;
     padding-top: 0.5rem;
@@ -1260,7 +1240,6 @@ option {
   }
 }
 
-/* ---- Panel de `/mascotas` ---- */
 #pet-sheet[data-state="closed"] {
   pointer-events: none;
   transform: translateY(calc(100% + 24px));
@@ -1270,8 +1249,6 @@ option {
   overflow-y: hidden;
   touch-action: none;
 }
-
-/* ---- Entrada del header y la lista ---- */
 
 /* La hacía GSAP desde `app.ts`, y por eso se veía al revés: el bundle corre
    después del primer pintado, así que los dos elementos aparecían opacos, GSAP
@@ -1348,7 +1325,6 @@ option {
     animation-duration: 2s;
   }
 
-  /* El punto sigue ahí: lo que sobra es el movimiento, no el aviso. */
   .new-dot {
     animation: none;
   }

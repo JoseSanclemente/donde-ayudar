@@ -7,11 +7,15 @@
  * Datos © colaboradores de OpenStreetMap, bajo ODbL.
  */
 
-/** [lat, lon] tal y como salen del índice. */
 type RawWay = [name: string, points: Array<[number, number]>];
-type RawAddress = [street: string, number: string, lat: number, lon: number, name: string];
+type RawAddress = [
+  street: string,
+  number: string,
+  lat: number,
+  lon: number,
+  name: string,
+];
 
-/** Punto proyectado a metros: [x este, y norte]. */
 export type Point = [number, number];
 export type Polyline = Point[];
 export type StreetIndex = Map<string, Polyline[]>;
@@ -45,7 +49,8 @@ export const unproject = (point: Point): { lat: number; lng: number } => ({
 
 async function loadJson<T>(path: string): Promise<T> {
   const response = await fetch(path);
-  if (!response.ok) throw new Error(`No se pudo cargar ${path} (${response.status})`);
+  if (!response.ok)
+    throw new Error(`No se pudo cargar ${path} (${response.status})`);
   return (await response.json()) as T;
 }
 
@@ -67,7 +72,6 @@ export function loadStreets(): Promise<StreetIndex> {
 
 let addresses: Promise<AddressIndex> | null = null;
 
-/** Clave: "calle 8b|45-17" — vía y placa normalizadas a minúsculas sin espacios. */
 export const addressKey = (street: string, number: string) =>
   `${street.toLowerCase().replace(/\s+/g, " ").trim()}|${number.toLowerCase().replace(/\s+/g, "")}`;
 

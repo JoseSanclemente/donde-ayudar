@@ -8,9 +8,9 @@ export type ResourceCategory = {
    */
   emoji: string;
   items: string[];
-  /** Chip en la lista de reportes y los popups del mapa. */
+
   chip: string;
-  /** Chip seleccionado dentro del formulario. */
+
   chipOn: string;
   /**
    * Subconjunto de `items` que tiene sentido en un punto de donación. Hoy solo
@@ -21,14 +21,8 @@ export type ResourceCategory = {
   itemsEnPunto?: string[];
 };
 
-// Las clases de Tailwind van escritas completas y literales a propósito: el
-// escáner lee estos archivos como texto plano, así que cualquier interpolación
-// (`bg-${color}-50`) se quedaría sin compilar y el chip saldría sin fondo.
 export const CATEGORIES: ResourceCategory[] = [
   {
-    // El id se queda como estaba aunque la etiqueta cambie: es el valor que
-    // guardan la `category` de las ofertas y los `recibe` de los puntos que se
-    // publicaron antes de que la columna nombrara insumos.
     id: "herramientas",
     label: "Protección personal",
     emoji: "🧤",
@@ -43,8 +37,6 @@ export const CATEGORIES: ResourceCategory[] = [
     chipOn: "border-amber-500 bg-amber-500 text-white",
   },
   {
-    // Herramienta de escombro, separada de la protección: en un rescate son dos
-    // pedidos distintos y casi nunca los trae la misma persona.
     id: "rescate",
     label: "Rescate y escombros",
     emoji: "⛏️",
@@ -275,11 +267,9 @@ export function assertUniqueItems(): void {
 
 if (import.meta.env.DEV) assertUniqueItems();
 
-/** Recursos escritos a mano y reportes viejos con recursos fuera del catálogo. */
 export const OTHER_CHIP = "border-slate-700 bg-slate-100 text-slate-700";
 const OTHER_CHIP_ON = "border-slate-600 bg-slate-600 text-white";
 
-/** Recurso que la zona ya no necesita: se ve, pero apagado. */
 export const COVERED_CHIP =
   "border-slate-400 bg-slate-100 text-slate-400 line-through";
 
@@ -296,7 +286,6 @@ const SANGRE_CHIP_ON = "border-rose-600 bg-rose-600 text-white";
 export const ALBERGUE_FILTER = "albergue";
 const ALBERGUE_CHIP_ON = "border-amber-600 bg-amber-600 text-white";
 
-/** Filtros por tipo de punto, en un mapa: un cuarto tipo es una entrada más. */
 const RESERVED_CHIP_ON: Record<string, string> = {
   [SANGRE_FILTER]: SANGRE_CHIP_ON,
   [ALBERGUE_FILTER]: ALBERGUE_CHIP_ON,
@@ -310,7 +299,6 @@ export function chipClass(resource: string): string {
   return BY_RESOURCE.get(key(resource))?.chip ?? OTHER_CHIP;
 }
 
-/** Como `chipClass`, pero la llave es el id de categoría (centros de acopio). */
 export function categoryChip(categoryId: string): string {
   return BY_ID.get(categoryId)?.chip ?? OTHER_CHIP;
 }
@@ -334,7 +322,6 @@ export function categoryIdOf(resource: string): string | undefined {
   return BY_RESOURCE.get(key(resource))?.id;
 }
 
-/** Si el texto es un id del catálogo y no el nombre de un insumo. */
 export function isCategoryId(value: string): boolean {
   return BY_ID.has(value) || value in LEGACY_CATEGORY_IDS;
 }
@@ -362,7 +349,6 @@ export function categoryItemsEnPunto(categoryId: string): string[] {
 
 export type CategoryBucket<T> = { id: string; label: string; items: T[] };
 
-/** Categoría de lo que alguien escribió a mano o quedó fuera del catálogo. */
 const OTHER_BUCKET = { id: "otros", label: "Otros" };
 
 /**
@@ -390,7 +376,7 @@ export function byCategory<T>(
     .filter((category) => buckets.has(category.id))
     .map((category) => ({
       id: category.id,
-      // «Otros» no está en el catálogo y no tiene emoji: se queda con su texto.
+
       label: BY_ID.has(category.id)
         ? categoryTitle(category.id)
         : category.label,

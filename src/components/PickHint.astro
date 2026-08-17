@@ -1,11 +1,5 @@
 ---
-// The instruction for «Ubicar en el mapa». Picking closes the sheet so the map is
-// free to tap, which takes the form —button label and geo note included— off the
-// screen: without this bar the sheet just seems to have closed. Lives in the
-// header, like `AlertBanner`, so it does not fight the floating pills for the
-// bottom corner. Only mobile: on desktop the sheet never closes and the form's
-// own note is right there. Starts hidden; `features/location-picker.ts` turns it
-// on while pick mode is armed.
+
 ---
 
 <div
@@ -25,12 +19,15 @@
     aria-hidden="true"
   >
     <circle cx="12" cy="10" r="2.5"></circle>
-    <path d="M12 21.5c4.5-5 7-8.3 7-11.5a7 7 0 1 0-14 0c0 3.2 2.5 6.5 7 11.5z"></path>
+    <path d="M12 21.5c4.5-5 7-8.3 7-11.5a7 7 0 1 0-14 0c0 3.2 2.5 6.5 7 11.5z"
+    ></path>
   </svg>
 
   <p class="flex-1 text-xs leading-snug">
     <span class="block font-semibold">Toca el mapa sobre el edificio</span>
-    <span class="block text-amber-800">Luego puedes arrastrar el punto para afinarlo.</span>
+    <span class="block text-amber-800"
+      >Luego puedes arrastrar el punto para afinarlo.</span
+    >
   </p>
 
   <button

@@ -1,30 +1,5 @@
 ---
 import { CARET } from "@/scripts/ui/select";
-
-// Las cifras de la emergencia, debajo del header.
-//
-// Aparece al tocar «ver toda la emergencia» y no antes: el momento en que el
-// mapa se aleja hasta que cabe todo es el único en que un total nacional dice
-// algo. Antes de eso la página es sobre una cuadra.
-//
-// Plegada muestra solo las seis grandes; el resto, el desglose por departamento
-// y la fuente viven detrás del triángulo. Dieciocho números del mismo peso no
-// dicen cuál importa, y esta tarjeta tapa el mapa mientras está abierta.
-//
-// No lleva `data-panel-card` ni `data-tab-panel` a propósito: no es una tarjeta
-// de la barra lateral, no la pliega `ui/accordion` —esa regla vive detrás del
-// media query de escritorio y acá hay que plegar también en móvil— y no es una
-// pestaña de la hoja. En escritorio va en el flujo de la columna, debajo del
-// header; en móvil el header es fijo, así que la tarjeta también lo es y el
-// `top` sale de `--header-h` (la regla, en `global.css`).
-//
-// `z-[1060]` la pone encima de los botones flotantes, que van en 1050, y debajo
-// del toast (1100) y de las sugerencias de dirección (1200), que tienen que
-// poder taparla. Mientras baja vale otra cosa: `features/emergency-stats.ts`
-// arranca la animación en 880 —debajo del header, que va en 900— para que salga
-// tapada de verdad, y la devuelve a esta al aterrizar, ya fuera del header.
-//
-// El contenido lo escribe `features/emergency-stats.ts` desde la tienda.
 ---
 
 <section

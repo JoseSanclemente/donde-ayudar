@@ -29,7 +29,7 @@ import {
 import { statusSelectHtml } from "./ui/status-select";
 import { relativeTime } from "./ui/time";
 
-/** El respaldo: sin ubicación, el mapa abre donde empezó todo. */
+
 export const CALI_CENTER: [number, number] = [3.4516, -76.532];
 
 /**
@@ -75,10 +75,10 @@ const EMERGENCY_MAX_ZOOM = 11;
  */
 const TOWNS_ONLY_MAX_ZOOM = 12;
 
-/** Whether the current zoom is on the town side of that line. Set by `initMap`. */
+
 let townsOnly = false;
 
-/** Zoom para la vista inicial sobre la persona: su ciudad entera, no su calle. */
+
 const USER_ZOOM = 14;
 
 /**
@@ -100,19 +100,19 @@ const markers = new Map<
   string,
   { marker: L.Marker; group: ReportGroup; extra: MarkerExtra }
 >();
-/** Report id -> the key of the group it was merged into. */
+
 const keyByReport = new Map<string, string>();
 let map: L.Map;
 let pickHandler: ((latlng: L.LatLng) => void) | null = null;
 
 const pulseIcon = L.divIcon({
   className: "pulse-marker",
-  // The outer marker element carries Leaflet's positioning transform, so the
-  // inner wrapper is what GSAP animates — otherwise the two fight over it.
-  //
-  // Los dos anillos van siempre en el HTML y el CSS decide cuáles se ven: el
-  // icono se crea una sola vez y se comparte entre todos los marcadores, así
-  // que la forma no puede depender del estado de un reporte concreto.
+  
+  
+  
+  
+  
+  
   html: '<span class="pulse-inner"><span class="pulse-ring"></span><span class="pulse-ring pulse-ring-2"></span><span class="pulse-dot"></span></span>',
   iconSize: [18, 18],
   iconAnchor: [9, 9],
@@ -125,14 +125,14 @@ const pulseIcon = L.divIcon({
  * `map.ts` no tenga que importar los stores.
  */
 export type MarkerExtra = {
-  /** Lo más reciente que se sabe: creación, cambio de estado o novedad. */
+  
   freshAt: string;
-  /** Última novedad publicada sobre el punto, si hay. */
+  
   lastUpdate?: string;
   stale: boolean;
 };
 
-/* ---- Compartir: la ficha que dibuja `share-card.ts` para la imagen ---- */
+
 
 /**
  * Lo que hay que saber de un punto para dibujar su imagen, listo desde que se
@@ -155,7 +155,7 @@ function dropShareCards(prefix: string): void {
     if (key.startsWith(prefix)) shareCards.delete(key);
 }
 
-/** El color del estado en hexadecimal: el canvas no entiende clases de Tailwind. */
+
 const STATUS_ACCENT: Record<ReportStatus, string> = {
   activo: "#ef4444",
   urgente: "#b91c1c",
@@ -195,9 +195,9 @@ function contactHtml(name: string, phone: string | null): string {
  * orden que ya trae el grupo — pendientes primero, cubiertos al final.
  */
 function resourcesHtml(group: ReportGroup): string {
-  // Un reporte puede llegar sin insumos: la dirección es lo único obligatorio.
-  // La línea ocupa el lugar de los chips para que el hueco se lea como una
-  // invitación y no como un popup a medio dibujar.
+  
+  
+  
   if (group.resources.length === 0)
     return `<p class="text-sm text-slate-500">Todavía no dice qué necesita.</p>`;
 
@@ -225,29 +225,29 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
       ? '<p class="text-xs font-medium text-emerald-700">Necesidades cubiertas</p>'
       : "";
 
-  // Sin esta línea, los recursos de tres reportes distintos aparecerían juntos
-  // sin explicación de por qué.
+  
+  
   const count = group.reports.length;
   const cuantos =
     count > 1
       ? `<p class="text-xs text-slate-500">${count} reportes en este punto</p>`
       : "";
 
-  // Una hora fresca respalda el dato; una vieja advierte que ya no lo hace.
+  
   const fresh = `<p class="text-xs ${extra.stale ? "font-medium text-amber-700" : "text-slate-500"}">Actualizado ${escapeHtml(relativeTime(extra.freshAt))}${extra.stale ? " — confirma antes de ir" : ""}</p>`;
 
-  // El estado encabeza el popup: antes de saber qué falta hay que saber si se
-  // puede llegar. Va como selector y no como chip de lectura porque cambiarlo es
-  // comunitario, y quien está parado frente al punto es quien lo sabe — el chip
-  // solo le dejaba la opción de ir a buscar la fila en la lista. La hora viaja
-  // pegada al selector porque un estado viejo no es un estado: enterarse abajo
-  // del todo de que nadie lo confirma desde ayer llega tarde.
+  
+  
+  
+  
+  
+  
   const kicker = `
       ${statusSelectHtml(group.status, group.reportIds, lead.name)}
       ${fresh}`;
 
-  // Encima de la dirección y más pequeño: es el nombre que se dice por teléfono,
-  // pero el que lleva hasta el punto sigue siendo el de abajo.
+  
+  
   const lugar = lead.placeName
     ? `<p class="text-base text-slate-600">${escapeHtml(lead.placeName)}</p>`
     : "";
@@ -256,8 +256,8 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
     ? `<p class="text-sm text-slate-600">«${escapeHtml(extra.lastUpdate)}»</p>`
     : "";
 
-  // Las notas y los contactos son de toda la zona, con el mismo tope de dos que
-  // usa la lista: más que eso convierte el popup en un muro.
+  
+  
   const noteList = group.reports
     .filter((r) => r.note)
     .slice(0, 2)
@@ -269,29 +269,29 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
     )
     .join("");
 
-  // Confirmar antes de desplazarse es el consejo que repite toda la página: sin
-  // un botón para hacerlo, es un consejo sin salida.
+  
+  
   const contacto = group.reports
     .filter((r) => r.contactName)
     .slice(0, 2)
     .map((r) => contactHtml(r.contactName as string, r.contactPhone))
     .join("");
 
-  // La misma información del popup, en el orden en que se lee, para la imagen
-  // que sale del botón de compartir. Los recursos cubiertos van en gris, igual
-  // que sus chips acá.
+  
+  
+  
   const shareKey = `r:${group.key}`;
   shareCards.set(shareKey, {
     kicker: statusInfo(group.status).label,
     accent: STATUS_ACCENT[group.status] ?? STATUS_ACCENT.activo,
     name: lead.name,
-    // Invertido respecto al popup: en la imagen la dirección se queda con la
-    // línea grande y el nombre del lugar cae debajo, en la ranura secundaria que
-    // ya existe. La jerarquía es la misma —manda la dirección—, y la ficha no
-    // gana una tercera medida de texto.
+    
+    
+    
+    
     address: lead.placeName,
     updated: `Actualizado ${relativeTime(extra.freshAt)}`,
-    // El estado ya lo dice el kicker; acá solo va lo que él no cabe a decir.
+    
     lines: [count > 1 ? `${count} reportes en este punto` : ""].filter(Boolean),
     notes: noteList,
     chipsTitle: "Necesita",
@@ -325,7 +325,7 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
     </div>`;
 }
 
-/* ---- Detalle del marcador: popup en escritorio, bottom sheet en móvil ---- */
+
 
 /**
  * Lo que ve quien toca un marcador. Es el mismo HTML del popup: el sheet es otro
@@ -342,11 +342,11 @@ type DetailLayer = L.Marker | L.Circle;
 
 let selectHandler: ((selection: MarkerSelection | null) => void) | null = null;
 let selected: DetailLayer | null = null;
-// El HTML del popup se guarda aparte porque en móvil el marcador no lo lleva
-// bindeado: sin popup, `getPopup()` no tiene nada que devolver.
+
+
 const popupHtml = new WeakMap<DetailLayer, string>();
 
-/** `null` = lo que estaba abierto dejó de existir; el panel debe cerrarse. */
+
 export function onMarkerSelect(
   handler: (selection: MarkerSelection | null) => void,
 ): void {
@@ -363,7 +363,7 @@ function emit(marker: DetailLayer | null): void {
   selectHandler?.({ html: popupHtml.get(marker) ?? "", lat, lng });
 }
 
-/** Lo llama el panel al cerrarse: sin esto el marcador seguiría «abierto». */
+
 export function clearSelection(): void {
   selected = null;
 }
@@ -374,9 +374,9 @@ export function clearSelection(): void {
  * el popup y cerrarlo a mano dejaría un parpadeo en cada toque.
  */
 function attachPopup(marker: DetailLayer, html: string): void {
-  // Cada emisión del store repinta todos los marcadores, y casi siempre con el
-  // mismo HTML: sin esta salida, un popup abierto se reparsea entero en cada
-  // tick de realtime aunque no haya cambiado una letra.
+  
+  
+  
   if (popupHtml.get(marker) === html) return;
   popupHtml.set(marker, html);
   if (isMobile()) marker.unbindPopup();
@@ -389,7 +389,7 @@ function selectOnMobile(event: L.LeafletMouseEvent): void {
   emit(event.target as DetailLayer);
 }
 
-/** Al cruzar el breakpoint hay que devolverle (o quitarle) el popup a cada marcador. */
+
 function syncPopupMode(): void {
   const all: DetailLayer[] = [
     ...[...markers.values()].map((report) => report.marker),
@@ -403,32 +403,32 @@ function syncPopupMode(): void {
     else if (!marker.getPopup()) marker.bindPopup(html);
   }
   if (isMobile()) map?.closePopup();
-  // En escritorio el panel de detalle no existe: la selección se descarta para
-  // no reaparecer al volver a angostar la ventana.
+  
+  
   else if (selected) emit(null);
 }
 
 export function initMap(containerId: string): L.Map {
-  // La visita anterior ya dijo dónde está: se arranca ahí de una, sin esperar a
-  // que el permiso conteste y sin el salto desde Cali a medio dibujar.
+  
+  
   const cached = readCachedCoords();
   map = L.map(containerId, { zoomControl: false }).setView(
     cached ? [cached.lat, cached.lng] : CALI_CENTER,
     cached ? USER_ZOOM : 13,
   );
 
-  // Positron: OSM data, minimal gray-on-white render — no POI icons, sparse
-  // labels — so the red report markers are the only saturated thing on screen.
+  
+  
   L.tileLayer(
-    "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    "https:
     {
       maxZoom: 20,
       subdomains: "abcd",
-      // Durante la animación de zoom el nivel intermedio no se ve casi: pedir y
-      // pintar esas teselas es trabajo que cae justo en los frames del gesto.
+      
+      
       updateWhenZooming: false,
       attribution:
-        '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+        '&copy; <a href="https:
     },
   ).addTo(map);
 
@@ -453,25 +453,25 @@ export function initMap(containerId: string): L.Map {
     handler(event.latlng);
   });
 
-  // Mientras dura el gesto los anillos se pausan (regla `.is-moving` en
-  // global.css). No se pierde información: el punto sigue ahí y del mismo color,
-  // solo deja de latir el rato que el mapa está en movimiento.
+  
+  
+  
   const container = map.getContainer();
   map.on("movestart zoomstart", () => container.classList.add("is-moving"));
   map.on("moveend zoomend", () => container.classList.remove("is-moving"));
 
-  // Un gesto sobre el mapa vale más que cualquier vista automática: desde el
-  // primero, la vista inicial ya no se toca. No se escucha `movestart` porque
-  // ese lo dispara también el mapa solo.
+  
+  
+  
   const claim = () => claimView();
   for (const event of ["pointerdown", "wheel", "keydown"] as const) {
     container.addEventListener(event, claim, { once: true, passive: true });
   }
 
-  // Las zonas se van del mapa pasado `ZONE_MAX_ZOOM`, y todo lo que no sea un
-  // municipio se va antes de `TOWNS_ONLY_MAX_ZOOM`. Va en `zoomend` y no en
-  // `zoomstart`: sacarlas al empezar el gesto las hace desaparecer a mitad de la
-  // animación, con el zoom todavía dentro del rango.
+  
+  
+  
+  
   const syncZoom = () => {
     const zoom = map.getZoom();
     const inRange = zoom <= ZONE_MAX_ZOOM;
@@ -508,11 +508,11 @@ function collapseAttribution(instance: L.Map): void {
   const container = instance.attributionControl?.getContainer();
   if (!container) return;
 
-  // Leaflet writes the credits as raw HTML — the «contributors» between the two
-  // links is a bare text node with no element to style. They are wrapped once
-  // here so the open state can be a card: it holds because the tile layer is the
-  // only layer carrying an attribution, and it is added before this runs, so
-  // Leaflet never rewrites the container again.
+  
+  
+  
+  
+  
   const credits = document.createElement("span");
   credits.className = "attr-credits";
   credits.append(...container.childNodes);
@@ -522,10 +522,10 @@ function collapseAttribution(instance: L.Map): void {
   card.innerHTML = `
     <p class="attr-people">
       Hecho por
-      <a href="https://www.instagram.com/panqueso.sanclemente/" target="_blank"
+      <a href="https:
         rel="noopener noreferrer">@panqueso.sanclemente</a>
       ,
-      <a href="https://www.instagram.com/manuu6450/" target="_blank"
+      <a href="https:
         rel="noopener noreferrer">@manuu6450</a>
       y por la comunidad que reporta, confirma y mantiene al día cada punto del mapa 💚
     </p>`;
@@ -581,12 +581,12 @@ export function mountControl(
   new Mounted({ position }).addTo(map);
 }
 
-/** El contenedor cambia de tamaño al cruzar el breakpoint o al rotar. */
+
 export function refreshSize(): void {
   map?.invalidateSize();
 }
 
-/** Nadie más decide la vista inicial a partir de aquí. */
+
 function claimView(): void {
   viewClaimed = true;
 }
@@ -602,12 +602,12 @@ export function setInitialView(lat: number, lng: number): void {
   map.setView([lat, lng], USER_ZOOM);
 }
 
-/* ---- «Estás acá»: el punto de referencia para leer lo que hay alrededor ---- */
 
-// Azul: el único color que el vocabulario de marcadores no había gastado —rojo
-// reporte, índigo acopio, rosa sangre, ámbar albergue, gris pausado—, y el que
-// todo el mundo ya asocia con su propia posición. Sin animación: latir es lo que
-// distingue a un reporte vivo del resto del mapa.
+
+
+
+
+
 const meIcon = L.divIcon({
   className: "me-marker",
   html: '<span class="me-dot"></span>',
@@ -628,24 +628,24 @@ export function setUserMarker(lat: number, lng: number): void {
   }
   meMarker = L.marker([lat, lng], {
     icon: meIcon,
-    // No tiene nada que decir y no puede robarse el clic de un reporte que le
-    // caiga encima: es referencia, no destino.
+    
+    
     interactive: false,
     keyboard: false,
     zIndexOffset: -400,
   }).addTo(map);
 }
 
-/** `false` si todavía no se sabe dónde está la persona. */
+
 export function flyToUser(): boolean {
   if (!meMarker) return false;
   const { lat, lng } = meMarker.getLatLng();
-  // A quien ya se acercó a su cuadra, volver a su punto no puede alejarlo.
+  
   void flyTo(lat, lng, Math.max(map.getZoom(), USER_ZOOM));
   return true;
 }
 
-/* ---- Marcador provisional: se arrastra hasta el edificio exacto ---- */
+
 
 const draftIcon = L.divIcon({
   className: "draft-marker",
@@ -705,14 +705,14 @@ function paintEstado(
   if (!el) return;
   const covered = group.resources.length > 0 && group.pending === 0;
   const estado = markerEstado(group.status, covered);
-  // Escribir el mismo valor igual invalida el estilo del subárbol, y acá eso son
-  // N marcadores recalculados en cada emisión del store. `classList.toggle` no
-  // hace falta protegerlo: si el estado no cambia, no toca el DOM.
+  
+  
+  
   if (el.dataset.estado !== estado) el.dataset.estado = estado;
   el.classList.toggle("is-stale", extra.stale);
 }
 
-/** What the map needs about one point: the group and the freshness around it. */
+
 export type MarkerEntry = { group: ReportGroup; extra: MarkerExtra };
 
 /**
@@ -726,7 +726,7 @@ export type MarkerEntry = { group: ReportGroup; extra: MarkerExtra };
  */
 export function syncReportMarkers(entries: MarkerEntry[]): void {
   keyByReport.clear();
-  // Las fichas para compartir se rehacen con los popups, una por grupo vivo.
+  
   dropShareCards("r:");
 
   for (const { group, extra } of entries) {
@@ -738,14 +738,14 @@ export function syncReportMarkers(entries: MarkerEntry[]): void {
       marker = existing.marker;
       existing.group = group;
       existing.extra = extra;
-      // The anchor is stable (see `groupReports`), so this only fires if the
-      // group's oldest report was the one deleted.
+      
+      
       const at = marker.getLatLng();
       if (at.lat !== group.lat || at.lng !== group.lng)
         marker.setLatLng([group.lat, group.lng]);
     } else {
-      // Sin `addTo(map)`: quién entra en el mapa lo decide `applyReports`, igual
-      // que con los puntos de acopio.
+      
+      
       marker = L.marker([group.lat, group.lng], { icon: pulseIcon });
       marker.on("click", selectOnMobile);
       markers.set(group.key, { marker, group, extra });
@@ -753,8 +753,8 @@ export function syncReportMarkers(entries: MarkerEntry[]): void {
 
     attachPopup(marker, reportPopupHtml(group, extra));
     paintEstado(marker, group, extra);
-    // With the detail open, a status change or a covered resource has to show
-    // up right there: the sheet doesn't find out on its own.
+    
+    
     if (marker === selected) emit(marker);
   }
 
@@ -768,15 +768,15 @@ function dropMarker(key: string): void {
   const entry = markers.get(key);
   if (!entry) return;
   markers.delete(key);
-  // El punto ya no existe: dejar su detalle abierto sería mostrar algo que el
-  // mapa ya no tiene.
+  
+  
   if (entry.marker === selected) emit(null);
   forgetFade(entry.marker);
   reportsLayer.removeLayer(entry.marker);
   entry.marker.remove();
 }
 
-/** The group a report was merged into — its marker, if any, is that group's. */
+
 export function markerKeyForReport(id: string): string | undefined {
   return keyByReport.get(id);
 }
@@ -811,7 +811,7 @@ export function flyTo(
       map.off("moveend", finish);
       resolve();
     };
-    // A flyTo to the current view emits no moveend, so never await it forever.
+    
     const timer = setTimeout(finish, 1500);
     map.once("moveend", () => {
       clearTimeout(timer);
@@ -854,9 +854,9 @@ export function flyToEmergency(reserveTop = 0): Promise<void> {
       map.off("moveend", finish);
       resolve();
     };
-    // The same guard `flyTo` carries, and here it is not an edge case: pressing
-    // the button on an already-framed map emits no `moveend`, and whoever is
-    // waiting on this is what draws the figures.
+    
+    
+    
     const timer = setTimeout(finish, 1500);
     map.once("moveend", () => {
       clearTimeout(timer);
@@ -866,11 +866,11 @@ export function flyToEmergency(reserveTop = 0): Promise<void> {
     map.flyToBounds(
       bounds.isValid() ? bounds : L.latLngBounds(EMERGENCY_BOUNDS),
       {
-        // Asymmetric, and that is the whole point of `reserveTop`. A centred fit
-        // puts the northern half of the pins under whatever covers the top of the
-        // map — on mobile that is the figures card, which is opened by the same
-        // tap. The caller measures it, the same deal as `offsetY` in `flyTo`: this
-        // module draws the map and does not get to know what floats over it.
+        
+        
+        
+        
+        
         paddingTopLeft: [48, 48 + Math.max(reserveTop, 0)],
         paddingBottomRight: [48, 48],
         maxZoom: EMERGENCY_MAX_ZOOM,
@@ -880,7 +880,7 @@ export function flyToEmergency(reserveTop = 0): Promise<void> {
   });
 }
 
-/* ---- Entering and leaving a layer, with the fade ---- */
+
 
 /**
  * How long a pin takes to go, and it is the CSS that runs it — the rules for
@@ -891,7 +891,7 @@ export function flyToEmergency(reserveTop = 0): Promise<void> {
  */
 const FADE_MS = 220;
 
-/** The base fill of a damage zone, and what it fades back up to. */
+
 const ZONE_FILL_OPACITY = 0.14;
 
 /**
@@ -964,7 +964,7 @@ function forgetFade(layer: L.Marker | L.Circle): void {
   fadeTimers.delete(layer);
 }
 
-/* ---- Reports: their own layer, so the filter can empty it ---- */
+
 
 /**
  * Report markers used to hang straight off the map. They live in a layer now for
@@ -1003,25 +1003,25 @@ function applyReports(): number {
     const visible =
       !townsOnly && reportsVisible && (!reportsOnlyRecent || !extra.stale);
     if (visible) shown += 1;
-    // A filter that hides the open point leaves the detail talking about
-    // something no longer on the map. It is read off the decision and not off
-    // `hasLayer`, which stays true the whole time the marker is fading out.
+    
+    
+    
     else if (marker === selected) closes = true;
     const entering = visible && !reportsLayer.hasLayer(marker);
     setLayerVisible(reportsLayer, marker, visible);
-    // Entrar en la capa reconstruye el elemento, y con él se fue el
-    // `data-estado`: sin esto el marcador vuelve sin color.
+    
+    
     if (entering) paintEstado(marker, group, extra);
   }
   if (closes) emit(null);
   return shown;
 }
 
-/* ---- Centers: their own layer, apart from the reports ---- */
 
-// They go in their own layer so they can be filtered and hidden without
-// touching the reports, and with a negative zIndexOffset so the pulsing red of
-// an active need always stays above a delivery point.
+
+
+
+
 const centersLayer = L.layerGroup();
 /**
  * Center -> its marker, by id. A registry and not a list that gets rebuilt,
@@ -1064,10 +1064,10 @@ const collectionIcon = L.divIcon({
   popupAnchor: [0, -10],
 });
 
-// Registered by the community: the same square, a lighter indigo. Who published
-// it does not change what the point is, so it does not change the shape either
-// — a third outline would read as a fifth type. The popup is what says it in
-// full, and it labels both origins.
+
+
+
+
 const communityIcon = L.divIcon({
   className: "center-marker",
   html: '<span class="center-pin" data-community></span>',
@@ -1076,9 +1076,9 @@ const communityIcon = L.divIcon({
   popupAnchor: [0, -10],
 });
 
-// The same square, grey and with the pause bars: still the same place, only it
-// is not open right now. It stays on the map on purpose — deleting it would
-// leave whoever saw it yesterday with no explanation.
+
+
+
 const collectionPausedIcon = L.divIcon({
   className: "center-marker",
   html: '<span class="center-pin" data-paused></span>',
@@ -1087,8 +1087,8 @@ const collectionPausedIcon = L.divIcon({
   popupAnchor: [0, -10],
 });
 
-// A red drop, tip up. The tip is the coordinate, and the rotation carries it
-// about four pixels above the box, so the anchor goes negative.
+
+
 const bloodIcon = L.divIcon({
   className: "blood-marker",
   html: '<span class="blood-pin"></span>',
@@ -1105,8 +1105,8 @@ const bloodPausedIcon = L.divIcon({
   popupAnchor: [0, -2],
 });
 
-// A small amber house: third type, third shape, so it can be told apart with no
-// colour at all.
+
+
 const shelterIcon = L.divIcon({
   className: "shelter-marker",
   html: '<span class="shelter-pin"></span>',
@@ -1123,8 +1123,8 @@ const shelterPausedIcon = L.divIcon({
   popupAnchor: [0, -12],
 });
 
-// A blue circle with a white cross — the shape the blood bank used to carry,
-// which says «medical attention» more directly than it ever said «blood».
+
+
 const healthcareIcon = L.divIcon({
   className: "healthcare-marker",
   html: '<span class="healthcare-pin"></span>',
@@ -1141,13 +1141,13 @@ const healthcarePausedIcon = L.divIcon({
   popupAnchor: [0, -11],
 });
 
-// A wide dark red square, softer at the edges than the collection point's and
-// noticeably bigger. The size is the claim: every other pin is a door somebody
-// walks to, and this one is a town — the coordinate is its cabecera and not an
-// address, so a pin drawn at the same weight as an acopio would promise a
-// precision the row does not have. The colour is the urgency: it belongs to the
-// same red as the reports and sits a shade under it, which is the right reading
-// — one address in trouble is a report, a whole municipality is this.
+
+
+
+
+
+
+
 const municipioIcon = L.divIcon({
   className: "municipio-marker",
   html: '<span class="municipio-pin"></span>',
@@ -1164,7 +1164,7 @@ const municipioPausedIcon = L.divIcon({
   popupAnchor: [0, -13],
 });
 
-/** Icon per type with its paused variant. */
+
 const ICON: Record<Center["type"], { normal: L.DivIcon; paused: L.DivIcon }> = {
   acopio: { normal: collectionIcon, paused: collectionPausedIcon },
   sangre: { normal: bloodIcon, paused: bloodPausedIcon },
@@ -1253,8 +1253,8 @@ function chipsTitleFor(center: Center): string {
 function donationsHtml(center: Center, paused: boolean): string {
   if (center.donations.length === 0) return "";
   const blocks = byCategory(center.donations, (item) => item).map((bucket) => {
-    // Paused, the chips go struck through, in the same grey as an already
-    // covered resource: it is still what that center takes, only not now.
+    
+    
     const chips = bucket.items
       .map(
         (item) =>
@@ -1267,9 +1267,9 @@ function donationsHtml(center: Center, paused: boolean): string {
         <div class="mt-1 flex flex-wrap gap-1">${chips}</div>
       </div>`;
   });
-  // With the detail underneath, the chips stopped reading on their own: without
-  // this title they look like what the point needs, not what the visitor
-  // brings.
+  
+  
+  
   return `
     <div class="space-y-2">
       <p class="text-xs m-0 font-semibold uppercase tracking-wide text-slate-500">${escapeHtml(chipsTitleFor(center))}</p>
@@ -1286,20 +1286,20 @@ export type CenterEntry = { data: Center; mine: boolean };
 
 function centerPopupHtml(center: Center, mine: boolean): string {
   const paused = isPaused(center);
-  // Expired and inactive draw the same and read differently. A point a
-  // maintainer also greyed out counts as inactive: there somebody wrote the
-  // reason, and it is worth more than «nobody has confirmed this».
+  
+  
+  
   const expired = center.isActive && isExpired(center);
   const donations = donationsHtml(center, paused);
   const contact = contactLinksHtml(
     center.contactWhatsapp,
     center.contactInstagram,
   );
-  // A shelter that asks people to fill a form before showing up leaves the URL
-  // here, and as dead text it is no use. Only curated points get linkified: a
-  // community one is inserted by anyone from the browser, and making that text
-  // clickable would be publishing whoever's link. `break-words` goes in both
-  // cases — a URL is a single word and stretches the popup if it cannot break.
+  
+  
+  
+  
+  
   const notes = center.notes
     ? `<p class="text-sm wrap-break-word text-slate-500">${
         isCommunity(center)
@@ -1307,8 +1307,8 @@ function centerPopupHtml(center: Center, mine: boolean): string {
           : linkifyHtml(center.notes)
       }</p>`
     : "";
-  // The state goes in the kicker and not only in the pin colour: whoever opens
-  // the popup has to read it before the address.
+  
+  
   const { label, color, accent } = KICKER[center.type];
   const kickerLabel = expired
     ? `${label} · Sin confirmar`
@@ -1318,21 +1318,21 @@ function centerPopupHtml(center: Center, mine: boolean): string {
   const kicker = paused
     ? `<p class="text-xs font-semibold uppercase tracking-wide text-slate-500">${kickerLabel}</p>`
     : `<p class="text-xs font-semibold uppercase tracking-wide ${color}">${label}</p>`;
-  // A blood bank does not take supplies but donors: saying «donaciones» flat
-  // leaves the reader wondering whether the door is still open to give blood.
+  
+  
   const notAcceptingLabel =
     center.type === "sangre"
       ? "No recibe donantes por ahora"
       : "No recibe donaciones por ahora";
-  // The colour is not the pin's: `accepting_donations` writes a line and
-  // nothing else, so a point that is open but full keeps its own colour.
+  
+  
   const notAccepting = center.acceptingDonations
     ? ""
     : `<p class="text-xs font-medium text-amber-700">${notAcceptingLabel}</p>`;
-  // Same amber as the notice of an old report: "it exists, but do not travel".
-  // An expired point says something else — nobody claims it closed, only that
-  // nobody has confirmed it in a while — and that is why it carries the time.
-  // `data-time` lets the counter keep running with the popup open.
+  
+  
+  
+  
   const notice = expired
     ? `<p
         class="text-xs font-medium text-amber-700"
@@ -1342,18 +1342,18 @@ function centerPopupHtml(center: Center, mine: boolean): string {
     : paused
       ? `<p class="text-xs font-medium text-amber-700">Cerrado por ahora</p>`
       : "";
-  // Paused, the CTA stops being the solid blue: still there for whoever wants
-  // to locate it, but it does not invite the trip.
-  //
-  // No `w-full` and no `mt-1`: the CTA shares a row with the share button, so
-  // `flex-1` splits the width and the margin lives in the container.
+  
+  
+  
+  
+  
   const ctaClass = paused
     ? "center-cta center-cta-quiet flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-md font-semibold no-underline transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300"
     : "center-cta flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-md font-semibold no-underline shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300";
   const origin = `<p class="text-sm text-slate-500">${ORIGIN[center.origin]}</p>`;
-  // The two conditions of the delete policy, and that is why both are here:
-  // offering the button over a curated point would be offering something the
-  // server rejects.
+  
+  
+  
   const remove =
     mine && isCommunity(center)
       ? `<button
@@ -1363,9 +1363,9 @@ function centerPopupHtml(center: Center, mine: boolean): string {
         class="mt-1 w-full text-xs font-medium text-slate-400 transition hover:text-red-600"
       >Eliminar este punto</button>`
       : "";
-  // Anyone can touch it, not only the author: the session the point was
-  // registered with dies when the browser is cleared, and a point nobody can
-  // revive stays expired forever.
+  
+  
+  
   const confirm = expired
     ? `<button
         type="button"
@@ -1382,8 +1382,8 @@ function centerPopupHtml(center: Center, mine: boolean): string {
     updated: null,
     lines: [
       center.hours,
-      // The image travels over WhatsApp and gets looked at days later, so the
-      // exact hour says nothing: what helps is that the point is unconfirmed.
+      
+      
       expired
         ? "Sin confirmar recientemente"
         : paused
@@ -1394,8 +1394,8 @@ function centerPopupHtml(center: Center, mine: boolean): string {
       center.contactInstagram ? `Instagram @${center.contactInstagram}` : "",
       ORIGIN[center.origin],
     ].filter(Boolean),
-    // No URLs: they cannot be tapped in the PNG, and `wrap()` lets a word wider
-    // than the box through, so a raw URL runs off the drawing.
+    
+    
     notes: [center.notes]
       .map((note) => (note ? stripUrls(note) : ""))
       .filter(Boolean),
@@ -1410,8 +1410,8 @@ function centerPopupHtml(center: Center, mine: boolean): string {
     lng: center.lng,
   });
 
-  // Name, who published it and where it is are the same answer — «what is this
-  // and where» — so they go together in one block.
+  
+  
   return `
     <div class="space-y-2">
       <div class="space-y-1">
@@ -1441,10 +1441,10 @@ function centerPopupHtml(center: Center, mine: boolean): string {
 }
 
 function matchesFilter(center: Center): boolean {
-  // The zoom decides which half of the table is on the map at all: a town below
-  // `TOWNS_ONLY_MAX_ZOOM`, everything else above it. The chips still get their
-  // veto on top — unticking «Municipios» leaves the far view empty rather than
-  // bringing the towns back.
+  
+  
+  
+  
   if (townsOnly !== (center.type === "municipio")) return false;
   if (!visibleCenterTypes.has(center.type)) return false;
   return !centersOnlyActive || !isPaused(center);
@@ -1462,8 +1462,8 @@ function applyCenters(): number {
   for (const { data, marker } of centers.values()) {
     const visible = matchesFilter(data);
     if (visible) shown += 1;
-    // A filter that hides the open point leaves the detail talking about
-    // something no longer on the map.
+    
+    
     else if (marker === selected) closes = true;
     setLayerVisible(centersLayer, marker, visible);
   }
@@ -1478,9 +1478,9 @@ function applyCenters(): number {
  */
 function centerIconFor(center: Center): L.DivIcon {
   const { normal, paused } = ICON[center.type];
-  // Only the collection point has a community variant: it is the only type the
-  // form registers. Grey wins over origin — «do not go today» is more urgent
-  // than who published it.
+  
+  
+  
   const own =
     center.type === "acopio" && isCommunity(center) ? communityIcon : normal;
   return isPaused(center) ? paused : own;
@@ -1490,8 +1490,8 @@ export function setCenters(entries: CenterEntry[]): number {
   const live = new Set(entries.map(({ data }) => data.id));
   for (const [id, { marker }] of centers) {
     if (live.has(id)) continue;
-    // The point stopped existing: leaving its detail open would show something
-    // the map no longer has.
+    
+    
     if (marker === selected) emit(null);
     forgetFade(marker);
     centersLayer.removeLayer(marker);
@@ -1505,15 +1505,15 @@ export function setCenters(entries: CenterEntry[]): number {
     if (existing) {
       existing.data = data;
       const icon = centerIconFor(data);
-      // `setIcon` rebuilds the marker element, so only when the drawing really
-      // changed: doing it every time would drop the popup open on top.
+      
+      
       if (existing.marker.options.icon !== icon) existing.marker.setIcon(icon);
       const at = existing.marker.getLatLng();
       if (at.lat !== data.lat || at.lng !== data.lng)
         existing.marker.setLatLng([data.lat, data.lng]);
       attachPopup(existing.marker, centerPopupHtml(data, mine));
-      // With the detail open, a pause or a change of hours has to show up right
-      // there: the sheet does not find out on its own.
+      
+      
       if (existing.marker === selected) emit(existing.marker);
       continue;
     }
@@ -1530,12 +1530,12 @@ export function setCenters(entries: CenterEntry[]): number {
   return applyCenters();
 }
 
-/* ---- Zonas afectadas: la capa de abajo del todo ---- */
 
-// Va en su propia capa y se agrega antes que las otras dos, pero lo que la deja
-// debajo no es ese orden: Leaflet pone los vectores en `overlayPane` y los
-// marcadores en `markerPane`, que va encima. Un círculo nunca puede tapar un
-// pin, ni siquiera el de un reporte que caiga justo en el borde.
+
+
+
+
+
 const affectedLayer = L.layerGroup();
 const zoneCircles: L.Circle[] = [];
 let zonesVisible = true;
@@ -1551,7 +1551,7 @@ let zonesVisible = true;
  */
 const ZONE_MAX_ZOOM = 17;
 
-/** Si el zoom actual las admite. Lo actualiza `initMap`. */
+
 let zonesInRange = true;
 
 /**

@@ -14,14 +14,11 @@ import { showToast } from "./ui/toast";
  */
 
 initPetSheet();
-// El filtro y la cuadrícula no se importan entre sí: los ata el arranque, que es
-// para lo que está. La cuadrícula va primero porque el filtro empuja sus valores
-// por defecto apenas se monta.
+
 const grid = initPetsGrid();
 initPetsFilter(grid.setFilter);
 openPetFromUrl(grid);
 
-// «Encontrada hace 2 minutos» congelado media hora miente sobre el dato.
 startTimeTicker();
 
 onError(showToast);

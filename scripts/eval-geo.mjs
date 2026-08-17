@@ -15,8 +15,6 @@
 import { readFile } from "node:fs/promises";
 import { registerHooks } from "node:module";
 
-// Los módulos de src/ se importan sin extensión, como espera Vite; Node no
-// resuelve eso por su cuenta, así que se le enseña a probar con ".ts".
 registerHooks({
   resolve(specifier, context, next) {
     try {
@@ -33,7 +31,9 @@ const { locate } = await import("../src/scripts/grid.ts");
 const { project } = await import("../src/scripts/geo-index.ts");
 
 const read = async (name) =>
-  JSON.parse(await readFile(new URL(`../public/geo/${name}`, import.meta.url), "utf8"));
+  JSON.parse(
+    await readFile(new URL(`../public/geo/${name}`, import.meta.url), "utf8"),
+  );
 
 const index = new Map();
 for (const [name, points] of await read("streets.json")) {
@@ -67,12 +67,21 @@ for (const [street, number, lat, lon] of await read("addresses.json")) {
 
 errors.sort((a, b) => a - b);
 const percentile = (q) => errors[Math.floor(q * (errors.length - 1))];
-const share = (limit) => (errors.filter((e) => e < limit).length / errors.length) * 100;
+const share = (limit) =>
+  (errors.filter((e) => e < limit).length / errors.length) * 100;
 
-console.log(`evaluadas ${errors.length}  ·  sin parsear ${unparsed}  ·  sin resolver ${unresolved}`);
-console.log(`p50 ${percentile(0.5).toFixed(0)} m   p75 ${percentile(0.75).toFixed(0)} m   p90 ${percentile(0.9).toFixed(0)} m`);
-console.log(`<50 m ${share(50).toFixed(0)}%   <100 m ${share(100).toFixed(0)}%   <200 m ${share(200).toFixed(0)}%`);
+console.log(
+  `evaluadas ${errors.length}  ·  sin parsear ${unparsed}  ·  sin resolver ${unresolved}`,
+);
+console.log(
+  `p50 ${percentile(0.5).toFixed(0)} m   p75 ${percentile(0.75).toFixed(0)} m   p90 ${percentile(0.9).toFixed(0)} m`,
+);
+console.log(
+  `<50 m ${share(50).toFixed(0)}%   <100 m ${share(100).toFixed(0)}%   <200 m ${share(200).toFixed(0)}%`,
+);
 
 const passes = percentile(0.5) <= 30 && share(50) >= 60 && share(200) >= 80;
-console.log(passes ? "\nOK — dentro de la puerta." : "\nFALLA — por debajo de la puerta.");
+console.log(
+  passes ? "\nOK — dentro de la puerta." : "\nFALLA — por debajo de la puerta.",
+);
 process.exit(passes ? 0 : 1);

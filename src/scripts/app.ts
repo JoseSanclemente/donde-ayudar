@@ -28,38 +28,31 @@ import { startTimeTicker } from "./ui/time";
 import { showToast } from "./ui/toast";
 
 initMap("map");
-// Las cifras se arman antes que los dos botones que las mueven: uno las saca y
-// el otro las quita, y ninguna de las tres features importa a las otras — acá se
-// unen, igual que en `pets.ts` la grilla le pasa su `setFilter` al filtro.
+
 const stats = initEmergencyStats();
-// Justo detrás del mapa: el permiso se pide cuanto antes y nadie lo espera.
+
 initUserLocation(stats.hide);
-// Después de «Centrar en mí» y por eso: los dos se montan en la misma esquina
-// con `mountControl`, que agrega al final, así que este orden es el de la pila.
+
 initEmergencyView(stats);
 initSheet();
 initMarkerSheet();
 initMarkerActions();
 initShare();
 initCentersLayer();
-// Antes del filtro: el JSON llega por su cuenta, pero la capa tiene que existir
-// cuando `initMapFilter` le pase el valor por defecto.
+
 initAffectedLayer();
-// Antes de que llegue el primer dato: los valores por defecto tienen que estar
-// puestos en el mapa cuando aparezca el primer marcador.
+
 initMapFilter();
-// Antes del aviso: la primera vez que aparece ya cambia la altura del header.
+
 initHeaderOffset();
 initAlertBanner();
-// Antes de los dos formularios: los dos se suscriben a su cambio de pestaña.
+
 initReportTabs();
 initReportForm();
-// Después del formulario: el historial lo rellena, y `prefillReport` no tiene
-// a quién llamarle hasta que el formulario se inicializó.
+
 initReportHistory();
 initCenterForm();
-// Lo mismo del otro lado: `prefillCenter` no tiene a quién llamarle hasta que
-// el formulario de acopio se inicializó.
+
 initCenterHistory();
 initReportList();
 initUpdatesFeed();
@@ -67,16 +60,8 @@ initOffersPanel();
 initVolunteerPanel();
 initSyncBadge();
 
-// «Hace 2 minutos» congelado media hora miente sobre la frescura del dato.
 startTimeTicker();
 
-// El índice de direcciones se pide ya: son 56 KB y llegan mientras la persona
-// escribe. La malla vial son dos megas —medio mega comprimido, más un `JSON.parse`
-// y una reproyección entera en el hilo principal— y acá no se pide: la trae
-// `location-picker` al primer foco del campo de dirección, que es cuando hace
-// falta. Se calentaba desde acá para el que nunca abre el formulario, y eso es
-// justo al revés: la mayoría de las visitas nunca lo abren y estaban pagando el
-// archivo completo.
 void loadAddresses();
 
 onError(showToast);

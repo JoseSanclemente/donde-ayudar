@@ -13,12 +13,11 @@ export function initMarkerSheet(): void {
 
   onMarkerSelect((selection) => {
     if (!selection) {
-      // El punto dejó de existir (lo borraron, o un filtro lo escondió).
       closeDetailPanel();
       body.replaceChildren();
       return;
     }
-    // El HTML lo arma `map.ts` con `escapeHtml`, igual que para el popup.
+
     body.innerHTML = selection.html;
     openDetailPanel();
   });

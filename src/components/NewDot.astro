@@ -1,14 +1,12 @@
 ---
-// The markup face of the shared dot. Whoever lights it does it by id, through
-// `setTabDot`: this component owns the look, never the state.
 import { NEW_DOT } from "@/scripts/ui/dot";
 
 interface Props {
   id?: string;
-  /** Extra classes — how the dot sits in its row. */
+
   class?: string;
   hidden?: boolean;
-  /** Screen-reader text. Without one the dot is decoration. */
+
   label?: string;
 }
 

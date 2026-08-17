@@ -2,7 +2,6 @@ import { createEmitter } from "./emitter";
 
 const errors = createEmitter<string>();
 
-/** Fallo de una escritura puntual, con la caché ya revertida. */
 export const reportError = errors.emit;
 
 export const onError = errors.on;

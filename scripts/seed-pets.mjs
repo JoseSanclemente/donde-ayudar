@@ -33,20 +33,17 @@ import { readFile, writeFile } from "node:fs/promises";
 import { extname } from "node:path";
 import { createClient } from "@supabase/supabase-js";
 
-/** The bucket's own `allowed_mime_types`, and the extension each one is saved as. */
 const PHOTO_TYPES = {
   "image/jpeg": "jpg",
   "image/png": "png",
   "image/webp": "webp",
 };
 
-/** The bucket's `file_size_limit`. Checked here first for a better message. */
 const MAX_PHOTO_BYTES = 5 * 1024 * 1024;
 
 const KINDS = ["dog", "cat", "other"];
 const SEXES = ["male", "female"];
 
-/** The same pattern as the CHECK in the base. Validating twice is on purpose. */
 const INSTAGRAM_POST =
   /^https:\/\/(www\.)?instagram\.com\/(p|reel)\/[A-Za-z0-9_-]{5,30}\/?$/;
 
@@ -68,7 +65,6 @@ function normalizeInstagram(value) {
   return `https://www.instagram.com/${match[1]}/${match[2]}/`;
 }
 
-/** The same patterns as the CHECKs in the base. Validating twice is on purpose. */
 const WHATSAPP_USERNAME = /^[A-Za-z0-9._-]{3,30}$/;
 const REF_CODE = /^[A-Za-z0-9][A-Za-z0-9 _-]{2,39}$/;
 const MAX_PLACE_NAME = 120;
@@ -109,7 +105,6 @@ function required(name) {
   return value;
 }
 
-/** What the row cannot be fixed for: everything the base would reject anyway. */
 function validate(entry, index) {
   const where = `entrada ${index + 1}`;
 
@@ -128,10 +123,8 @@ function validate(entry, index) {
     return `${where}: sex "${sex}" no es male, female ni null.`;
   }
 
-  // El contacto es lo que hace que la mascota sirva de algo, y son dos formas:
-  // la publicación de Instagram de donde salió, o el usuario de WhatsApp de
-  // quien la tiene. Una alcanza; las dos también, que el CHECK pide una.
-  const wantsInstagram = entry.instagram !== undefined && entry.instagram !== null;
+  const wantsInstagram =
+    entry.instagram !== undefined && entry.instagram !== null;
   const username = entry.contact_username ?? null;
   if (!wantsInstagram && username === null) {
     return `${where}: falta el contacto (instagram o contact_username).`;
@@ -144,8 +137,7 @@ function validate(entry, index) {
     if (!instagram) {
       return `${where}: instagram "${entry.instagram}" no es el enlace de una publicación.`;
     }
-    // Lo que se guarda es lo normalizado, no lo que vino: si eso no pasa el patrón
-    // de la base, el que está mal es `normalizeInstagram` y no la entrada.
+
     if (!INSTAGRAM_POST.test(instagram)) {
       return `${where}: "${instagram}" quedó fuera de lo que acepta la base.`;
     }
@@ -162,7 +154,6 @@ function validate(entry, index) {
   return null;
 }
 
-/** The photo as it will go to the bucket, or the reason it cannot. */
 async function fetchPhoto(url) {
   const response = await fetch(url);
   if (!response.ok) throw new Error(`la foto respondió ${response.status}`);
@@ -184,12 +175,10 @@ async function fetchPhoto(url) {
   return { blob: new Blob([bytes], { type }), extension, type };
 }
 
-/** El tipo se saca de la extensión: acá no hay cabecera que preguntar. */
 const TYPE_BY_EXTENSION = Object.fromEntries(
   Object.entries(PHOTO_TYPES).map(([type, extension]) => [extension, type]),
 );
 
-/** La misma foto cuando ya está en disco, que es como la deja un recolector. */
 async function readPhoto(path) {
   const extension = extname(path).replace(".", "").toLowerCase();
   const type = TYPE_BY_EXTENSION[extension === "jpeg" ? "jpg" : extension];
@@ -219,8 +208,6 @@ async function publish(admin, entry, botUserId) {
     ? await readPhoto(entry.image_path)
     : await fetchPhoto(entry.image_url);
 
-  // The id is minted here so the object key and the row it belongs to stay in
-  // sync: with the default the row would learn its id after the upload.
   const id = crypto.randomUUID();
   const path = `${botUserId}/${id}.${extension}`;
 
@@ -274,13 +261,9 @@ async function main() {
   let skipped = 0;
   let failed = 0;
 
-  // One at a time: the batch is small, the file is rewritten as it goes, and a
-  // report read from top to bottom says which entry is which.
   for (const [index, entry] of entries.entries()) {
     const label = `${index + 1}/${entries.length}`;
 
-    // An entry that already carries an id was published on an earlier run. That
-    // is what makes a second run after a partial failure safe.
     if (entry.id) {
       console.log(`· ${label} ya estaba publicada (${entry.id})`);
       skipped += 1;

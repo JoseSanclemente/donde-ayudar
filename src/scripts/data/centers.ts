@@ -1,4 +1,9 @@
-import { isLapsed, type Center, type CenterType, type Origin } from "../centers";
+import {
+  isLapsed,
+  type Center,
+  type CenterType,
+  type Origin,
+} from "../centers";
 import { categoryItemsEnPunto, isCategoryId } from "../resources";
 import { MISSING_ENV_MESSAGE, supabase } from "../supabase";
 import { createEmitter } from "./emitter";
@@ -37,7 +42,6 @@ type Row = {
   created_at: string | null;
 };
 
-/** What the form is allowed to write: a collection point, and only these fields. */
 export type NewCollectionCenter = {
   name: string;
   address: string;
@@ -77,7 +81,6 @@ function emit(): void {
   changes.emit(visible());
 }
 
-/** The domain type uses `?: string`, not `| null`: an empty column is dropped. */
 function text(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() !== "" ? value : undefined;
 }
@@ -92,7 +95,9 @@ function expandDonations(donations: unknown): string[] {
   if (!Array.isArray(donations)) return [];
   const items = donations
     .filter((value): value is string => typeof value === "string")
-    .flatMap((value) => (isCategoryId(value) ? categoryItemsEnPunto(value) : value.trim()));
+    .flatMap((value) =>
+      isCategoryId(value) ? categoryItemsEnPunto(value) : value.trim(),
+    );
   return [...new Set(items)];
 }
 
@@ -129,22 +134,16 @@ function fromRow(row: Row): Center {
     contactInstagram: text(row.contact_instagram),
     notes: text(row.notes),
     donations: expandDonations(row.donations),
-    // The columns are `not null default true`; the `?? true` covers a payload
-    // from an older shape, not the database.
+
     acceptingDonations: row.accepting_donations ?? true,
     isActive: row.is_active ?? true,
-    // A payload read by a tab that has not reloaded degrades to «just
-    // touched». The other way round it would grey out the whole map on a shape
-    // it simply cannot see.
+
     updatedAt,
-    // A row from before the column read by an older tab: the last touch is the
-    // closest thing to a publication date, and it never sorts it above a point
-    // published later.
+
     createdAt: text(row.created_at) ?? updatedAt,
   };
 }
 
-/** Alphabetical. The map ignores the order, but it keeps the cache stable. */
 function sorted(list: Center[]): Center[] {
   return [...list].sort((a, b) => a.name.localeCompare(b.name, "es"));
 }
@@ -162,10 +161,6 @@ export async function loadCenters(): Promise<void> {
   cache = sorted((data ?? []).filter(isRow).map(fromRow));
   emit();
 }
-
-/* ------------------------------------------------------------------ */
-/* Writing — community collection points only, optimistic like reports  */
-/* ------------------------------------------------------------------ */
 
 /**
  * Publishes a collection point. Returns the center already in the cache: the
@@ -258,12 +253,12 @@ export function removeCenter(id: string): void {
     if (!supabase) return;
     const { error } = await supabase.from(TABLE).delete().eq("id", id);
     if (!error) return;
-    // The policy only allows deleting one's own point, and no curated one: if
-    // it fails the point is still alive for everybody else and the map has to
-    // put it back.
+
     cache = sorted([...cache, previous]);
     emit();
-    reportError("Solo puedes eliminar los puntos que registraste en este navegador.");
+    reportError(
+      "Solo puedes eliminar los puntos que registraste en este navegador.",
+    );
   })();
 }
 
@@ -280,20 +275,23 @@ export function confirmCenter(id: string): void {
   if (!previous) return;
 
   const now = new Date().toISOString();
-  cache = cache.map((center) => (center.id === id ? { ...center, updatedAt: now } : center));
+  cache = cache.map((center) =>
+    center.id === id ? { ...center, updatedAt: now } : center,
+  );
   emit();
 
   void (async () => {
     if (!supabase) return;
     const { error } = await supabase.rpc("confirm_center", { p_id: id });
     if (!error) return;
-    // The point goes back to looking expired: saying somebody confirmed it when
-    // the server never heard is exactly the error this avoids.
+
     cache = cache.map((center) =>
       center.id === id ? { ...center, updatedAt: previous.updatedAt } : center,
     );
     emit();
-    reportError(errorMessage(error, "No se pudo confirmar el punto. Revisa la conexión."));
+    reportError(
+      errorMessage(error, "No se pudo confirmar el punto. Revisa la conexión."),
+    );
   })();
 }
 

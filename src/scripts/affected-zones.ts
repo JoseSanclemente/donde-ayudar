@@ -13,26 +13,23 @@
  * círculo publicado no se pueda reconstruir una dirección.
  */
 
-/** [lat, lng, radio en metros, reportes, colapsos, sector] tal y como sale del índice. */
 type RawZone = [number, number, number, number, number, string];
 
 export type AffectedZone = {
   lat: number;
   lng: number;
-  /** Radio en metros. */
+
   radius: number;
-  /** Cuántas direcciones se fundieron en esta zona. */
+
   reports: number;
-  /** Cuántas de ellas venían marcadas como colapso. */
+
   collapses: number;
-  /** Barrio o sector, escrito a mano en la lista fuente. */
+
   label: string;
 };
 
-/** El naranja de la fuente. Leaflet pinta vectores con estilo, no con clases. */
 export const ZONE_FILL = "#f97316";
 
-/** El aviso que viaja con el dato. Sin esto la capa dice algo que la fuente no dice. */
 export const ZONE_DISCLAIMER = [
   "Esto no es un censo ni un mapa oficial: son reportes ciudadanos y de medios, recogidos a mano.",
   "Que un lugar caiga dentro de la zona no dice nada sobre el estado de una edificación en particular.",
@@ -45,7 +42,9 @@ export function loadAffectedZones(): Promise<AffectedZone[]> {
   zones ??= fetch("/geo/affected-zones.json")
     .then((response) => {
       if (!response.ok)
-        throw new Error(`No se pudo cargar /geo/affected-zones.json (${response.status})`);
+        throw new Error(
+          `No se pudo cargar /geo/affected-zones.json (${response.status})`,
+        );
       return response.json() as Promise<RawZone[]>;
     })
     .then((rows) =>

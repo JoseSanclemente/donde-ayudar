@@ -8,16 +8,14 @@
  * with their class, and what a toggle means is the caller's problem.
  */
 
-/** The shape of the chip, not its colour. */
 export const CHIP_BASE =
   "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition";
 
-/** Unmarked: the chip goes off entirely, and so does the figure it may carry. */
 export const CHIP_OFF = "border-slate-200 bg-white text-slate-500";
 
 export type ChipOption<T extends string> = {
   id: T;
-  /** The marked chip, in the colour of what it stands for. */
+
   chipOn: string;
 };
 
@@ -61,7 +59,7 @@ export function createChipGroup<T extends string>(
     const button = (event.target as HTMLElement).closest<HTMLButtonElement>(
       selector,
     );
-    // Two groups can share a root: a chip of the other one matches nothing here.
+
     if (!button) return;
     const id = button.dataset[toDatasetKey(attribute)] as T | undefined;
     if (!id) return;
@@ -82,7 +80,6 @@ export function createChipGroup<T extends string>(
   };
 }
 
-/** `pets-kind` is `dataset.petsKind`: the same rule the browser applies. */
 function toDatasetKey(attribute: string): string {
   return attribute.replace(/-([a-z])/g, (_, letter: string) =>
     letter.toUpperCase(),

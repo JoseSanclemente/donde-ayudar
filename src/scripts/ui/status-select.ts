@@ -20,13 +20,6 @@ export function statusSelectHtml(
       `<option value="${item.id}"${item.id === status ? " selected" : ""}>${escapeHtml(item.label)}</option>`,
   ).join("");
 
-  // El chip es el envase y no el `<select>`: el color del estado lo pone acá y
-  // el selector lo hereda. El resto de la pinta —flecha incluida— es la variante
-  // `chip` de `ui/select`.
-  //
-  // `data-current` guarda el estado de partida: si alguien cancela el aviso de
-  // cierre hay que devolver el `<select>` a donde estaba, y el DOM ya perdió el
-  // valor anterior para cuando llega el `change`.
   return `<span
       class="inline-flex items-center gap-1 rounded-full border px-3 py-2 text-sm font-semibold ${statusInfo(status).chip}"
       title="Cómo está el punto ahora mismo"

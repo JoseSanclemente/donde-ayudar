@@ -33,11 +33,6 @@ export function initSyncBadge(): void {
   const dot = $<HTMLSpanElement>("sync-dot");
   const label = $<HTMLSpanElement>("sync-label");
 
-  // El ticker global de `ui/time` corre cada minuto: sirve para «hace 2 horas»,
-  // no para un contador que arranca en segundos. Este es su propio reloj, y se
-  // frena solo — cada cuarto de minuto mientras el número corre, cada minuto
-  // después. Repintar cada segundo no aportaría precisión útil y dejaría un
-  // temporizador despierto toda la sesión.
   const STEP_MS = 15_000;
   let timer: number | undefined;
 
@@ -49,8 +44,7 @@ export function initSyncBadge(): void {
   function tick(iso: string): void {
     label.textContent = `Actualizado ${relativeTimeExact(iso)}`;
     const age = Date.now() - Date.parse(iso);
-    // El siguiente repintado cae en el múltiplo exacto, no a los 15 s de este:
-    // así el número va 15, 30, 45 y no arrastra el desfase del temporizador.
+
     timer = window.setTimeout(
       () => tick(iso),
       age < 60_000 ? STEP_MS - (age % STEP_MS) : 60_000,
@@ -71,7 +65,7 @@ export function initSyncBadge(): void {
       badge.className = TONE.failed;
       dot.className = DOT.failed;
       label.textContent = "Sin conexión";
-      // Lo último que sí se sabe, para quien quiera el detalle.
+
       badge.title = state.lastSyncAt
         ? `Última actualización: ${new Date(state.lastSyncAt).toLocaleTimeString("es-CO")}`
         : "Todavía no se pudo cargar";

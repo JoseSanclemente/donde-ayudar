@@ -1,9 +1,5 @@
 ---
-// The headline of the city log. It lives inside the header and not inside the
-// sheet on purpose: it must not compete for the 108 px the sheet leaves
-// showing, nor depend on which tab is open. It starts hidden and
-// `features/alert-banner.ts` turns it on with the newest novedad; tapping it
-// opens the «Novedades» panel.
+
 ---
 
 <button
@@ -26,6 +22,9 @@
       d="M10 3.2A4.3 4.3 0 005.7 7.5c0 3.6-1.4 4.8-1.4 4.8h11.4s-1.4-1.2-1.4-4.8A4.3 4.3 0 0010 3.2zM8.6 15a1.6 1.6 0 002.8 0"
     ></path>
   </svg>
-  <span id="alert-banner-body" class="min-w-0 flex-1 truncate font-medium">&nbsp;</span>
-  <span id="alert-banner-time" class="shrink-0 text-[11px] text-amber-700"></span>
+  <span id="alert-banner-body" class="min-w-0 flex-1 truncate font-medium"
+    >&nbsp;</span
+  >
+  <span id="alert-banner-time" class="shrink-0 text-[11px] text-amber-700"
+  ></span>
 </button>

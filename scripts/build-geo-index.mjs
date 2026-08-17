@@ -32,7 +32,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 async function overpass(query, attempt = 1) {
   const response = await fetch(ENDPOINT, {
     method: "POST",
-    // Sin User-Agent propio Overpass responde 406.
+
     headers: {
       "Content-Type": "application/x-www-form-urlencoded",
       "User-Agent": "donde_ayudar_cali/0.1 (build-geo-index)",
@@ -40,7 +40,6 @@ async function overpass(query, attempt = 1) {
     body: new URLSearchParams({ data: query }),
   });
 
-  // La instancia pública limita por IP y dos consultas seguidas ya la rozan.
   if ((response.status === 429 || response.status === 504) && attempt <= 4) {
     const wait = attempt * 20_000;
     console.log(`  ${response.status}, reintento en ${wait / 1000} s…`);
@@ -48,14 +47,15 @@ async function overpass(query, attempt = 1) {
     return overpass(query, attempt + 1);
   }
   if (!response.ok) {
-    throw new Error(`Overpass respondió ${response.status}: ${await response.text()}`);
+    throw new Error(
+      `Overpass respondió ${response.status}: ${await response.text()}`,
+    );
   }
 
   const data = await response.json();
   return data.elements ?? [];
 }
 
-/** 5 decimales ≈ 1 m: más precisión que eso no aporta y triplica el peso. */
 const round = (value) => Number(value.toFixed(5));
 
 async function buildStreets() {
@@ -90,7 +90,8 @@ async function buildAddresses() {
       const number = item.tags["addr:housenumber"];
       const lat = item.lat ?? item.center?.lat;
       const lon = item.lon ?? item.center?.lon;
-      if (!street || !number || lat === undefined || lon === undefined) return null;
+      if (!street || !number || lat === undefined || lon === undefined)
+        return null;
       return [street, number, round(lat), round(lon), item.tags.name ?? ""];
     })
     .filter(Boolean);
@@ -103,7 +104,9 @@ async function save(name, payload) {
   const json = JSON.stringify(payload);
   await writeFile(new URL(name, OUT_DIR), json, "utf8");
   const kb = (n) => `${(n / 1024).toFixed(0)} KB`;
-  console.log(`  ${name}: ${kb(Buffer.byteLength(json))} (${kb(gzipSync(json).length)} gzip)`);
+  console.log(
+    `  ${name}: ${kb(Buffer.byteLength(json))} (${kb(gzipSync(json).length)} gzip)`,
+  );
 }
 
 await mkdir(OUT_DIR, { recursive: true });

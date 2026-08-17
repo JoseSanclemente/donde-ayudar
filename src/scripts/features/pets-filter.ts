@@ -33,10 +33,10 @@ import { $ } from "../ui/dom";
  * still where they were left the next time the button is tapped.
  */
 
-// Literal, like in `resources.ts`: the Tailwind scanner reads this file as plain
-// text and an interpolated class never gets compiled.
-const BUTTON_OFF = "border-red-200 bg-red-50 text-red-600 hover:border-red-300 hover:bg-red-100";
-const BUTTON_ON = "border-red-600 bg-red-600 text-white hover:border-red-700 hover:bg-red-700";
+const BUTTON_OFF =
+  "border-red-200 bg-red-50 text-red-600 hover:border-red-300 hover:bg-red-100";
+const BUTTON_ON =
+  "border-red-600 bg-red-600 text-white hover:border-red-700 hover:bg-red-700";
 
 /**
  * The place travels in the url, so a vet can hand out a link that opens the page
@@ -50,7 +50,6 @@ const BUTTON_ON = "border-red-600 bg-red-600 text-white hover:border-red-700 hov
  */
 const PLACE_PARAM = "lugar";
 
-/** «Sin lugar» is a choice too, and the sentinel is not something to publish. */
 const NO_PLACE_PARAM = "sin-lugar";
 
 function placeFromUrl(): PetPlaceFilter {
@@ -67,7 +66,11 @@ function placeFromUrl(): PetPlaceFilter {
 function placeToUrl(place: PetPlaceFilter): void {
   const url = new URL(location.href);
   if (place === null) url.searchParams.delete(PLACE_PARAM);
-  else url.searchParams.set(PLACE_PARAM, place === NO_PLACE ? NO_PLACE_PARAM : place);
+  else
+    url.searchParams.set(
+      PLACE_PARAM,
+      place === NO_PLACE ? NO_PLACE_PARAM : place,
+    );
   history.replaceState(history.state, "", url);
 }
 
@@ -78,12 +81,10 @@ export function initPetsFilter(apply: (filter: PetsFilter) => void): void {
   const filter: PetsFilter = {
     kinds: new Set(DEFAULT_PETS_FILTER.kinds),
     sexes: new Set(DEFAULT_PETS_FILTER.sexes),
-    // The link decides what the page opens on, and it is read before the pets
-    // land: what it names may not be an option yet.
+
     place: placeFromUrl(),
   };
 
-  /** That it shows as hidden on purpose and not as data that failed to load. */
   function paintButton(): void {
     const filtering = !isDefaultPetsFilter(filter);
     for (const cls of BUTTON_OFF.split(" ")) {
@@ -120,24 +121,13 @@ export function initPetsFilter(apply: (filter: PetsFilter) => void): void {
     },
   });
 
-  // The one axis that is data and not a catalog: the options are the places the
-  // published rows carry, so this is the only part of the card that subscribes
-  // to the store. The row stays hidden while nobody has written a place —
-  // «Todos los lugares» over an empty list asks nothing and answers nothing.
   const placeRow = $<HTMLDivElement>("pets-place-row");
   const place = $<HTMLSelectElement>("pets-place");
 
   function paintPlaces(): void {
     const options = petPlaceOptions(getPets());
     placeRow.hidden = options.length === 0;
-    // A place vanishes when its last pet is withdrawn, and then what was being
-    // asked for no longer exists: the grid would be empty with no way to read
-    // why. Falling back to every place is the same answer as never having
-    // chosen.
-    //
-    // Only once the pets are in, though. A place that came in the url names
-    // nothing while the list is still empty, and dropping it there would undo
-    // the link before the page it points at has loaded.
+
     const ready = getPetsState().state === "ready";
     if (
       ready &&
@@ -159,13 +149,8 @@ export function initPetsFilter(apply: (filter: PetsFilter) => void): void {
     push();
   });
 
-  // Repainting on every change of the store and not once at boot: a pet
-  // published from the bot, or one withdrawn, adds or removes a place while
-  // somebody is looking at the list.
   onPets(paintPlaces);
-  // And on the state, because the load emits its rows before it declares itself
-  // ready: a url naming a place that does not exist is only dropped once the
-  // list is in, and that last word arrives here and not above.
+
   onPetsState(paintPlaces);
 
   $<HTMLButtonElement>("pets-filters-reset").addEventListener("click", () => {
@@ -178,20 +163,13 @@ export function initPetsFilter(apply: (filter: PetsFilter) => void): void {
     push();
   });
 
-  // On desktop the card is already on screen, inside its column. On mobile that
-  // column is `display: none`, and the sheet adopts the node to show it — a
-  // moved node keeps its listeners, so the chips come back as they were left.
   const column = $<HTMLElement>("pets-filters-column");
   button.addEventListener("click", () => openPetSheet(card));
 
-  // Crossing to desktop with the card still inside the sheet would leave the
-  // column empty and the chips out of reach: the only copy is this one.
   onBreakpointChange(() => {
     if (!isMobile() && card.parentElement !== column) column.append(card);
   });
 
-  // The markup already ships the chips off, but the grid knows nothing: this is
-  // what takes it the defaults before the first pet lands.
   kinds.paint();
   sexes.paint();
   paintPlaces();

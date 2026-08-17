@@ -2,7 +2,14 @@ import type { LatLng } from "leaflet";
 import type { GeocodeResult } from "../geocode";
 import { loadStreets } from "../geo-index";
 import { locateUser } from "../geolocation";
-import { flyTo, hideDraft, isPicking, showDraft, startPicking, stopPicking } from "../map";
+import {
+  flyTo,
+  hideDraft,
+  isPicking,
+  showDraft,
+  startPicking,
+  stopPicking,
+} from "../map";
 import { closeSheet, getSheetCover, openSheet, peekSheet } from "../sheet";
 import { $, clearError, debounce, showError } from "../ui/dom";
 import { flashField } from "../ui/flash";
@@ -46,22 +53,21 @@ const loadGeocoder = () => import("../geocode");
 export type Coords = { lat: number; lng: number };
 
 export type LocationPicker = {
-  /** El punto fijado, o `null` si todavía no hay ninguno. */
   getCoords(): Coords | null;
-  /** Lo escrito en el campo de dirección, sin espacios sobrantes. */
+
   getName(): string;
-  /** Falta la ubicación: lo dice, abre el modo de señalar y devuelve `null`. */
+
   requireCoords(): Coords | null;
-  /** Dirección y punto ya conocidos: se ponen sin pasar por el geocodificador. */
+
   setLocation(name: string, at: Coords, source?: string): void;
   flash(): void;
   showNameError(message: string): void;
   clearNameError(): void;
-  /** Después de enviar: campo vacío, sin pin, sin sugerencias, sin nota. */
+
   reset(): void;
-  /** El formulario deja de verse: suelta el pin y el modo de señalar. */
+
   suspend(): void;
-  /** El formulario vuelve a verse: repone el pin donde estaba. */
+
   resume(): void;
 };
 
@@ -76,9 +82,9 @@ export function createLocationPicker(prefix: string): LocationPicker {
 
   let coords: Coords | null = null;
   let geocodeAbort: AbortController | null = null;
-  /** El GPS del navegador tarda: un segundo toque no puede pedir otro. */
+
   let locating = false;
-  /** Solo el formulario a la vista puede tocar el pin y el modo de señalar. */
+
   let active = true;
 
   function paintStatus(next: Coords | null, source?: string) {
@@ -94,8 +100,6 @@ export function createLocationPicker(prefix: string): LocationPicker {
   }
 
   function drawDraft(at: Coords) {
-    // Pin provisional arrastrable: OSM casi nunca tiene el edificio exacto,
-    // así que el ajuste fino siempre queda en manos de quien reporta.
     showDraft(at.lat, at.lng, (lat, lng) => {
       coords = { lat, lng };
       paintStatus(coords);
@@ -120,10 +124,6 @@ export function createLocationPicker(prefix: string): LocationPicker {
     geoNote.classList.add("hidden");
   }
 
-  /* ---------------------------------------------------------------- */
-  /* Geocodificación                                                   */
-  /* ---------------------------------------------------------------- */
-
   function hideSuggestions() {
     suggestions.replaceChildren();
     suggestions.classList.add("hidden");
@@ -135,7 +135,8 @@ export function createLocationPicker(prefix: string): LocationPicker {
       const item = document.createElement("li");
       const button = document.createElement("button");
       button.type = "button";
-      button.className = "block w-full px-3 py-2 text-left transition hover:bg-red-50";
+      button.className =
+        "block w-full px-3 py-2 text-left transition hover:bg-red-50";
 
       const title = document.createElement("span");
       title.className = "block text-xs font-medium text-slate-800";
@@ -172,20 +173,18 @@ export function createLocationPicker(prefix: string): LocationPicker {
           clearNote();
           peekSheet();
         } else if (result.precision === "calculada") {
-          // El punto ya está sobre la manzana correcta: basta con poder
-          // arrastrarlo, no hace falta obligar a marcarlo desde cero.
           showNote(CALCULATED_NOTE);
           peekSheet();
         } else {
           showNote(APPROX_NOTE);
-          // Acá no se baja el sheet: señalar en el mapa lo cierra entero, y las
-          // dos posiciones se pelearían.
+
           beginPicking();
         }
 
-        const zoom = { exacta: 18, calculada: 18, aproximada: 16 }[result.precision];
-        // El pin va al centro de la franja de mapa que queda sobre el sheet: en
-        // el centro del contenedor quedaría justo debajo del panel.
+        const zoom = { exacta: 18, calculada: 18, aproximada: 16 }[
+          result.precision
+        ];
+
         void flyTo(result.lat, result.lng, zoom, getSheetCover() / 2);
       });
       item.append(button);
@@ -247,11 +246,6 @@ export function createLocationPicker(prefix: string): LocationPicker {
     }
   }, 600);
 
-  // La malla vial son dos megas: pedirla en el arranque la pone a competir con
-  // las teselas y con el bundle, y hasta acá nadie la necesitaba. Tocar el campo
-  // es el primer aviso de que va a hacer falta, y sale con ventaja — el geocoder
-  // no arranca hasta la tercera letra. `loadStreets` se memoiza, así que los dos
-  // formularios pueden pedirla sin coordinarse.
   nameInput.addEventListener(
     "focus",
     () => {
@@ -272,14 +266,13 @@ export function createLocationPicker(prefix: string): LocationPicker {
   });
 
   document.addEventListener("click", (event) => {
-    if (!suggestions.contains(event.target as Node) && event.target !== nameInput) {
+    if (
+      !suggestions.contains(event.target as Node) &&
+      event.target !== nameInput
+    ) {
       hideSuggestions();
     }
   });
-
-  /* ---------------------------------------------------------------- */
-  /* Usar mi ubicación                                                 */
-  /* ---------------------------------------------------------------- */
 
   /**
    * El camino corto: quien está parado frente al edificio no tiene por qué
@@ -297,24 +290,20 @@ export function createLocationPicker(prefix: string): LocationPicker {
 
     try {
       const at = await locateUser();
-      // El permiso puede tardar lo suficiente como para que el formulario ya no
-      // esté a la vista: mover el mapa de alguien que se fue a otra pestaña no.
+
       if (!active) return;
       if (!at) {
-        showToast("No pudimos obtener tu ubicación. Revisa los permisos del navegador.");
+        showToast(
+          "No pudimos obtener tu ubicación. Revisa los permisos del navegador.",
+        );
         return;
       }
 
       setCoords(at, "tu ubicación");
       await flyTo(at.lat, at.lng, 18, getSheetCover() / 2);
 
-      // El GPS de un celular dentro de un edificio se va media cuadra, así que
-      // el pin queda arrastrable como cualquier otro.
       showNote("Punto fijado con tu ubicación. Arrástralo si no quedó encima.");
 
-      // Lo escrito manda: rellenar encima sería peor que no ayudar. Y si el
-      // reverso no sabe la dirección, el punto ya está fijado igual — solo
-      // queda escribirla.
       if (nameInput.value.trim()) return;
       const { reverseGeocode } = await loadGeocoder();
       const address = await reverseGeocode(at);
@@ -333,16 +322,14 @@ export function createLocationPicker(prefix: string): LocationPicker {
     void useMyLocation();
   });
 
-  /* ---------------------------------------------------------------- */
-  /* Señalar en el mapa                                                */
-  /* ---------------------------------------------------------------- */
-
   function beginPicking() {
     if (!active || isPicking()) return;
     pickButton.textContent = "Haz clic en el mapa…";
     pickButton.className =
       "shrink-0 rounded-md border border-red-500 bg-red-500 px-2.5 py-1.5 text-xs font-medium text-white";
-    showNote("Haz clic en el mapa sobre el edificio. Luego puedes arrastrar el punto para afinarlo.");
+    showNote(
+      "Haz clic en el mapa sobre el edificio. Luego puedes arrastrar el punto para afinarlo.",
+    );
     startPicking((latlng: LatLng) => {
       setCoords({ lat: latlng.lat, lng: latlng.lng });
       resetPickButton();
@@ -350,9 +337,7 @@ export function createLocationPicker(prefix: string): LocationPicker {
       showNote("Punto fijado. Arrástralo si necesitas moverlo.");
       openSheet();
     });
-    // En móvil el sheet tapa el mapa: hay que cerrarlo para poder señalar. Con
-    // el sheet fuera, el aviso del header es lo único que queda diciendo qué
-    // hacer y cómo salir — el botón rojo y la nota se fueron con el formulario.
+
     closeSheet();
     showPickHint(cancelPicking);
   }
@@ -362,8 +347,7 @@ export function createLocationPicker(prefix: string): LocationPicker {
     resetPickButton();
     hidePickHint();
     clearNote();
-    // Cancelar desde el aviso deja el mapa vacío: el formulario tiene que
-    // volver. Desde el botón el sheet ya está abierto y esto no hace nada.
+
     openSheet();
   }
 
@@ -382,10 +366,6 @@ export function createLocationPicker(prefix: string): LocationPicker {
     beginPicking();
   });
 
-  /* ---------------------------------------------------------------- */
-  /* Lo que ve el formulario                                           */
-  /* ---------------------------------------------------------------- */
-
   setCoords(null);
 
   return {
@@ -394,15 +374,14 @@ export function createLocationPicker(prefix: string): LocationPicker {
 
     requireCoords() {
       if (coords) return coords;
-      showNote("Falta la ubicación — usa «Ubicar en el mapa» o elige una sugerencia.");
+      showNote(
+        "Falta la ubicación — usa «Ubicar en el mapa» o elige una sugerencia.",
+      );
       beginPicking();
       return null;
     },
 
     setLocation(name, at, source) {
-      // El valor se asigna sin disparar `input`: el evento arrancaría el
-      // geocodificador para una dirección cuyo punto ya viene resuelto, y la
-      // lista de sugerencias taparía el campo recién llenado.
       nameInput.value = name;
       clearError(nameError);
       hideSuggestions();
@@ -440,8 +419,7 @@ export function createLocationPicker(prefix: string): LocationPicker {
       resetPickButton();
       hidePickHint();
       hideSuggestions();
-      // El pin se suelta, las coordenadas no: volver a la pestaña tiene que
-      // encontrar el formulario tal como se dejó.
+
       hideDraft();
     },
 

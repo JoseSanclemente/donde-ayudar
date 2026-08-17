@@ -18,12 +18,12 @@ import { absoluteTime } from "../ui/time";
  * —alejarse hasta que cabe todo— y contar es lo que hace que el gesto y la cifra
  * se lean como una sola cosa. Quien pidió menos movimiento los ve puestos de una.
  */
-const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+const reduceMotion = window.matchMedia(
+  "(prefers-reduced-motion: reduce)",
+).matches;
 
-/** Lo que tarda un número en llegar a su valor. Del orden del vuelo del mapa. */
 const COUNT_SECONDS = 1.1;
 
-/** La bajada desde atrás del header. Corta: entra, no se pasea. */
 const SLIDE_IN_SECONDS = 0.45;
 
 /**
@@ -58,7 +58,6 @@ const SLIDE_Z = 880;
  */
 const RESERVE_AIR = 12;
 
-/** Cuánto sube o baja la tarjeta para quedar entera detrás del header. */
 function travel(card: HTMLElement): number {
   return -(card.offsetHeight + SLIDE_GAP);
 }
@@ -86,13 +85,7 @@ function slideIn(card: HTMLElement): void {
       opacity: 1,
       duration: SLIDE_IN_SECONDS,
       ease: "power3.out",
-      // `clearProps` y no un valor final: el z-index de reposo lo pone la clase
-      // del componente, y escribirlo acá sería el mismo número en dos archivos.
-      //
-      // El `transform` tiene que irse igual. Inline sobre un elemento `fixed`
-      // vuelve a la tarjeta el bloque contenedor de cualquier cosa posicionada
-      // adentro; hoy no hay ninguna, y el día que la haya el fallo aparecería
-      // lejos de acá.
+
       clearProps: "transform,opacity,zIndex",
     },
   );
@@ -158,8 +151,7 @@ function cutLine(snapshot: Snapshot): string {
 function render(): void {
   const card = $("emergency-stats");
   const national = getNationalCut();
-  // Sin un solo corte guardado no hay tarjeta. El botón sigue alejando el mapa:
-  // esto se cuelga de ese gesto, no al revés.
+
   if (!national) {
     card.dataset.ready = "";
     return;
@@ -174,15 +166,14 @@ function render(): void {
     .join("");
   $("emergency-stats-cut").textContent = cutLine(national);
 
-  // El desglose sale de otro corte y lleva su propia fecha. Los dos bloques
-  // nunca se suman ni se comparan: el balance del 13 de agosto contaba 273
-  // muertos y el del 15 va en 294, así que un total tomado de uno y un desglose
-  // del otro no cuadrarían — y no tienen por qué.
   const departmental = getDepartmentCut();
   const block = $("emergency-stats-departmental");
   block.hidden = !departmental;
   if (departmental) {
-    $("emergency-stats-departments").innerHTML = readFigures(departmental, "departmental")
+    $("emergency-stats-departments").innerHTML = readFigures(
+      departmental,
+      "departmental",
+    )
       .map(({ label, value }) => figureHtml(label, value, false))
       .join("");
     $("emergency-stats-departmental-cut").textContent = cutLine(departmental);
@@ -211,13 +202,10 @@ function render(): void {
  * esperando a que el mapa terminara de moverse.
  */
 function measure(card: HTMLElement): number {
-  // En escritorio la tarjeta vive en la columna, no sobre el mapa: no tapa nada.
   if (!isMobile()) return 0;
   card.style.visibility = "hidden";
   card.hidden = false;
-  // En móvil el mapa es `fixed inset-0`, así que el borde de abajo de la tarjeta
-  // contra la ventana es también cuánto tapa del mapa — y eso ya trae adentro la
-  // altura del header, aviso de novedades incluido.
+
   const bottom = card.getBoundingClientRect().bottom;
   card.hidden = true;
   card.style.visibility = "";
@@ -247,9 +235,7 @@ function countUp(card: HTMLElement): void {
       onUpdate: () => {
         el.textContent = formatFigure(counter.n);
       },
-      // Sin esto, un repintado a mitad de vuelo deja el número donde iba: la
-      // última escritura tiene que ser el valor exacto, no el del penúltimo
-      // frame.
+
       onComplete: () => {
         el.textContent = formatFigure(target);
       },
@@ -263,7 +249,7 @@ export type EmergencyStats = {
    * Antes del vuelo, que lo usa de relleno. En escritorio, nada.
    */
   reservedTop: () => number;
-  /** Baja la tarjeta y arranca los números. Al aterrizar el vuelo. */
+
   show: () => void;
   hide: () => void;
 };
@@ -290,25 +276,10 @@ export function initEmergencyStats(): EmergencyStats {
     caret.style.transform = open ? "rotate(180deg)" : "";
   };
 
-  // `Boolean(...)` y no `details.hidden` pelado: el tipo es `boolean | string`
-  // —existe `hidden="until-found"`— y acá solo interesa si está plegada.
   toggle.addEventListener("click", () => fold(Boolean(details.hidden)));
 
   $("emergency-stats-close").addEventListener("click", hide);
 
-  // La tarjeta ya no se cierra sola al acercarse. Tiene su ✕ y esa es la salida:
-  // cerrarla en el primer pellizco del mapa se la quitaba a quien estaba
-  // leyéndola, que es justo lo que hace cualquiera después de mirar las cifras
-  // —acercarse a ver dónde queda eso—.
-
-  // Siempre plegada, aunque la vez pasada la hayan abierto. Cada apertura es la
-  // respuesta a un gesto —alejarse hasta que cabe todo— y esa respuesta son las
-  // seis cifras grandes; abierta de entrada, la tarjeta tapa el mapa que el
-  // mismo gesto acaba de encuadrar. El detalle sigue a un toque.
-  //
-  // Se pliega antes de medir y no solo al mostrar, porque lo que se mide tiene
-  // que ser lo que se va a ver: midiéndola desplegada, el vuelo bajaría los
-  // pines mucho más de lo que la tarjeta termina tapando.
   return {
     reservedTop: () => {
       if (card.dataset.ready !== "true") return 0;
@@ -319,9 +290,7 @@ export function initEmergencyStats(): EmergencyStats {
       if (card.dataset.ready !== "true") return;
       fold(false);
       card.hidden = false;
-      // Juntos, y ese es el arreglo: la tarjeta baja mientras los números suben.
-      // Cuando salía antes del vuelo se quedaba un segundo largo marcando cero,
-      // que se lee como una tarjeta rota y no como una que va a contar.
+
       slideIn(card);
       countUp(card);
     },

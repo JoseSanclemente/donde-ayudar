@@ -28,18 +28,18 @@
  */
 const DOMAIN = "dondeayudar.com.co";
 
-/** Insumo tal como se pinta en la imagen. `category` es un id de `CATEGORIES`. */
+
 export type ShareChip = {
   label: string;
   category: string | null;
-  /** Cubierto en un reporte, o en pausa en un punto: gris y sin color propio. */
+  
   muted: boolean;
 };
 
 export type ShareCard = {
-  /** «URGENTE», «Centro de acopio», «Banco de sangre», «Albergue», «Atención en salud». */
+  
   kicker: string;
-  /** Color del kicker y de las barras, en hexadecimal. */
+  
   accent: string;
   name: string;
   /**
@@ -54,11 +54,11 @@ export type ShareCard = {
    * donación no lo tiene: `null`.
    */
   updated: string | null;
-  /** Horario, teléfono, avisos: una línea de texto suelto cada una. */
+  
   lines: string[];
-  /** Lo que alguien escribió del punto, tal cual. Se dibuja entre comillas. */
+  
   notes: string[];
-  /** Título del bloque de chips («Recibe», «Necesita»). Vacío = sin bloque. */
+  
   chipsTitle: string;
   chips: ShareChip[];
   marker: "pulse" | "square";
@@ -76,9 +76,9 @@ const HEIGHT = 1920;
 const MAP_MAX = 1040;
 const MAP_MIN = 420;
 const PAD = 72;
-/** Barra de acento arriba y abajo, como en `public/og.png`. */
+
 const BAR = 16;
-/** Lo que se reserva abajo para el pie con el dominio. */
+
 const FOOTER = 150;
 
 const FONT = '"Figtree Variable", system-ui, -apple-system, sans-serif';
@@ -108,10 +108,10 @@ const CHIP_HEX: Record<string, { bg: string; fg: string }> = {
   voluntarios: { bg: "#f5f3ff", fg: "#5b21b6" },
 };
 
-/** Cubierto, en pausa, o de una categoría que ya no existe. */
+
 const CHIP_MUTED = { bg: "#f1f5f9", fg: "#64748b" };
 
-/* --------------------------------- Teselas -------------------------------- */
+
 
 /**
  * Calle, no barrio: al tamaño con que se dibujan, a este zoom se reconoce la
@@ -130,11 +130,11 @@ const TILE_ZOOM = 16;
  * píxel del lienzo son el mismo número en todo el módulo.
  */
 const TILE_DRAW = 512;
-/** El mismo `light_all` del mapa, en @2x. */
+
 const TILE_URL =
-  "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png";
+  "https:
 const SUBDOMAINS = ["a", "b", "c", "d"];
-/** Una tesela colgada no puede dejar el botón girando para siempre. */
+
 const TILE_TIMEOUT_MS = 6000;
 /**
  * El tope del recorte entero, y no la suma de los topes de cada tesela: se
@@ -150,7 +150,7 @@ const TILE_TIMEOUT_MS = 6000;
  */
 const MAP_TIMEOUT_MS = 8000;
 
-/** Punto del mundo en píxeles del lienzo, en el zoom fijo de la imagen. */
+
 function worldPixel(lat: number, lng: number): { x: number; y: number } {
   const scale = TILE_DRAW * 2 ** TILE_ZOOM;
   const sin = Math.sin((lat * Math.PI) / 180);
@@ -163,9 +163,9 @@ function worldPixel(lat: number, lng: number): { x: number; y: number } {
 function loadTile(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
-    // Sin esto el canvas queda contaminado y `toBlob` lanza SecurityError.
-    // CARTO responde con `Access-Control-Allow-Origin: *`, así que la petición
-    // anónima sirve.
+    
+    
+    
     img.crossOrigin = "anonymous";
     const timer = setTimeout(
       () => reject(new Error("tile timeout")),
@@ -183,7 +183,7 @@ function loadTile(url: string): Promise<HTMLImageElement> {
   });
 }
 
-/** Las teselas que cubren el recorte, con su posición en la malla. */
+
 function tileJobs(
   lat: number,
   lng: number,
@@ -265,8 +265,8 @@ async function drawMap(
   ctx.beginPath();
   ctx.rect(0, 0, WIDTH, mapHeight);
   ctx.clip();
-  // El hueco de una tesela que no llegó tiene que leerse como un cuadro vacío y
-  // no como un agujero al blanco de la ficha.
+  
+  
   ctx.fillStyle = SLATE_200;
   ctx.fillRect(0, 0, WIDTH, mapHeight);
   jobs.forEach((job, i) => {
@@ -283,9 +283,9 @@ async function drawMap(
   ctx.restore();
 }
 
-/* -------------------------------- Marcadores ------------------------------- */
 
-/** El marcador de reporte: anillo tenue, aro y punto. Igual que en `build-og.mjs`. */
+
+
 function pulseMarker(
   ctx: CanvasRenderingContext2D,
   cx: number,
@@ -308,7 +308,7 @@ function pulseMarker(
   ctx.fill();
 }
 
-/** El marcador de punto de donación: el mismo cuadrado del mapa, con borde blanco. */
+
 function squareMarker(
   ctx: CanvasRenderingContext2D,
   cx: number,
@@ -342,9 +342,9 @@ function roundRect(
   ctx.closePath();
 }
 
-/* ----------------------------------- Texto --------------------------------- */
 
-/** Corta el texto en líneas que quepan en `maxWidth`, hasta `maxLines`. */
+
+
 function wrap(
   ctx: CanvasRenderingContext2D,
   text: string,
@@ -357,8 +357,8 @@ function wrap(
   let cut = false;
   for (const word of words) {
     const candidate = current ? `${current} ${word}` : word;
-    // `!current` deja pasar una palabra sola más ancha que la caja: se recorta
-    // abajo, pero una línea vacía no arregla nada.
+    
+    
     if (ctx.measureText(candidate).width <= maxWidth || !current) {
       current = candidate;
       continue;
@@ -372,8 +372,8 @@ function wrap(
   }
   if (!cut && current) lines.push(current);
 
-  // Lo que se cortó se marca: una frase truncada que parece completa dice algo
-  // que el punto no dijo.
+  
+  
   const last = lines[lines.length - 1];
   if (last !== undefined && (cut || ctx.measureText(last).width > maxWidth)) {
     let trimmed = last;
@@ -388,7 +388,7 @@ function wrap(
   return lines;
 }
 
-/* ----------------------------------- Chips --------------------------------- */
+
 
 /**
  * El chip encoge cuando hay muchos insumos, y no por gusto: la lista completa es
@@ -460,10 +460,10 @@ function drawChips(
   ctx.textBaseline = "alphabetic";
 }
 
-/* ---------------------------------- Medida --------------------------------- */
+
 
 const MAX_WIDTH = WIDTH - PAD * 2;
-/** Espacio entre el borde del recorte y el kicker. */
+
 const TOP_GAP = 92;
 const KICKER_H = 68;
 const NAME_H = 78;
@@ -471,7 +471,7 @@ const ADDRESS_H = 46;
 const UPDATED_H = 42;
 const LINE_H = 44;
 const NOTE_H = 42;
-/** Aire entre el texto suelto y el bloque de notas. */
+
 const NOTES_GAP = 20;
 const CHIPS_TITLE_H = 34;
 
@@ -567,7 +567,7 @@ function measure(ctx: CanvasRenderingContext2D, card: ShareCard): Layout {
   };
 }
 
-/* ---------------------------------- Ficha ---------------------------------- */
+
 
 function drawCard(
   ctx: CanvasRenderingContext2D,
@@ -577,8 +577,8 @@ function drawCard(
 ): void {
   const mapHeight = withMap ? layout.mapHeight : 0;
 
-  // El fondo blanco no puede pasar por encima del recorte del mapa, que ya está
-  // pintado: con mapa solo se rellena de la franja hacia abajo.
+  
+  
   ctx.fillStyle = WHITE;
   if (withMap) ctx.fillRect(0, mapHeight, WIDTH, HEIGHT - mapHeight);
   else ctx.fillRect(0, 0, WIDTH, HEIGHT);
@@ -592,8 +592,8 @@ function drawCard(
       squareMarker(ctx, WIDTH / 2, center, card.accent);
     else pulseMarker(ctx, WIDTH / 2, center, card.accent);
 
-    // La atribución no es decorativa: redistribuir las teselas dentro de una
-    // imagen sin acreditarlas no está permitido.
+    
+    
     ctx.font = `500 20px ${FONT}`;
     ctx.textAlign = "right";
     const label = "© OpenStreetMap · CARTO";
@@ -607,8 +607,8 @@ function drawCard(
     ctx.fillStyle = SLATE_200;
     ctx.fillRect(0, mapHeight, WIDTH, 2);
   } else {
-    // Sin mapa la ficha se queda sola: el marcador entra arriba para que la
-    // imagen siga siendo reconocible como este sitio.
+    
+    
     if (card.marker === "square")
       squareMarker(ctx, PAD + 40, BAR + 120, card.accent);
     else pulseMarker(ctx, PAD + 40, BAR + 120, card.accent);
@@ -641,8 +641,8 @@ function drawCard(
     y += 12;
   }
 
-  // Pegado al nombre y a la dirección: cuándo se supo esto es parte de qué es
-  // esto, no un pie de página.
+  
+  
   if (layout.updatedLine) {
     ctx.font = UPDATED_FONT;
     ctx.fillStyle = SLATE_400;
@@ -659,8 +659,8 @@ function drawCard(
     }
   }
 
-  // En cursiva y entre comillas: lo que sigue no lo dice el sitio, lo dice quien
-  // reportó.
+  
+  
   if (layout.noteGroups.length > 0) {
     y += NOTES_GAP;
     ctx.font = NOTE_FONT;
@@ -719,14 +719,14 @@ function toBlob(canvas: HTMLCanvasElement): Promise<Blob> {
  * él: una imagen sin mapa sirve, un botón que lanza no.
  */
 export async function renderShareCard(card: ShareCard): Promise<Blob> {
-  // La fuente tiene que estar cargada antes de medir nada: si no, la primera
-  // imagen de la sesión se mide con la tipografía de respaldo y el texto sale
-  // corrido.
+  
+  
+  
   try {
     await document.fonts.load(`700 64px ${FONT}`);
     await document.fonts.ready;
   } catch {
-    // Sin Figtree se dibuja igual, con la de respaldo del sistema.
+    
   }
 
   const { canvas, ctx } = newCanvas();
@@ -743,10 +743,10 @@ export async function renderShareCard(card: ShareCard): Promise<Blob> {
     drawCard(ctx, card, layout, true);
     return await toBlob(canvas);
   } catch {
-    // Un canvas nuevo, no el de arriba limpiado: si lo que falló fue `toBlob`
-    // porque una tesela llegó sin cabecera CORS, el canvas quedó contaminado
-    // para siempre —`clearRect` no lo descontamina— y volver a dibujar sobre él
-    // lanzaría el mismo SecurityError, justo en el rescate que existe para eso.
+    
+    
+    
+    
     const fallback = newCanvas();
     drawCard(fallback.ctx, card, layout, false);
     return toBlob(fallback.canvas);

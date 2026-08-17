@@ -25,7 +25,7 @@ export type Volunteer = {
   kind: VolunteerKind;
   name: string;
   contactPhone: string | null;
-  /** The handle with no `@` and no url: the form normalises it before saving. */
+
   contactInstagram: string | null;
   notes: string | null;
   createdAt: string;
@@ -81,7 +81,6 @@ function fromRow(row: Row): Volunteer {
   };
 }
 
-/** Newest first, and nothing else: there are no statuses to order here. */
 function sorted(volunteers: Volunteer[]): Volunteer[] {
   return [...volunteers].sort(
     (a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt),
@@ -138,7 +137,10 @@ async function push(volunteer: Volunteer): Promise<void> {
   if (error || !isRow(data)) {
     dropLocally(volunteer.id);
     reportError(
-      errorMessage(error, "No se pudo guardar tu inscripción. Revisa la conexión."),
+      errorMessage(
+        error,
+        "No se pudo guardar tu inscripción. Revisa la conexión.",
+      ),
     );
     return;
   }
@@ -169,7 +171,6 @@ export function removeVolunteer(id: string): void {
   })();
 }
 
-/** The whole roster, every trade: filtering by `kind` is the panel's business. */
 export function getVolunteers(): Volunteer[] {
   return cache;
 }

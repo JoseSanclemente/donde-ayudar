@@ -10,9 +10,13 @@
  * mediana 24 m, p75 86 m, p90 241 m — 65% por debajo de 50 m.
  */
 import type { CaliAddress } from "./address";
-import { unproject, type Point, type Polyline, type StreetIndex } from "./geo-index";
+import {
+  unproject,
+  type Point,
+  type Polyline,
+  type StreetIndex,
+} from "./geo-index";
 
-/** Más allá de esto la "esquina" no es tal: las vías ni se acercan. */
 const MAX_CORNER_MISS = 80;
 
 /**
@@ -21,7 +25,6 @@ const MAX_CORNER_MISS = 80;
  */
 const LOOSE_CORNER_MISS = 250;
 
-/** Manzana caliceña típica. Fuera de este rango la esquina es sospechosa. */
 const MIN_BLOCK = 40;
 const MAX_BLOCK = 300;
 
@@ -34,20 +37,19 @@ const MAX_PLACA = 200;
 export type Located = {
   lat: number;
   lng: number;
-  /** La esquina desde la que se midió. */
+
   corner: { lat: number; lng: number };
-  /** Nombres realmente usados, que pueden no ser los primeros candidatos. */
+
   via: string;
   cross: string;
-  /** Cuánto se separan las dos vías en el cruce: 0 si comparten nodo. */
+
   cornerMiss: number;
-  /** Distancia a la esquina contigua. `null` si no se pudo medir. */
+
   block: number | null;
 };
 
 const distance = (a: Point, b: Point) => Math.hypot(a[0] - b[0], a[1] - b[1]);
 
-/** Punto del segmento `a-b` más cercano a `p`, y su distancia. */
 function projectOnSegment(p: Point, a: Point, b: Point): [Point, number] {
   const dx = b[0] - a[0];
   const dy = b[1] - a[1];
@@ -69,7 +71,11 @@ type Corner = { point: Point; way: Polyline; segment: number; miss: number };
  * vía que cruza. Se proyecta sobre el segmento en vez de quedarse en el vértice
  * más próximo — solo ese detalle baja la mediana de error de 66 m a 27 m.
  */
-function findCorners(via: Polyline[], cross: Polyline[], tolerance: number): Corner[] {
+function findCorners(
+  via: Polyline[],
+  cross: Polyline[],
+  tolerance: number,
+): Corner[] {
   const corners: Corner[] = [];
 
   for (const way of via) {
@@ -78,7 +84,8 @@ function findCorners(via: Polyline[], cross: Polyline[], tolerance: number): Cor
       for (const other of cross) {
         for (const vertex of other) {
           const [point, miss] = projectOnSegment(vertex, way[i], way[i + 1]);
-          if (!best || miss < best.miss) best = { point, way, segment: i, miss };
+          if (!best || miss < best.miss)
+            best = { point, way, segment: i, miss };
         }
       }
     }
@@ -88,7 +95,6 @@ function findCorners(via: Polyline[], cross: Polyline[], tolerance: number): Cor
   return corners.sort((a, b) => a.miss - b.miss);
 }
 
-/** Avanza `metres` sobre la polilínea desde `start`, en un sentido u otro. */
 function walk(
   way: Polyline,
   segment: number,
@@ -117,22 +123,19 @@ function walk(
     remaining -= length;
     position = next;
   }
-  // La vía se acabó antes que los metros: el extremo es lo más cerca que hay.
+
   return position;
 }
 
-/** "Carrera 45" con delta +1 → "Carrera 46". Conserva letra y cardinal. */
 function neighbour(name: string, delta: number): string | null {
   const match = /^(.*?)(\d+)([A-Z]?)(.*)$/.exec(name);
   if (!match) return null;
   const [, prefix, number, , suffix] = match;
   const next = Number(number) + delta;
   if (next < 1) return null;
-  // Se quita la letra: entre "Carrera 45A" y "Carrera 46" la manzana es la misma.
+
   return `${prefix}${next}${suffix}`.replace(/\s+/g, " ").trim();
 }
-
-/* ---- Modelo de la malla: dónde cae cada número ------------------------- */
 
 /**
  * "Calle 13" nombra tramos repartidos por 20 km: hay una en el centro y otra en
@@ -151,9 +154,15 @@ const median = (values: number[]) =>
 /** "Calle 13", "Avenida Carrera 15" → familia y número. Sin cardinal: el norte
  * y el oeste numeran aparte y mezclarlos rompería el modelo. */
 function classify(name: string): { calleLike: boolean; number: number } | null {
-  const match = /^(Avenida Calle|Avenida Carrera|Calle|Carrera|Diagonal|Transversal) (\d+)$/.exec(name);
+  const match =
+    /^(Avenida Calle|Avenida Carrera|Calle|Carrera|Diagonal|Transversal) (\d+)$/.exec(
+      name,
+    );
   if (!match) return null;
-  return { calleLike: /Calle|Diagonal/.test(match[1]), number: Number(match[2]) };
+  return {
+    calleLike: /Calle|Diagonal/.test(match[1]),
+    number: Number(match[2]),
+  };
 }
 
 function gridModel(index: StreetIndex): GridModel {
@@ -166,7 +175,7 @@ function gridModel(index: StreetIndex): GridModel {
   for (const [name, ways] of index) {
     const parsed = classify(name);
     if (!parsed || parsed.number > 130) continue;
-    // Las calles se ordenan de este a oeste, las carreras de norte a sur.
+
     const axis = parsed.calleLike ? 0 : 1;
     const bucket = parsed.calleLike ? calle : carrera;
     const values = bucket.get(parsed.number) ?? [];
@@ -177,12 +186,14 @@ function gridModel(index: StreetIndex): GridModel {
   const collapse = (bucket: Map<number, number[]>) =>
     new Map([...bucket].map(([number, values]) => [number, median(values)]));
 
-  const model: GridModel = { calle: collapse(calle), carrera: collapse(carrera) };
+  const model: GridModel = {
+    calle: collapse(calle),
+    carrera: collapse(carrera),
+  };
   models.set(index, model);
   return model;
 }
 
-/** Interpola linealmente entre los dos números conocidos más cercanos. */
 function positionOf(axis: Map<number, number>, number: number): number | null {
   const exact = axis.get(number);
   if (exact !== undefined) return exact;
@@ -199,7 +210,6 @@ function positionOf(axis: Map<number, number>, number: number): number | null {
   return below[1] + (above[1] - below[1]) * t;
 }
 
-/** Dónde debería caer el cruce de estas dos vías según la numeración. */
 function predict(via: string, cross: string, index: StreetIndex): Point | null {
   const model = gridModel(index);
   const a = classify(via.replace(/[A-Z]?( Bis)?$/, ""));
@@ -212,12 +222,12 @@ function predict(via: string, cross: string, index: StreetIndex): Point | null {
   return x === null || y === null ? null : [x, y];
 }
 
-/** Hasta dónde puede desviarse una esquina de lo que dice la numeración. */
 const MAX_PREDICTION_MISS = 2500;
 
-/* ----------------------------------------------------------------------- */
-
-function waysFor(names: string[], index: StreetIndex): [string, Polyline[]] | null {
+function waysFor(
+  names: string[],
+  index: StreetIndex,
+): [string, Polyline[]] | null {
   for (const name of names) {
     const ways = index.get(name);
     if (ways) return [name, ways];
@@ -266,23 +276,23 @@ function orient(
   return { forward: true, block: null };
 }
 
-export function locate(address: CaliAddress, index: StreetIndex): Located | null {
+export function locate(
+  address: CaliAddress,
+  index: StreetIndex,
+): Located | null {
   const via = waysFor(address.via, index);
   if (!via) return null;
   const [viaName, viaWays] = via;
 
-  // Sin placa lo único honesto es el punto medio del tramo más largo.
   if (address.cross.length === 0 || address.placa === null) return null;
 
   for (const crossName of address.cross) {
     const crossWays = index.get(crossName);
     if (!crossWays) continue;
 
-    // El orden de los candidatos pesa más que lo apretada que sea la esquina:
-    // medido, aflojar el margen antes de pasar al siguiente nombre da mejores
-    // puntos que probar todos los nombres con el margen estrecho.
     let corners = findCorners(viaWays, crossWays, MAX_CORNER_MISS);
-    if (corners.length === 0) corners = findCorners(viaWays, crossWays, LOOSE_CORNER_MISS);
+    if (corners.length === 0)
+      corners = findCorners(viaWays, crossWays, LOOSE_CORNER_MISS);
     if (corners.length === 0) continue;
 
     const expected = predict(viaName, crossName, index);
@@ -296,14 +306,16 @@ export function locate(address: CaliAddress, index: StreetIndex): Located | null
     const metres = Math.min(address.placa, MAX_PLACA);
     let best: { score: number; located: Located } | null = null;
 
-    // Solo los primeros candidatos: una vía con más de seis tramos que rocen la
-    // misma carrera es un caso patológico, no un empate real.
     for (const corner of corners.slice(0, 6)) {
       const { forward, block } = orient(corner, crossName, index);
-      const point = walk(corner.way, corner.segment, corner.point, metres, forward);
+      const point = walk(
+        corner.way,
+        corner.segment,
+        corner.point,
+        metres,
+        forward,
+      );
 
-      // La coherencia de manzana es lo que descarta la vía homónima que está a
-      // kilómetros: sin ella el p75 se va de 58 m a 91 m.
       let score = corner.miss;
       if (block === null) score += 150;
       else if (block < MIN_BLOCK || block > MAX_BLOCK) score += 200;
@@ -329,7 +341,6 @@ export function locate(address: CaliAddress, index: StreetIndex): Located | null
   return null;
 }
 
-/** Punto medio de la vía, cuando la dirección no trae placa. */
 export function locateStreet(
   address: CaliAddress,
   index: StreetIndex,
@@ -339,5 +350,8 @@ export function locateStreet(
   const [viaName, ways] = via;
 
   const longest = ways.reduce((a, b) => (b.length > a.length ? b : a));
-  return { ...unproject(longest[Math.floor(longest.length / 2)]), via: viaName };
+  return {
+    ...unproject(longest[Math.floor(longest.length / 2)]),
+    via: viaName,
+  };
 }

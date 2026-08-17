@@ -14,7 +14,6 @@ export function $<T extends HTMLElement>(id: string): T {
   return el as T;
 }
 
-/** Para lo que sí puede no estar: tarjetas que solo se renderizan con datos. */
 export function maybe$<T extends HTMLElement>(id: string): T | null {
   return document.getElementById(id) as T | null;
 }

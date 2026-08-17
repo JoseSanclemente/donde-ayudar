@@ -25,7 +25,6 @@ import {
   type VolunteerKind,
 } from "../volunteers";
 
-/** How many signups are shown before «Ver más». */
 const PAGE = 10;
 
 /**
@@ -62,7 +61,6 @@ export function initVolunteerPanel(): void {
     return kind.value as VolunteerKind;
   }
 
-  // The trade is what the notes are about, so the question follows the answer.
   kind.addEventListener("change", () => {
     notes.placeholder = volunteerLabel(selectedKind()).notesPlaceholder;
   });
@@ -79,8 +77,6 @@ export function initVolunteerPanel(): void {
       matchesVolunteerFilter(volunteer.kind, marked),
     );
 
-    // The badge counts the roster and not the filter: it is what the tab
-    // promises, and it must not drop because someone ticked a chip.
     total.textContent = String(all.length);
     empty.textContent =
       all.length > 0
@@ -131,8 +127,6 @@ export function initVolunteerPanel(): void {
           item.append(text);
         }
 
-        // Both when there are both: the CHECK in the database guarantees at
-        // least one of them, so a card is never left with no way to answer.
         if (volunteer.contactPhone) {
           const call = buildContactCta(volunteer.name, volunteer.contactPhone);
           call.classList.add("mt-2");
@@ -191,16 +185,13 @@ export function initVolunteerPanel(): void {
       kind: selectedKind(),
       name: who,
       contactPhone: tel || null,
-      // Normalised here and not in the card: the database saves the bare
-      // handle, which is what the CHECK accepts and what builds the url.
+
       contactInstagram: handle ? instagramHandle(handle) : null,
       notes: notes.value.trim() || null,
     });
 
     kind.value = DEFAULT_VOLUNTEER_KIND;
-    notes.placeholder = volunteerLabel(
-      DEFAULT_VOLUNTEER_KIND,
-    ).notesPlaceholder;
+    notes.placeholder = volunteerLabel(DEFAULT_VOLUNTEER_KIND).notesPlaceholder;
     name.value = "";
     phone.value = "";
     instagram.value = "";

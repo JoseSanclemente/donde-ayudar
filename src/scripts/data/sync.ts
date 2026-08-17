@@ -20,14 +20,12 @@ import { loadVolunteers } from "./volunteers";
  * la insignia del encabezado lo muestre.
  */
 export type SyncState = {
-  /** ISO de la última lectura completa, o `null` si todavía no hubo ninguna. */
   lastSyncAt: string | null;
   syncing: boolean;
-  /** La última relectura falló: lo que se ve en pantalla quedó viejo. */
+
   failed: boolean;
 };
 
-/** Dos relecturas seguidas no aportan nada y sí gastan datos del celular. */
 const THROTTLE_MS = 30_000;
 
 let state: SyncState = { lastSyncAt: null, syncing: false, failed: false };
@@ -45,9 +43,12 @@ export function getSync(): SyncState {
 
 export const onSync = changes.on;
 
-/** La llama el arranque: la carga inicial también cuenta como sincronización. */
 export function markSynced(): void {
-  state = { lastSyncAt: new Date().toISOString(), syncing: false, failed: false };
+  state = {
+    lastSyncAt: new Date().toISOString(),
+    syncing: false,
+    failed: false,
+  };
   emit();
 }
 
@@ -59,9 +60,15 @@ export function markSynced(): void {
  * convertir la lista en esqueleto cada vez que alguien vuelve a la pestaña sería
  * peor que el problema. El estado de carga lo lleva la insignia.
  */
-export async function resyncAll(options: { force?: boolean } = {}): Promise<void> {
+export async function resyncAll(
+  options: { force?: boolean } = {},
+): Promise<void> {
   if (!supabase || inFlight) return;
-  if (!options.force && state.lastSyncAt && Date.now() - Date.parse(state.lastSyncAt) < THROTTLE_MS) {
+  if (
+    !options.force &&
+    state.lastSyncAt &&
+    Date.now() - Date.parse(state.lastSyncAt) < THROTTLE_MS
+  ) {
     return;
   }
 
@@ -79,10 +86,13 @@ export async function resyncAll(options: { force?: boolean } = {}): Promise<void
       loadPets(),
       loadStats(),
     ]);
-    state = { lastSyncAt: new Date().toISOString(), syncing: false, failed: false };
+    state = {
+      lastSyncAt: new Date().toISOString(),
+      syncing: false,
+      failed: false,
+    };
     emit();
   } catch {
-    // La caché anterior sigue en pie: se avisa que está vieja, no se borra.
     state = { ...state, syncing: false, failed: true };
     emit();
     reportError("No se pudo actualizar. Revisa la conexión.");
@@ -91,7 +101,6 @@ export async function resyncAll(options: { force?: boolean } = {}): Promise<void
   }
 }
 
-/** Vuelve la pestaña al frente: puede haber dormido horas. */
 export function initSync(): void {
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") void resyncAll();

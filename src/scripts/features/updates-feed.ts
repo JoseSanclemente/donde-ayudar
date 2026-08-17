@@ -1,5 +1,10 @@
 import { groupReports } from "../cluster";
-import { getReports, onChange, reportFreshAt, reportLabel } from "../data/reports";
+import {
+  getReports,
+  onChange,
+  reportFreshAt,
+  reportLabel,
+} from "../data/reports";
 import { isMine } from "../data/session";
 import {
   addUpdate,
@@ -13,17 +18,14 @@ import { $, clearError, maybe$, scheduleRender, showError } from "../ui/dom";
 import { buildNewDot } from "../ui/dot";
 import { isFresh, paintTime } from "../ui/time";
 
-/** Cuántas novedades se ven antes de «Ver más». */
 const PAGE = 20;
 
-/** Panel al que apunta el punto de «hay algo nuevo». */
 const TAB = "novedades";
 
 export function initUpdatesFeed(): void {
   const form = $<HTMLFormElement>("update-form");
   const body = $<HTMLTextAreaElement>("update-body");
-  // The character counter is decorative: `maxlength` is what actually caps the
-  // body, so a layout without it must not take the whole boot down with it.
+
   const count = maybe$<HTMLSpanElement>("update-count");
   const select = $<HTMLSelectElement>("update-report");
   const error = $<HTMLParagraphElement>("update-error");
@@ -65,7 +67,6 @@ export function initUpdatesFeed(): void {
     }
     select.replaceChildren(...options);
 
-    // Si el punto elegido desapareció (lo borraron), vuelve a «general».
     select.value = options.some((o) => o.value === chosen) ? chosen : "";
   }
 
@@ -94,7 +95,6 @@ export function initUpdatesFeed(): void {
     empty.classList.toggle("hidden", updates.length > 0);
     more.classList.toggle("hidden", updates.length <= limit);
 
-    // Índice para poder nombrar el punto de cada novedad sin volver a agrupar.
     const names = new Map(
       getReports().map((report) => [report.id, report.name]),
     );
@@ -111,8 +111,6 @@ export function initUpdatesFeed(): void {
         const when = document.createElement("span");
         when.className = "flex items-center gap-1.5";
 
-        // El punto va marcado con la fecha, no con su estado: el ticker de
-        // `time.ts` lo apaga a la hora sin que la lista se vuelva a armar.
         const dot = buildNewDot("", "Nueva");
         dot.dataset.fresh = update.createdAt;
         dot.hidden = !isFresh(update.createdAt);
@@ -164,7 +162,7 @@ export function initUpdatesFeed(): void {
   form.addEventListener("submit", (event) => {
     event.preventDefault();
     const text = body.value.trim();
-    // Espejo del CHECK de la base: 3 a 280.
+
     if (text.length < 3) {
       showError(error, "Escribe la novedad (mínimo 3 caracteres).");
       return;
@@ -179,8 +177,7 @@ export function initUpdatesFeed(): void {
 
   const scheduledList = scheduleRender(() => {
     renderList();
-    // La carga inicial no es novedad: lo que ya estaba en la base cuando se
-    // abrió la página entra directo a `seen`.
+
     if (!primed) {
       primed = true;
       for (const update of getUpdates()) seen.add(update.id);
@@ -193,11 +190,9 @@ export function initUpdatesFeed(): void {
   });
 
   onUpdates(scheduledList);
-  // Un reporte nuevo agrega una opción al selector y le pone nombre a las
-  // novedades que ya lo apuntaban.
+
   onChange(scheduledOptions);
-  // Abrir el panel es haber leído: el punto se apaga ahí, no en el próximo
-  // repintado de la lista, que puede no llegar nunca.
+
   onTabChange(paintDot);
 
   renderOptions();

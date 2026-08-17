@@ -26,14 +26,12 @@ const PROJECT = "royi-pets";
 const API_KEY = "";
 const FIRESTORE = `https://firestore.googleapis.com/v1/projects/${PROJECT}/databases/(default)/documents`;
 
-/** Who answers for every animal in this batch, and how to write to them. */
 const PLACE_NAME = "Royi Pets";
 const CONTACT_USERNAME = "lore.sant1ago";
 
 const OUT_FILE = "scripts/pets-royi.json";
 const PHOTOS_DIR = "scripts/.royi-photos";
 
-/** Un animal que ya tiene con quién quedarse no es al que alguien está buscando. */
 const CLOSED_STATES = ["Adoptado", "Encontró sus dueños"];
 /**
  * Y dónde está dice lo mismo por otro lado. No sobra: hay filas con `estado`
@@ -94,7 +92,6 @@ function parseArgs(argv) {
   return args;
 }
 
-/** Un valor de Firestore viene envuelto en el nombre de su tipo. */
 function value(field) {
   if (!field) return null;
   const [kind, raw] = Object.entries(field)[0];
@@ -112,7 +109,6 @@ function field(doc, name) {
   return value(doc.fields?.[name]);
 }
 
-/** Sin tildes y en minúscula: «JAMUNDÍ» y «Jamundi» son el mismo pueblo. */
 function normalize(text) {
   return String(text ?? "")
     .normalize("NFD")
@@ -143,7 +139,6 @@ async function fetchPets() {
   return docs;
 }
 
-/** Por qué esta mascota no entra, o `null` si entra. */
 function rejection(doc) {
   if (field(doc, "archivado")) return "archivada";
   const state = field(doc, "estado");
@@ -155,7 +150,6 @@ function rejection(doc) {
   return null;
 }
 
-/** El municipio nombrado a mano en una fila que dice ser de Cali, si lo hay. */
 function suspiciousTown(doc) {
   const written = normalize(
     `${field(doc, "lugarDireccion")} ${field(doc, "lugarBarrio")}`,

@@ -14,11 +14,11 @@ export type ReportStatus = "activo" | "urgente" | "saturado" | "cerrado";
 
 export type StatusInfo = {
   id: ReportStatus;
-  /** Etiqueta del chip y del filtro. */
+
   label: string;
   chip: string;
   chipOn: string;
-  /** Borde y fondo de la tarjeta en la lista: el estado se ve sin leer el chip. */
+
   card: string;
   /**
    * `true` = no te desplaces sin confirmar. Es lo que arma el banner y lo que
@@ -65,7 +65,6 @@ export const STATUSES: StatusInfo[] = [
 
 const BY_ID = new Map(STATUSES.map((s) => [s.id, s]));
 
-/** Una fila guardada por una versión futura no puede tumbar el render. */
 export function statusInfo(id: string): StatusInfo {
   return BY_ID.get(id as ReportStatus) ?? STATUSES[0];
 }
@@ -133,18 +132,19 @@ export const IDLE_HOURS = 24;
  * `statusAt` stays a separate argument because a closed point is measured from
  * the moment it was closed, not from the last novedad written about it.
  */
-export function isRetired(status: ReportStatus, statusAt: string, freshAt: string): boolean {
+export function isRetired(
+  status: ReportStatus,
+  statusAt: string,
+  freshAt: string,
+): boolean {
   if (status === "cerrado") return hoursSince(statusAt) >= RETIRE_HOURS;
   return hoursSince(freshAt) >= IDLE_HOURS;
 }
 
-/** Filtros de la lista. `null` = todos. */
 export const LIST_FILTERS = [
   { id: null, label: "Todos" },
   { id: "urgente" as const, label: "Urgentes" },
   { id: "abiertos" as const, label: "Abiertos" },
 ];
 
-// The list opens on what needs attention first. Anything else buries the
-// urgent zones under the ones already being handled.
 export const DEFAULT_LIST_FILTER: string | null = "urgente";

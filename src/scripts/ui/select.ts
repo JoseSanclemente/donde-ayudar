@@ -21,7 +21,6 @@
 
 export type SelectVariant = "field" | "chip";
 
-/** Relative so the caret of the `field` variant can sit over the control. */
 export const SELECT_FIELD_WRAP = "relative flex items-center";
 
 /**
@@ -45,7 +44,6 @@ const CARET_CLASS: Record<SelectVariant, string> = {
   chip: "pointer-events-none text-[0.65rem] opacity-70",
 };
 
-/** The glyph itself, shared with the disclosure caret of «Zonas reportadas». */
 export const CARET = "▾";
 
 export function caretHtml(variant: SelectVariant): string {
