@@ -14,7 +14,7 @@ import { closeSheet, getSheetCover, openSheet, peekSheet } from "../sheet";
 import { $, clearError, debounce, showError } from "../ui/dom";
 import { flashField } from "../ui/flash";
 import { hidePickHint, showPickHint } from "../ui/pick-hint";
-import { showToast } from "../ui/toast";
+import { showToast } from "@/lib/toast";
 
 /**
  * Dirección escrita, sugerencias, pin arrastrable y clic en el mapa: la mitad

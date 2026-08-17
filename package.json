@@ -26,6 +26,7 @@
     "pets:royi": "node scripts/fetch-royi-pets.mjs"
   },
   "dependencies": {
+    "@astrojs/react": "^6.0.2",
     "@fontsource-variable/figtree": "^5.3.0",
     "@supabase/supabase-js": "^2.112.3",
     "@tailwindcss/vite": "^4.3.3",

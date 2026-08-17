@@ -1,6 +1,6 @@
 import { SITE_URL } from "../../consts";
 import { getShareCard } from "../map";
-import { showToast } from "../ui/toast";
+import { showToast } from "@/lib/toast";
 
 /**
  * El dibujante de la tarjeta se pide al primer toque de «Compartir», no en el

@@ -16,8 +16,8 @@ import { readCachedCoords } from "@/scripts/geolocation";
 import type { ShareCard } from "@/scripts/share-card";
 import { markerEstado, statusInfo, type ReportStatus } from "@/scripts/status";
 import { isMobile, onBreakpointChange } from "@/scripts/ui/breakpoint";
-import { chipStyle, resourceChipHtml } from "@/scripts/ui/chips";
-import { contactCtaHtml, contactLinksHtml } from "@/scripts/ui/contact";
+import { chipStyle, resourceChipHtml } from "@/components/ui/ResourceChip";
+import { contactCtaHtml, contactLinksHtml } from "@/components/ui/ContactCta";
 import {
   directionsUrl,
   escapeHtml,

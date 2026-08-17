@@ -1,6 +1,7 @@
 ---
 import "@/styles/global.css";
 import { OG_IMAGE, OG_IMAGE_ALT, SITE_DESCRIPTION, SITE_NAME } from "@/consts";
+import { Toaster } from "@/components/ui/Toast";
 
 interface Props {
   title: string;
@@ -60,5 +61,6 @@ const ogImage = new URL(OG_IMAGE, Astro.site);
   </head>
   <body class={bodyClass}>
     <slot />
+    <Toaster client:load />
   </body>
 </html>

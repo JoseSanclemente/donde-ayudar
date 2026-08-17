@@ -11,9 +11,9 @@ import { flyTo } from "../map";
 import { categoryChip, categoryTitle } from "../resources";
 import { closeSheet, setTabDot } from "../sheet";
 import { initAccordion } from "../ui/accordion";
-import { CHIP_SHAPE } from "../ui/chips";
+import { CHIP_SHAPE } from "@/components/ui/ResourceChip";
 import { isValidPhone } from "@/lib/contact";
-import { buildContactCta } from "@/scripts/ui/contact";
+import { buildContactCta } from "@/components/ui/ContactCta";
 import { $, clearError, scheduleRender, showError } from "../ui/dom";
 import { paintTime } from "../ui/time";
 

@@ -7,13 +7,13 @@ import {
 } from "../data/volunteers";
 import { initAccordion } from "../ui/accordion";
 import { createChipGroup } from "../ui/chip-group";
-import { CHIP_SHAPE } from "../ui/chips";
+import { CHIP_SHAPE } from "@/components/ui/ResourceChip";
 import {
   instagramHandle,
   isValidInstagram,
   isValidPhone,
 } from "@/lib/contact";
-import { buildContactCta, buildInstagramCta } from "@/scripts/ui/contact";
+import { buildContactCta, buildInstagramCta } from "@/components/ui/ContactCta";
 import { $, clearError, scheduleRender, showError } from "../ui/dom";
 import { paintTime } from "../ui/time";
 import {

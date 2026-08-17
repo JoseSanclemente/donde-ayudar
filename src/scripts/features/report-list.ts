@@ -29,8 +29,8 @@ import {
   type ReportStatus,
 } from "../status";
 import { initAccordion } from "../ui/accordion";
-import { buildResourceChip } from "@/scripts/ui/chips";
-import { buildContactCta } from "@/scripts/ui/contact";
+import { buildResourceChip } from "@/components/ui/ResourceChip";
+import { buildContactCta } from "@/components/ui/ContactCta";
 import { $, scheduleRender } from "../ui/dom";
 import { buildCaret, SELECT_CHIP } from "../ui/select";
 import { confirmClose } from "../ui/status-select";

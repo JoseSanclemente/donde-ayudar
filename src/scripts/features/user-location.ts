@@ -1,7 +1,7 @@
 import { locateUser, writeCachedCoords, type Coords } from "../geolocation";
 import { flyToUser, mountControl, setInitialView, setUserMarker } from "../map";
 import { $ } from "../ui/dom";
-import { showToast } from "../ui/toast";
+import { showToast } from "@/lib/toast";
 
 /**
  * Dónde está quien mira el mapa: la vista inicial, el punto azul y el botón

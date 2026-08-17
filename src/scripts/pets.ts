@@ -5,7 +5,7 @@ import { initPetsFilter } from "./features/pets-filter";
 import { initPetsGrid, PET_PARAM, type PetsGrid } from "./features/pets-grid";
 import { initPetSheet } from "./pet-sheet";
 import { startTimeTicker } from "./ui/time";
-import { showToast } from "./ui/toast";
+import { showToast } from "@/lib/toast";
 
 /**
  * El arranque de `/mascotas`, el gemelo de `app.ts` para la otra página. Nada

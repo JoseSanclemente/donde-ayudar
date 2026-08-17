@@ -25,7 +25,7 @@ import { loadAddresses } from "./geo-index";
 import { initMap } from "./map";
 import { initSheet } from "./sheet";
 import { startTimeTicker } from "./ui/time";
-import { showToast } from "./ui/toast";
+import { showToast } from "@/lib/toast";
 
 initMap("map");
 

@@ -22,7 +22,7 @@ import {
   buildPendingCta,
   buildPhoneCta,
   buildUsernameCta,
-} from "@/scripts/ui/contact";
+} from "@/components/ui/ContactCta";
 import { $, scheduleRender } from "../ui/dom";
 import { paintTime } from "../ui/time";
 
