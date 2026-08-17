@@ -2,11 +2,12 @@
 // What of the grid to show. A single copy of the markup: it lives hidden in the
 // page and `features/pets-filter.ts` hands the node to the bottom sheet, which
 // moves it into its body. Two copies would be two copies of the chip state.
-import { PET_KIND_CHIPS, PET_SEX_CHIPS } from "../scripts/pets-filter";
-import { CHIP_BASE, CHIP_OFF } from "../scripts/ui/chip-group";
+import { PET_KIND_CHIPS, PET_SEX_CHIPS } from "@/scripts/pets-filter";
+import { CHIP_BASE, CHIP_OFF } from "@/scripts/ui/chip-group";
 import Select from "./Select.astro";
 
-const ROW_LABEL = "text-xs font-semibold uppercase tracking-wide text-slate-500";
+const ROW_LABEL =
+  "text-xs font-semibold uppercase tracking-wide text-slate-500";
 ---
 
 <section class="pb-1 pt-3">
@@ -76,8 +77,8 @@ const ROW_LABEL = "text-xs font-semibold uppercase tracking-wide text-slate-500"
   </div>
 
   <p class="mt-3 text-xs text-slate-500">
-    Sin nada marcado se ven todas. «Sin dato» son las que se publicaron sin decir
-    si es macho o hembra, y «Sin lugar» las que tiene alguien en su casa y no una
-    veterinaria o un albergue.
+    Sin nada marcado se ven todas. «Sin dato» son las que se publicaron sin
+    decir si es macho o hembra, y «Sin lugar» las que tiene alguien en su casa y
+    no una veterinaria o un albergue.
   </p>
 </section>

@@ -2,8 +2,8 @@
 // El reverso del reporte: el reporte dice qué falta en un punto, esto dice qué
 // hay disponible en la ciudad y todavía no tiene adónde ir. Quien coordina en
 // la calle lo despacha a un punto desde acá.
-import { CATEGORIES, categoryTitle } from "../scripts/resources";
-import { CARET } from "../scripts/ui/select";
+import { CATEGORIES, categoryTitle } from "@/scripts/resources";
+import { CARET } from "@/scripts/ui/select";
 import Select from "./Select.astro";
 ---
 
@@ -13,10 +13,13 @@ import Select from "./Select.astro";
   class="border-b border-slate-200 pb-5 pt-3"
 >
   <div class="flex items-baseline justify-start gap-2">
-    <h2 class="text-lg font-semibold text-slate-900">¿Tienes algo para donar?</h2>
+    <h2 class="text-lg font-semibold text-slate-900">
+      ¿Tienes algo para donar?
+    </h2>
     <span
       id="offers-count"
-      class="rounded-full border border-slate-600 bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">0</span
+      class="rounded-full border border-slate-600 bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600"
+      >0</span
     >
 
     <!-- Only on desktop: on mobile this is a whole tab of the sheet, and a tab
@@ -54,9 +57,11 @@ import Select from "./Select.astro";
 
       <Select id="offer-category" label="Categoría de la ayuda">
         <option value="">Sin categoría</option>
-        {CATEGORIES.map((category) => (
-          <option value={category.id}>{categoryTitle(category.id)}</option>
-        ))}
+        {
+          CATEGORIES.map((category) => (
+            <option value={category.id}>{categoryTitle(category.id)}</option>
+          ))
+        }
       </Select>
 
       <input
@@ -94,7 +99,8 @@ import Select from "./Select.astro";
           <path d="M10 6.6v.1"></path>
         </svg>
         <p>
-          El contacto es obligatorio y se muestra públicamente para que pueda coordinarse la ayuda.
+          El contacto es obligatorio y se muestra públicamente para que pueda
+          coordinarse la ayuda.
         </p>
       </div>
 

@@ -13,9 +13,9 @@ import {
   VOLUNTEER_KIND_CHIPS,
   VOLUNTEER_KIND_IDS,
   VOLUNTEER_KINDS,
-} from "../scripts/volunteers";
-import { CHIP_BASE, CHIP_OFF } from "../scripts/ui/chip-group";
-import { CARET } from "../scripts/ui/select";
+} from "@/scripts/volunteers";
+import { CHIP_BASE, CHIP_OFF } from "@/scripts/ui/chip-group";
+import { CARET } from "@/scripts/ui/select";
 import Select from "./Select.astro";
 
 const FIELD =
@@ -31,7 +31,8 @@ const FIELD =
     <h2 class="text-lg font-semibold text-slate-900">¿En qué puedes ayudar?</h2>
     <span
       id="volunteer-count"
-      class="rounded-full border border-slate-600 bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600">0</span
+      class="rounded-full border border-slate-600 bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-600"
+      >0</span
     >
 
     <!-- Only on desktop: on mobile this is a whole tab of the sheet, and a tab
@@ -114,11 +115,13 @@ const FIELD =
           <path d="M10 6.6v.1"></path>
         </svg>
         <p>
-          Tu contacto se muestra públicamente para que quien lo necesite pueda escribirte.
+          Tu contacto se muestra públicamente para que quien lo necesite pueda
+          escribirte.
         </p>
       </div>
 
-      <p id="volunteer-error" class="hidden text-xs font-medium text-red-600"></p>
+      <p id="volunteer-error" class="hidden text-xs font-medium text-red-600">
+      </p>
 
       <button
         type="submit"
@@ -128,7 +131,9 @@ const FIELD =
       </button>
     </form>
 
-    <h3 class="mt-6 text-lg font-semibold text-slate-900">Personas inscritas</h3>
+    <h3 class="mt-6 text-lg font-semibold text-slate-900">
+      Personas inscritas
+    </h3>
 
     <!-- Los chips salen apagados: una fila sin nada marcado no pide nada, y
          tocar «Jurídica» deja las abogadas en vez de quitarlas. Marcado toma el

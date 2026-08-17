@@ -1,19 +1,10 @@
 ---
-import "../styles/global.css";
-import {
-  OG_IMAGE,
-  OG_IMAGE_ALT,
-  SITE_DESCRIPTION,
-  SITE_NAME,
-} from "../consts";
+import "@/styles/global.css";
+import { OG_IMAGE, OG_IMAGE_ALT, SITE_DESCRIPTION, SITE_NAME } from "@/consts";
 
 interface Props {
   title: string;
   description?: string;
-  /**
-   * `/mascotas` es un documento que se desplaza; el mapa es una app que ocupa
-   * la pantalla y no se desplaza nunca. El `overflow-hidden` es de la segunda.
-   */
   scroll?: boolean;
 }
 
@@ -23,18 +14,6 @@ const bodyClass = scroll
   ? "min-h-screen"
   : "min-h-screen overflow-hidden overscroll-none lg:overflow-auto lg:overscroll-auto";
 
-// El `<script>` de cada página lo declara la página, no este layout: el mapa y
-// las mascotas no comparten arranque —`app.ts` monta Leaflet y las seis tablas,
-// `pets.ts` no— y un solo import acá le cobraba a cada una el bundle de la otra.
-// Astro sube el `<script>` de la página al `head` al compilar, así que sigue
-// valiendo lo que justificaba tenerlo acá: es un módulo, no bloquea el parseo,
-// pero el navegador no puede bajarlo hasta que el parser lo encuentra, y al
-// final del documento eso son 100 kB de HTML después — los formularios ocupan
-// setenta. La explicación va acá y no en un comentario HTML: ese viajaría en
-// cada respuesta.
-
-// Open Graph exige URLs absolutas: una ruta relativa la ignoran WhatsApp, X y
-// Facebook por igual. `Astro.site` sale de `site` en `astro.config.mjs`.
 const canonical = new URL(Astro.url.pathname, Astro.site);
 const ogImage = new URL(OG_IMAGE, Astro.site);
 ---
@@ -46,18 +25,18 @@ const ogImage = new URL(OG_IMAGE, Astro.site);
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <meta name="generator" content={Astro.generator} />
 
-    <!-- Los dos orígenes que se piden apenas arranca el script: las teselas del
-         mapa y la base. Sin esto cada uno paga su DNS y su TLS cuando ya se le
-         necesita, que en un celular con mala señal son cientos de milisegundos
-         antes del primer marcador. -->
     <link rel="preconnect" href="https://a.basemaps.cartocdn.com" crossorigin />
-    <link rel="preconnect" href="https://fqyuuvinpmwwakqfkebt.supabase.co" crossorigin />
+    <link
+      rel="preconnect"
+      href="https://fqyuuvinpmwwakqfkebt.supabase.co"
+      crossorigin
+    />
+
     <title>{title}</title>
+
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
 
-    <!-- El sitio circula sobre todo por WhatsApp: la tarjeta del enlace es,
-         en la práctica, la portada. -->
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content={SITE_NAME} />
     <meta property="og:title" content={title} />
@@ -75,7 +54,6 @@ const ogImage = new URL(OG_IMAGE, Astro.site);
     <meta name="twitter:image" content={ogImage} />
     <meta name="twitter:image:alt" content={OG_IMAGE_ALT} />
 
-    <!-- El rojo del marcador de reporte (`.pulse-dot` en global.css). -->
     <meta name="theme-color" content="#ef4444" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />

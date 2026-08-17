@@ -3,10 +3,11 @@
 // del sheet y en escritorio el stylesheet lo levanta como un popover sobre el
 // botón, igual que hace con `#updates-card`. Dos ejemplares serían dos copias
 // del estado de las casillas.
-import { MARKER_KINDS } from "../scripts/map-filter";
-import { CHIP_BASE } from "../scripts/ui/chip-group";
+import { MARKER_KINDS } from "@/scripts/map-filter";
+import { CHIP_BASE } from "@/scripts/ui/chip-group";
 
-const ROW = "flex cursor-pointer items-center gap-3 py-1.5 text-sm text-slate-700";
+const ROW =
+  "flex cursor-pointer items-center gap-3 py-1.5 text-sm text-slate-700";
 const BOX =
   "h-4 w-4 shrink-0 rounded border-slate-300 text-red-600 accent-red-600 focus:ring-red-300";
 ---
@@ -44,7 +45,12 @@ const BOX =
 
   <div class="mt-4 flex flex-col border-t border-slate-200 pt-3">
     <label class={ROW}>
-      <input type="checkbox" data-filter-flag="onlyActiveCenters" checked class={BOX} />
+      <input
+        type="checkbox"
+        data-filter-flag="onlyActiveCenters"
+        checked
+        class={BOX}
+      />
       Solo puntos activos
     </label>
     <label class={ROW}>
@@ -54,8 +60,8 @@ const BOX =
   </div>
 
   <p class="mt-2 text-xs text-slate-500">
-    Los puntos grises no reciben hoy; los reportes «recientes» son los que alguien
-    confirmó en las últimas horas. Las zonas afectadas solo se dibujan con el mapa
-    alejado: son una lectura de la ciudad, no de una cuadra.
+    Los puntos grises no reciben hoy; los reportes «recientes» son los que
+    alguien confirmó en las últimas horas. Las zonas afectadas solo se dibujan
+    con el mapa alejado: son una lectura de la ciudad, no de una cuadra.
   </p>
 </section>

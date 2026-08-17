@@ -1,6 +1,6 @@
 ---
-import Base from "../layouts/Base.astro";
-import { PRIVACY_NAME, PRIVACY_TITLE, PRIVACY_DESCRIPTION } from "../consts";
+import Base from "@/layouts/Base.astro";
+import { PRIVACY_NAME, PRIVACY_TITLE, PRIVACY_DESCRIPTION } from "@/consts";
 ---
 
 <Base title={PRIVACY_TITLE} description={PRIVACY_DESCRIPTION} scroll>
@@ -16,48 +16,52 @@ import { PRIVACY_NAME, PRIVACY_TITLE, PRIVACY_DESCRIPTION } from "../consts";
       <h1 class="mt-2 text-2xl font-bold tracking-tight text-slate-900">
         {PRIVACY_NAME}
       </h1>
-      <p class="mt-1 text-sm text-slate-600">Última actualización: 14 de agosto de 2026</p>
+      <p class="mt-1 text-sm text-slate-600">
+        Última actualización: 14 de agosto de 2026
+      </p>
     </header>
 
     <div class="space-y-6 pt-6 text-sm leading-relaxed text-slate-700">
-      <p class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900">
-        Lo más importante, y en una línea: <strong>todo lo que publiques acá es
-        público</strong>. Cualquiera que abra el sitio ve tu reporte, tu foto y tu
-        teléfono, sin cuenta y sin permiso especial. No publiques lo que no quieras
-        que vea cualquiera.
+      <p
+        class="rounded-xl border border-amber-200 bg-amber-50 p-4 text-amber-900"
+      >
+        Lo más importante, y en una línea: <strong
+          >todo lo que publiques acá es público</strong
+        >. Cualquiera que abra el sitio ve tu reporte, tu foto y tu teléfono,
+        sin cuenta y sin permiso especial. No publiques lo que no quieras que
+        vea cualquiera.
       </p>
 
       <section class="space-y-2">
         <h2 class="text-base font-semibold text-slate-900">Qué se publica</h2>
         <p>
-          Este sitio es un tablero comunitario después del sismo. Lo que la gente
-          escribe se ve entero, al instante y para todo el mundo:
+          Este sitio es un tablero comunitario después del sismo. Lo que la
+          gente escribe se ve entero, al instante y para todo el mundo:
         </p>
         <ul class="list-disc space-y-1 pl-5">
           <li>
             <strong>Reportes</strong> — la dirección o el lugar, las coordenadas del
-            pin, los insumos que hacen falta y, si los escribes, el nombre de
-            contacto, el teléfono y el Instagram.
+            pin, los insumos que hacen falta y, si los escribes, el nombre de contacto,
+            el teléfono y el Instagram.
           </li>
           <li>
             <strong>Novedades</strong> — el texto que escribas sobre la ciudad.
           </li>
           <li>
-            <strong>Ofertas de ayuda</strong> — qué ofreces y cómo te ubican. Acá el
-            teléfono es obligatorio: una oferta sin contacto no sirve para nada.
+            <strong>Ofertas de ayuda</strong> — qué ofreces y cómo te ubican. Acá
+            el teléfono es obligatorio: una oferta sin contacto no sirve para nada.
           </li>
           <li>
-            <strong>Inscripciones de voluntarios</strong> — tu nombre y tu teléfono o
-            tu Instagram, para que quien necesite acompañamiento o asesoría te
-            escriba.
+            <strong>Inscripciones de voluntarios</strong> — tu nombre y tu teléfono
+            o tu Instagram, para que quien necesite acompañamiento o asesoría te escriba.
           </li>
           <li>
-            <strong>Puntos de acopio</strong> — el nombre, la dirección, el horario y
-            el contacto del punto.
+            <strong>Puntos de acopio</strong> — el nombre, la dirección, el horario
+            y el contacto del punto.
           </li>
           <li>
-            <strong>Mascotas encontradas</strong> — la foto y el teléfono de quien la
-            tiene.
+            <strong>Mascotas encontradas</strong> — la foto y el teléfono de quien
+            la tiene.
           </li>
         </ul>
       </section>
@@ -65,47 +69,53 @@ import { PRIVACY_NAME, PRIVACY_TITLE, PRIVACY_DESCRIPTION } from "../consts";
       <section class="space-y-2">
         <h2 class="text-base font-semibold text-slate-900">No hay cuentas</h2>
         <p>
-          No te pedimos correo, ni contraseña, ni nombre real. Al abrir el sitio, tu
-          navegador recibe una <strong>sesión anónima</strong>: un identificador al
-          azar que se guarda en tu propio navegador y que solo sirve para una cosa,
-          dejarte borrar lo que tú publicaste. No lleva tu nombre y no lo cruzamos con
-          nada.
+          No te pedimos correo, ni contraseña, ni nombre real. Al abrir el
+          sitio, tu navegador recibe una <strong>sesión anónima</strong>: un
+          identificador al azar que se guarda en tu propio navegador y que solo
+          sirve para una cosa, dejarte borrar lo que tú publicaste. No lleva tu
+          nombre y no lo cruzamos con nada.
         </p>
         <p>
-          Si limpias el navegador o cambias de teléfono, esa sesión se pierde y ya no
-          puedes borrar tus publicaciones por tu cuenta. Escríbenos y las bajamos.
+          Si limpias el navegador o cambias de teléfono, esa sesión se pierde y
+          ya no puedes borrar tus publicaciones por tu cuenta. Escríbenos y las
+          bajamos.
         </p>
       </section>
 
       <section class="space-y-2">
-        <h2 class="text-base font-semibold text-slate-900">Las fotos de mascotas</h2>
+        <h2 class="text-base font-semibold text-slate-900">
+          Las fotos de mascotas
+        </h2>
         <p>
           La foto no se guarda dentro del sitio: va a un depósito de archivos
-          <strong>público</strong>. Quien tenga el enlace la ve, aunque no pase por
-          esta página. Al borrar una mascota se borra también el archivo.
+          <strong>público</strong>. Quien tenga el enlace la ve, aunque no pase
+          por esta página. Al borrar una mascota se borra también el archivo.
         </p>
       </section>
 
       <section class="space-y-2">
-        <h2 class="text-base font-semibold text-slate-900">Las mascotas por WhatsApp</h2>
+        <h2 class="text-base font-semibold text-slate-900">
+          Las mascotas por WhatsApp
+        </h2>
         <p>
-          Puedes mandar la foto de una mascota encontrada al WhatsApp del proyecto. Lo
-          que pasa entonces:
+          Puedes mandar la foto de una mascota encontrada al WhatsApp del
+          proyecto. Lo que pasa entonces:
         </p>
         <ul class="list-disc space-y-1 pl-5">
           <li>
-            Mientras te preguntamos qué animal es, guardamos por un máximo de 24 horas
-            el identificador del mensaje y tu número. Si no respondes, eso se borra
-            solo y la foto nunca se publica.
+            Mientras te preguntamos qué animal es, guardamos por un máximo de 24
+            horas el identificador del mensaje y tu número. Si no respondes, eso
+            se borra solo y la foto nunca se publica.
           </li>
           <li>
-            Cuando tocas «Perro», «Gato» u «Otra», <strong>ese toque es tu
-            permiso</strong>: ahí se publican la foto y tu número en la página de
-            mascotas, para que quien la perdió te escriba.
+            Cuando tocas «Perro», «Gato» u «Otra», <strong
+              >ese toque es tu permiso</strong
+            >: ahí se publican la foto y tu número en la página de mascotas,
+            para que quien la perdió te escriba.
           </li>
           <li>
-            No leemos ni guardamos tus otras conversaciones, y no usamos tu número
-            para escribirte nada distinto de esa respuesta.
+            No leemos ni guardamos tus otras conversaciones, y no usamos tu
+            número para escribirte nada distinto de esa respuesta.
           </li>
         </ul>
       </section>
@@ -113,19 +123,21 @@ import { PRIVACY_NAME, PRIVACY_TITLE, PRIVACY_DESCRIPTION } from "../consts";
       <section class="space-y-2">
         <h2 class="text-base font-semibold text-slate-900">Tu ubicación</h2>
         <p>
-          El mapa puede centrarse donde estás, pero solo si tu navegador te pregunta y
-          tú aceptas. Esa posición se queda en tu teléfono: no se guarda en el
-          servidor y no viaja con ningún reporte. Puedes negarla y el sitio funciona
-          igual.
+          El mapa puede centrarse donde estás, pero solo si tu navegador te
+          pregunta y tú aceptas. Esa posición se queda en tu teléfono: no se
+          guarda en el servidor y no viaja con ningún reporte. Puedes negarla y
+          el sitio funciona igual.
         </p>
         <p>
-          Cuando escribes una dirección, sí se envía ese texto para convertirlo en un
-          punto del mapa (ver abajo).
+          Cuando escribes una dirección, sí se envía ese texto para convertirlo
+          en un punto del mapa (ver abajo).
         </p>
       </section>
 
       <section class="space-y-2">
-        <h2 class="text-base font-semibold text-slate-900">Quién más ve algo</h2>
+        <h2 class="text-base font-semibold text-slate-900">
+          Quién más ve algo
+        </h2>
         <ul class="list-disc space-y-1 pl-5">
           <li>
             <strong>Supabase</strong> — la base de datos y el depósito de fotos. Ahí
@@ -137,17 +149,19 @@ import { PRIVACY_NAME, PRIVACY_TITLE, PRIVACY_DESCRIPTION } from "../consts";
             mira el mapa.
           </li>
           <li>
-            <strong>OpenStreetMap / Nominatim</strong> — convierte una dirección
-            escrita en coordenadas, cuando la dirección no se resuelve con los datos
-            que el sitio ya trae. Recibe ese texto y la IP.
+            <strong>OpenStreetMap / Nominatim</strong> — convierte una dirección escrita
+            en coordenadas, cuando la dirección no se resuelve con los datos que el
+            sitio ya trae. Recibe ese texto y la IP.
           </li>
           <li>
-            <strong>WhatsApp (Meta)</strong> — solo si mandas una foto por ahí, y bajo
-            las condiciones de WhatsApp.
+            <strong>WhatsApp (Meta)</strong> — solo si mandas una foto por ahí, y
+            bajo las condiciones de WhatsApp.
           </li>
         </ul>
         <p>
-          <strong>No hay analítica, ni cookies de publicidad, ni rastreadores.</strong>
+          <strong
+            >No hay analítica, ni cookies de publicidad, ni rastreadores.</strong
+          >
           No vendemos ni compartimos nada con nadie más.
         </p>
       </section>
@@ -155,25 +169,27 @@ import { PRIVACY_NAME, PRIVACY_TITLE, PRIVACY_DESCRIPTION } from "../consts";
       <section class="space-y-2">
         <h2 class="text-base font-semibold text-slate-900">Cuánto dura</h2>
         <p>
-          Lo publicado se queda hasta que alguien lo borre. Los puntos de acopio de la
-          comunidad se apagan solos a las 24 horas si nadie confirma que siguen
-          abiertos, pero eso los pinta en gris: la fila sigue ahí.
+          Lo publicado se queda hasta que alguien lo borre. Los puntos de acopio
+          de la comunidad se apagan solos a las 24 horas si nadie confirma que
+          siguen abiertos, pero eso los pinta en gris: la fila sigue ahí.
         </p>
       </section>
 
       <section class="space-y-2">
         <h2 class="text-base font-semibold text-slate-900">Cómo borrar algo</h2>
         <p>
-          Desde el mismo navegador con el que publicaste, cada cosa tuya tiene su
-          botón de retirar. Si perdiste esa sesión, o si aparece un dato tuyo que no
-          publicaste tú, escribe al mismo WhatsApp al que se mandan las fotos de
-          mascotas y lo bajamos. No pedimos que demuestres nada: si un teléfono o una
-          foto no deberían estar, se van.
+          Desde el mismo navegador con el que publicaste, cada cosa tuya tiene
+          su botón de retirar. Si perdiste esa sesión, o si aparece un dato tuyo
+          que no publicaste tú, escribe al mismo WhatsApp al que se mandan las
+          fotos de mascotas y lo bajamos. No pedimos que demuestres nada: si un
+          teléfono o una foto no deberían estar, se van.
         </p>
       </section>
 
       <section class="space-y-2">
-        <h2 class="text-base font-semibold text-slate-900">Menores y datos sensibles</h2>
+        <h2 class="text-base font-semibold text-slate-900">
+          Menores y datos sensibles
+        </h2>
         <p>
           No publiques datos de otra persona sin su permiso, ni fotos donde se
           reconozca a alguien, ni nada de un menor de edad. Los paneles de salud
