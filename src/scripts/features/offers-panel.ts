@@ -1,4 +1,4 @@
-﻿import {
+import {
   addOffer,
   getOffers,
   onOffers,
@@ -12,7 +12,8 @@ import { categoryChip, categoryTitle } from "../resources";
 import { closeSheet, setTabDot } from "../sheet";
 import { initAccordion } from "../ui/accordion";
 import { CHIP_SHAPE } from "../ui/chips";
-import { buildContactCta, isValidPhone } from "../ui/contact";
+import { isValidPhone } from "@/lib/contact";
+import { buildContactCta } from "@/scripts/ui/contact";
 import { $, clearError, scheduleRender, showError } from "../ui/dom";
 import { paintTime } from "../ui/time";
 

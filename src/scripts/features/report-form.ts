@@ -8,7 +8,7 @@ import {
   onTabChange,
   openReportPanel,
 } from "../sheet";
-import { isValidPhone } from "../ui/contact";
+import { isValidPhone } from "@/lib/contact";
 import { $, clearError, showError } from "../ui/dom";
 import { flashField } from "../ui/flash";
 import { createLocationPicker } from "./location-picker";

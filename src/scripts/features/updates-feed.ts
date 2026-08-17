@@ -15,7 +15,7 @@ import {
 import { flyTo } from "../map";
 import { closeSheet, isTabVisible, onTabChange, setTabDot } from "../sheet";
 import { $, clearError, maybe$, scheduleRender, showError } from "../ui/dom";
-import { buildNewDot } from "../ui/dot";
+import { buildNewDot } from "@/scripts/ui/dot";
 import { isFresh, paintTime } from "../ui/time";
 
 const PAGE = 20;

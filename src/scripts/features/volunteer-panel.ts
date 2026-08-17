@@ -9,12 +9,11 @@ import { initAccordion } from "../ui/accordion";
 import { createChipGroup } from "../ui/chip-group";
 import { CHIP_SHAPE } from "../ui/chips";
 import {
-  buildContactCta,
-  buildInstagramCta,
   instagramHandle,
   isValidInstagram,
   isValidPhone,
-} from "../ui/contact";
+} from "@/lib/contact";
+import { buildContactCta, buildInstagramCta } from "@/scripts/ui/contact";
 import { $, clearError, scheduleRender, showError } from "../ui/dom";
 import { paintTime } from "../ui/time";
 import {
