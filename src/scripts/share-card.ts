@@ -28,6 +28,36 @@
  */
 const DOMAIN = "dondeayudar.com.co";
 
+const LOGO_URL = "/logo.webp";
+const LOGO_HEIGHT = 78;
+const LOGO_BOTTOM = 30;
+const LOGO_TIMEOUT_MS = 3000;
+
+let logoPromise: Promise<HTMLImageElement> | null = null;
+
+function loadLogo(): Promise<HTMLImageElement> {
+  if (logoPromise) return logoPromise;
+  logoPromise = new Promise((resolve, reject) => {
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    const timer = setTimeout(
+      () => reject(new Error("logo timeout")),
+      LOGO_TIMEOUT_MS,
+    );
+    img.onload = () => {
+      clearTimeout(timer);
+      resolve(img);
+    };
+    img.onerror = () => {
+      clearTimeout(timer);
+      logoPromise = null;
+      reject(new Error("logo failed"));
+    };
+    img.src = LOGO_URL;
+  });
+  return logoPromise;
+}
+
 export type ShareChip = {
   label: string;
   category: string | null;
@@ -548,6 +578,7 @@ function drawCard(
   card: ShareCard,
   layout: Layout,
   withMap: boolean,
+  logo: HTMLImageElement | null,
 ): void {
   const mapHeight = withMap ? layout.mapHeight : 0;
 
@@ -649,6 +680,19 @@ function drawCard(
   ctx.fillStyle = card.accent;
   ctx.fillRect(0, HEIGHT - BAR, WIDTH, BAR);
 
+  if (logo) {
+    const ratio = logo.naturalWidth / logo.naturalHeight || 3;
+    const logoWidth = LOGO_HEIGHT * ratio;
+    ctx.drawImage(
+      logo,
+      WIDTH - PAD - logoWidth,
+      HEIGHT - BAR - LOGO_BOTTOM - LOGO_HEIGHT,
+      logoWidth,
+      LOGO_HEIGHT,
+    );
+    return;
+  }
+
   ctx.font = `700 40px ${FONT}`;
   ctx.fillStyle = SLATE_900;
   ctx.textAlign = "right";
@@ -688,6 +732,8 @@ export async function renderShareCard(card: ShareCard): Promise<Blob> {
     await document.fonts.ready;
   } catch {}
 
+  const logo = await loadLogo().catch(() => null);
+
   const { canvas, ctx } = newCanvas();
 
   const layout = measure(ctx, card);
@@ -699,11 +745,11 @@ export async function renderShareCard(card: ShareCard): Promise<Blob> {
         setTimeout(() => reject(new Error("map timeout")), MAP_TIMEOUT_MS),
       ),
     ]);
-    drawCard(ctx, card, layout, true);
+    drawCard(ctx, card, layout, true, logo);
     return await toBlob(canvas);
   } catch {
     const fallback = newCanvas();
-    drawCard(fallback.ctx, card, layout, false);
+    drawCard(fallback.ctx, card, layout, false, logo);
     return toBlob(fallback.canvas);
   }
 }
