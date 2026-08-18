@@ -714,6 +714,10 @@ option {
   margin: 0;
 }
 
+.leaflet-popup-content p {
+  margin: 0;
+}
+
 /* Desktop keeps the plain credit line: there is room for it, and a control that
    has to be opened to read is worse than one line of grey text. `contents` on
    the card leaves the map credit exactly where Leaflet put it. */
@@ -737,6 +741,7 @@ option {
 .leaflet-popup-content {
   margin: 0.75rem 1rem;
   min-width: 12rem;
+  width: 400px !important;
 }
 
 /* Leaflet pinta todo enlace del mapa con `.leaflet-container a { color: #0078A8 }`,

@@ -318,6 +318,7 @@ export function initReportList(): void {
           freshAt,
           stale: isStale(freshAt),
           lastUpdate: groupLastUpdate(group)?.body,
+          lastUpdateAt: groupLastUpdate(group)?.createdAt,
         },
       };
     });

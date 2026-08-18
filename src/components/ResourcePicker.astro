@@ -32,10 +32,10 @@ const { prefix, label, hint } = Astro.props;
       CATEGORIES.map((category) => (
         <details
           data-category={category.id}
-          class="overflow-hidden rounded-lg border border-slate-200"
+          class="relative overflow-hidden rounded-lg border border-slate-200"
         >
           <summary
-            class={`flex cursor-pointer list-none items-center gap-2 px-3 py-2 text-sm font-medium transition hover:brightness-95 ${category.chip}`}
+            class={`flex cursor-pointer list-none items-center gap-2 px-3 py-2 pr-32 text-sm font-medium transition hover:brightness-95 ${category.chip}`}
           >
             <span class="caret opacity-60 transition-transform">▸</span>
             {/* Más grande que el texto y sin encogerse: el emoji es lo que se
@@ -45,18 +45,19 @@ const { prefix, label, hint } = Astro.props;
             {/* Sin color propio, como el contador: el encabezado ya va tintado
                 con el de la categoría. Va dentro del `summary` para que se
                 alcance sin desplegar — que es justo de lo que se trata. */}
-            <button
-              type="button"
-              data-select-all={category.id}
-              aria-pressed="false"
-              class="rounded border border-current/30 px-1.5 py-0.5 text-xs font-medium opacity-70 transition hover:opacity-100"
-            >
-              Seleccionar todo
-            </button>
             <span data-count={category.id} class="text-xs opacity-70">
               {category.items.length}
             </span>
           </summary>
+          {/* Select all is a sibling of summary, not a nested control. */}
+            <button
+              type="button"
+              data-select-all={category.id}
+              aria-pressed="false"
+              class="absolute right-3 top-2 rounded border border-current/30 px-1.5 py-0.5 text-xs font-medium opacity-70 transition hover:opacity-100"
+            >
+              Seleccionar todo
+            </button>
           <div class="flex flex-wrap gap-2 px-3 py-3">
             {category.items.map((item) => (
               <button
@@ -89,7 +90,7 @@ const { prefix, label, hint } = Astro.props;
     display: none;
   }
 
-  details[open] > summary .caret {
+  details[open] summary .caret {
     transform: rotate(90deg);
   }
 

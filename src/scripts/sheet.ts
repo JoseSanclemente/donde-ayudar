@@ -262,9 +262,6 @@ export function openReportPanel(): void {
   showTab("reportar");
   if (isMobile()) return;
 
-  document
-    .getElementById("form-card")
-    ?.scrollIntoView({ block: "start", behavior: "smooth" });
   document.getElementById("report-name")?.focus();
 }
 

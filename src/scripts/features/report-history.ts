@@ -64,6 +64,7 @@ function pickZones(): Zone[] {
   const at = anchor();
 
   return groupZones(getReports(), reportFreshAt)
+    .sort((a, b) => Date.parse(b.latestAt) - Date.parse(a.latestAt))
     .slice(0, MAX_ZONES)
     .map((group) => ({
       group,
@@ -83,7 +84,7 @@ export function initReportHistory(): void {
   const count = $<HTMLSpanElement>("report-history-count");
   const list = $<HTMLUListElement>("report-history-list");
 
-  function buildZoneItem(zone: Zone): HTMLLIElement {
+  function buildZoneItem(zone: Zone, index: number): HTMLLIElement {
     const { group, live } = zone;
     const item = document.createElement("li");
 
@@ -91,6 +92,7 @@ export function initReportHistory(): void {
     card.type = "button";
     card.className =
       "block w-full rounded-lg border border-slate-200 bg-white px-3 py-2.5 text-left transition hover:border-red-400 hover:bg-red-50/40 focus:outline-none focus:ring-2 focus:ring-red-300";
+    card.style.opacity = String(Math.max(0.5, 1 - index * 0.1));
     item.append(card);
 
     if (group.lead.placeName) {

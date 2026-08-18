@@ -11,18 +11,20 @@ import {
   type Center,
   type CenterType,
 } from "@/scripts/centers";
-import { byCategory, categoryIdOf } from "@/scripts/resources";
+import { categoryIdOf } from "@/scripts/resources";
 import { readCachedCoords } from "@/scripts/geolocation";
 import type { ShareCard } from "@/scripts/share-card";
 import { markerEstado, statusInfo, type ReportStatus } from "@/scripts/status";
 import { isMobile, onBreakpointChange } from "@/scripts/ui/breakpoint";
-import { chipStyle, resourceChipHtml } from "@/components/ui/ResourceChip";
-import { contactCtaHtml, contactLinksHtml } from "@/components/ui/ContactCta";
 import {
-  directionsUrl,
+  CENTER_POPUP_KICKER,
+  CENTER_POPUP_ORIGIN,
+  centerPopupChipsTitle,
+  renderCenterPopup,
+} from "@/components/CenterPopup";
+import { renderReportPopup } from "@/components/ReportPopup";
+import {
   escapeHtml,
-  linkifyHtml,
-  NAV_ICON,
   SHARE_ICON,
   stripUrls,
 } from "@/scripts/ui/html";
@@ -120,6 +122,7 @@ export type MarkerExtra = {
   freshAt: string;
 
   lastUpdate?: string;
+  lastUpdateAt?: string;
   stale: boolean;
 };
 
@@ -167,85 +170,13 @@ function shareButtonHtml(key: string): string {
       >${SHARE_ICON}</button>`;
 }
 
-/**
- * Bloque de contacto del popup: sin número, el nombre en texto; con número, el
- * mismo CTA que las listas, que lo arma `ui/contact`.
- */
-function contactHtml(name: string, phone: string | null): string {
-  if (!phone)
-    return `<p class="text-sm text-slate-600">Contacto: ${escapeHtml(name)}</p>`;
-  return contactCtaHtml(name, phone, "mt-2");
-}
-
-/**
- * Los recursos de la zona, repartidos por categoría: doce chips seguidos no
- * dicen si falta agua o falta herramienta. Dentro de cada bloque se respeta el
- * orden que ya trae el grupo — pendientes primero, cubiertos al final.
- */
-function resourcesHtml(group: ReportGroup): string {
-  if (group.resources.length === 0)
-    return `<p class="text-sm text-slate-500">Todavía no dice qué necesita.</p>`;
-
-  const blocks = byCategory(group.resources, (resource) => resource.name).map(
-    (bucket) => {
-      const chips = bucket.items.map(resourceChipHtml).join(" ");
-      return `
-      <div>
-        <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">${escapeHtml(bucket.label)}</p>
-        <div class="mt-1 flex flex-wrap gap-1">${chips}</div>
-      </div>`;
-    },
-  );
-  return blocks.join("");
-}
-
 function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
   const lead = group.lead;
-  const date = new Date(lead.createdAt).toLocaleString("es-CO", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  });
-  const resolved =
-    group.resources.length > 0 && group.pending === 0
-      ? '<p class="text-xs font-medium text-emerald-700">Necesidades cubiertas</p>'
-      : "";
-
   const count = group.reports.length;
-  const cuantos =
-    count > 1
-      ? `<p class="text-xs text-slate-500">${count} reportes en este punto</p>`
-      : "";
-
-  const fresh = `<p class="text-xs ${extra.stale ? "font-medium text-amber-700" : "text-slate-500"}">Actualizado ${escapeHtml(relativeTime(extra.freshAt))}${extra.stale ? " — confirma antes de ir" : ""}</p>`;
-
-  const kicker = `
-      ${statusSelectHtml(group.status, group.reportIds, lead.name)}
-      ${fresh}`;
-
-  const lugar = lead.placeName
-    ? `<p class="text-base text-slate-600">${escapeHtml(lead.placeName)}</p>`
-    : "";
-
-  const lastUpdate = extra.lastUpdate
-    ? `<p class="text-sm text-slate-600">«${escapeHtml(extra.lastUpdate)}»</p>`
-    : "";
-
   const noteList = group.reports
     .filter((r) => r.note)
     .slice(0, 2)
     .map((r) => r.note as string);
-  const notes = noteList
-    .map(
-      (note) =>
-        `<p class="text-sm leading-snug text-slate-600">“${escapeHtml(note)}”</p>`,
-    )
-    .join("");
-
-  const contacto = group.reports
-    .filter((r) => r.contactName)
-    .slice(0, 2)
-    .map((r) => contactHtml(r.contactName as string, r.contactPhone))
-    .join("");
 
   const shareKey = `r:${group.key}`;
   shareCards.set(shareKey, {
@@ -269,24 +200,15 @@ function reportPopupHtml(group: ReportGroup, extra: MarkerExtra): string {
     lng: group.lng,
   });
 
-  return `
-    <div class="space-y-2">
-      ${kicker}
-      <div class="flex flex-col justify-between gap-2">
-        ${lugar}
-        <p class="text-lg font-semibold text-slate-900">${escapeHtml(lead.name)}</p>
-      </div>
-      ${cuantos}
-      <div class="space-y-2">${resourcesHtml(group)}</div>
-      ${resolved}
-      ${notes}
-      ${lastUpdate}
-      ${contacto}
-      <div class="flex items-center justify-between gap-2">
-        <p class="text-xs text-slate-400">Reportado el ${escapeHtml(date)}</p>
-        ${shareButtonHtml(shareKey)}
-      </div>
-    </div>`;
+  return renderReportPopup({
+    group,
+    freshAt: extra.freshAt,
+    lastUpdate: extra.lastUpdate,
+    lastUpdateAt: extra.lastUpdateAt,
+    stale: extra.stale,
+    statusSelectHtml: statusSelectHtml(group.status, group.reportIds, lead.name),
+    shareButtonHtml: shareButtonHtml(shareKey),
+  });
 }
 
 /**
@@ -1057,93 +979,6 @@ function isPaused(center: Center): boolean {
 }
 
 /**
- * Who published the point. Both origins are labelled and not only the community
- * one: «created by the community» says nothing if the alternative goes
- * unmarked, and the question it answers — did anybody verify this? — needs both
- * answers in sight.
- */
-const ORIGIN: Record<Center["origin"], string> = {
-  curado: "Creado por la alcaldía",
-  comunidad: "Creado por la comunidad",
-};
-
-/**
- * What precedes the time in the notice of an expired point. It is apart because
- * the same text is the `data-time-prefix` the ticker uses to repaint it.
- */
-const CONFIRM_PREFIX = "Nadie confirma este punto desde ";
-
-/**
- * Kicker label and colour per type. `accent` is the same colour as `color` in
- * hexadecimal: the share image is drawn on a canvas, and a Tailwind class means
- * nothing there.
- */
-const KICKER: Record<
-  Center["type"],
-  { label: string; color: string; accent: string }
-> = {
-  acopio: {
-    label: "Centro de acopio",
-    color: "text-indigo-700",
-    accent: "#4338ca",
-  },
-  sangre: {
-    label: "Banco de sangre",
-    color: "text-rose-700",
-    accent: "#be123c",
-  },
-  albergue: { label: "Albergue", color: "text-amber-700", accent: "#b45309" },
-  healthcare: {
-    label: "Atención en salud",
-    color: "text-blue-700",
-    accent: "#1d4ed8",
-  },
-  municipio: {
-    label: "Municipio que pide ayuda",
-    color: "text-red-800",
-    accent: "#991b1b",
-  },
-};
-
-/**
- * The title over the chips. Every other type lists what it takes in; a
- * municipality lists what it is short of, and calling that «Recibe» would read
- * as an invitation to drive supplies to a town square that may not have one.
- */
-function chipsTitleFor(center: Center): string {
-  return center.type === "municipio" ? "Necesita" : "Recibe";
-}
-
-/**
- * What a point takes, a chip per supply and the category as a title — the same
- * build as `resourcesHtml`. What the point listed are those supplies and not
- * the whole category, so the chip has to be the supply: it is the only thing
- * that compares at a glance against a report's chips.
- */
-function donationsHtml(center: Center, paused: boolean): string {
-  if (center.donations.length === 0) return "";
-  const blocks = byCategory(center.donations, (item) => item).map((bucket) => {
-    const chips = bucket.items
-      .map(
-        (item) =>
-          `<span class="inline-block ${chipStyle(item, paused)}">${escapeHtml(item)}</span>`,
-      )
-      .join(" ");
-    return `
-      <div>
-        <p class="text-[11px] font-semibold uppercase tracking-wide text-slate-500">${escapeHtml(bucket.label)}</p>
-        <div class="mt-1 flex flex-wrap gap-1">${chips}</div>
-      </div>`;
-  });
-
-  return `
-    <div class="space-y-2">
-      <p class="text-xs m-0 font-semibold uppercase tracking-wide text-slate-500">${escapeHtml(chipsTitleFor(center))}</p>
-      ${blocks.join("")}
-    </div>`;
-}
-
-/**
  * A center and whether it belongs to whoever is looking. Like `MarkerExtra`:
  * what does not live in the row comes in as a parameter, so `map.ts` never
  * imports the stores. `features/centers-layer.ts` is what computes it.
@@ -1152,73 +987,17 @@ export type CenterEntry = { data: Center; mine: boolean };
 
 function centerPopupHtml(center: Center, mine: boolean): string {
   const paused = isPaused(center);
-
   const expired = center.isActive && isExpired(center);
-  const donations = donationsHtml(center, paused);
-  const contact = contactLinksHtml(
-    center.contactWhatsapp,
-    center.contactInstagram,
-  );
-
-  const notes = center.notes
-    ? `<p class="text-sm wrap-break-word text-slate-500">${
-        isCommunity(center)
-          ? escapeHtml(center.notes)
-          : linkifyHtml(center.notes)
-      }</p>`
-    : "";
-
-  const { label, color, accent } = KICKER[center.type];
+  const { label, accent } = CENTER_POPUP_KICKER[center.type];
   const kickerLabel = expired
     ? `${label} · Sin confirmar`
     : paused
       ? `${label} · Cerrado por ahora`
       : label;
-  const kicker = paused
-    ? `<p class="text-xs font-semibold uppercase tracking-wide text-slate-500">${kickerLabel}</p>`
-    : `<p class="text-xs font-semibold uppercase tracking-wide ${color}">${label}</p>`;
-
   const notAcceptingLabel =
     center.type === "sangre"
       ? "No recibe donantes por ahora"
       : "No recibe donaciones por ahora";
-
-  const notAccepting = center.acceptingDonations
-    ? ""
-    : `<p class="text-xs font-medium text-amber-700">${notAcceptingLabel}</p>`;
-
-  const notice = expired
-    ? `<p
-        class="text-xs font-medium text-amber-700"
-        data-time="${escapeHtml(center.updatedAt)}"
-        data-time-prefix="${CONFIRM_PREFIX}"
-      >${CONFIRM_PREFIX}${relativeTime(center.updatedAt)}</p>`
-    : paused
-      ? `<p class="text-xs font-medium text-amber-700">Cerrado por ahora</p>`
-      : "";
-
-  const ctaClass = paused
-    ? "center-cta center-cta-quiet flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-slate-300 bg-white px-4 py-2 text-md font-semibold no-underline transition hover:bg-slate-50 focus:outline-none focus:ring-2 focus:ring-slate-300"
-    : "center-cta flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2 text-md font-semibold no-underline shadow-sm transition hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-300";
-  const origin = `<p class="text-sm text-slate-500">${ORIGIN[center.origin]}</p>`;
-
-  const remove =
-    mine && isCommunity(center)
-      ? `<button
-        type="button"
-        data-delete-center="${escapeHtml(center.id)}"
-        data-point-name="${escapeHtml(center.name)}"
-        class="mt-1 w-full text-xs font-medium text-slate-400 transition hover:text-red-600"
-      >Eliminar este punto</button>`
-      : "";
-
-  const confirm = expired
-    ? `<button
-        type="button"
-        data-confirm-center="${escapeHtml(center.id)}"
-        class="mt-2 w-full rounded-lg border border-amber-300 bg-amber-50 px-4 py-2 text-sm font-semibold text-amber-800 transition hover:bg-amber-100 focus:outline-none focus:ring-2 focus:ring-amber-300"
-      >Sigue abierto</button>`
-    : "";
   const shareKey = `c:${center.id}`;
   shareCards.set(shareKey, {
     kicker: paused ? kickerLabel : label,
@@ -1237,13 +1016,13 @@ function centerPopupHtml(center: Center, mine: boolean): string {
       center.acceptingDonations ? "" : notAcceptingLabel,
       center.contactWhatsapp ? `WhatsApp ${center.contactWhatsapp}` : "",
       center.contactInstagram ? `Instagram @${center.contactInstagram}` : "",
-      ORIGIN[center.origin],
+      CENTER_POPUP_ORIGIN[center.origin],
     ].filter(Boolean),
 
     notes: [center.notes]
       .map((note) => (note ? stripUrls(note) : ""))
       .filter(Boolean),
-    chipsTitle: chipsTitleFor(center),
+    chipsTitle: centerPopupChipsTitle(center),
     chips: center.donations.map((item) => ({
       label: item,
       category: categoryIdOf(item) ?? null,
@@ -1254,32 +1033,11 @@ function centerPopupHtml(center: Center, mine: boolean): string {
     lng: center.lng,
   });
 
-  return `
-    <div class="space-y-2">
-      <div class="space-y-1">
-        ${kicker}
-        <p class="text-lg font-semibold leading-tight text-slate-900 mt-3">${escapeHtml(center.name)}</p>
-        ${origin}
-        <p data-address class="text-xs text-slate-600">${escapeHtml(center.address)}</p>
-      </div>
-      ${notice}
-      ${notAccepting}
-      <p class="text-xs text-slate-600">${escapeHtml(center.hours)}</p>
-      ${donations}
-      ${contact}
-      ${notes}
-      <div class="mt-1 flex items-stretch gap-2">
-        <a
-          class="${ctaClass}"
-          href="${directionsUrl(center.lat, center.lng)}"
-          target="_blank"
-          rel="noopener noreferrer"
-        >${NAV_ICON}Cómo llegar</a>
-        ${shareButtonHtml(shareKey)}
-      </div>
-      ${confirm}
-      ${remove}
-    </div>`;
+  return renderCenterPopup({
+    center,
+    mine,
+    shareButtonHtml: shareButtonHtml(shareKey),
+  });
 }
 
 function matchesFilter(center: Center): boolean {

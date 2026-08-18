@@ -166,12 +166,16 @@ const HEART_ICON = {
           <!-- «Puntos» es la lista de edificios. En escritorio el sheet es
                `display: contents`, y el `contents` de acá deja que la tarjeta
                caiga igual que antes en la barra lateral. -->
-          <div
-            id="list-card"
-            data-tab-panel="puntos"
-            class="space-y-5 lg:contents"
-          >
+          <div id="list-card" data-tab-panel="puntos" class="lg:contents">
             <ReportList />
+          </div>
+
+          <div id="offers-card" data-tab-panel="ayuda">
+            <OffersPanel />
+          </div>
+
+          <div id="volunteer-card" data-tab-panel="voluntarios">
+            <VolunteerPanel />
           </div>
 
           <!-- On desktop this card does not stay in the sidebar: the stylesheet
@@ -180,12 +184,6 @@ const HEART_ICON = {
                the sheet. -->
           <div id="updates-card" data-tab-panel="novedades">
             <UpdatesFeed />
-          </div>
-
-          <div id="offers-card" data-tab-panel="ayuda"><OffersPanel /></div>
-
-          <div id="volunteer-card" data-tab-panel="voluntarios">
-            <VolunteerPanel />
           </div>
 
           <!-- Sin `data-tab-panel`: no es una pestaña. Por eso mismo se esconde en
