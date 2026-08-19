@@ -101,13 +101,18 @@ export function initPetsFilter(apply: (filter: PetsFilter) => void): void {
     placeToUrl(filter.place);
   }
 
+  function pushAndScroll(): void {
+    push();
+    scrollTo({ top: 0, behavior: "smooth" });
+  }
+
   const kinds = createChipGroup<PetKind>(card, {
     attribute: "pets-kind",
     chips: PET_KIND_CHIPS,
     selected: filter.kinds,
     onChange: (selected) => {
       filter.kinds = selected;
-      push();
+      pushAndScroll();
     },
   });
 
@@ -117,7 +122,7 @@ export function initPetsFilter(apply: (filter: PetsFilter) => void): void {
     selected: filter.sexes,
     onChange: (selected) => {
       filter.sexes = selected;
-      push();
+      pushAndScroll();
     },
   });
 
@@ -146,7 +151,7 @@ export function initPetsFilter(apply: (filter: PetsFilter) => void): void {
 
   place.addEventListener("change", () => {
     filter.place = place.value || null;
-    push();
+    pushAndScroll();
   });
 
   onPets(paintPlaces);
@@ -160,7 +165,7 @@ export function initPetsFilter(apply: (filter: PetsFilter) => void): void {
     kinds.set(filter.kinds);
     sexes.set(filter.sexes);
     place.value = "";
-    push();
+    pushAndScroll();
   });
 
   const column = $<HTMLElement>("pets-filters-column");
