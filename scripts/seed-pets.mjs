@@ -78,6 +78,7 @@ function normalizeInstagram(value) {
   return null;
 }
 
+const PHONE = /^[0-9+][0-9 ()+-]{6,19}$/;
 const WHATSAPP_USERNAME = /^[A-Za-z0-9._-]{3,30}$/;
 const REF_CODE = /^[A-Za-z0-9][A-Za-z0-9 _-]{2,39}$/;
 const MAX_PLACE_NAME = 120;
@@ -139,11 +140,15 @@ function validate(entry, index) {
   const wantsInstagram =
     entry.instagram !== undefined && entry.instagram !== null;
   const username = entry.contact_username ?? null;
-  if (!wantsInstagram && username === null) {
-    return `${where}: falta el contacto (instagram o contact_username).`;
+  const phone = entry.contact_phone ?? null;
+  if (!wantsInstagram && username === null && phone === null) {
+    return `${where}: falta el contacto (instagram, contact_username o contact_phone).`;
   }
   if (username !== null && !WHATSAPP_USERNAME.test(String(username))) {
     return `${where}: contact_username "${username}" no es un usuario de WhatsApp.`;
+  }
+  if (phone !== null && !PHONE.test(String(phone))) {
+    return `${where}: contact_phone "${phone}" no es un teléfono válido.`;
   }
   if (wantsInstagram) {
     const instagram = normalizeInstagram(entry.instagram);
@@ -238,6 +243,7 @@ async function publish(admin, entry, botUserId) {
     photo_path: path,
     place_name: entry.place_name ?? null,
     ref_code: entry.ref_code ?? null,
+    contact_phone: entry.contact_phone ?? null,
     contact_username: entry.contact_username ?? null,
     contact_instagram_url: entry.instagram
       ? normalizeInstagram(entry.instagram)

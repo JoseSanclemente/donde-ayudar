@@ -18,7 +18,7 @@ pnpm-debug.log*
 .env.production
 
 # la tanda de mascotas que se siembra a mano; el ejemplo sí va versionado
-scripts/pets-seed.json
+scripts/pets-seed*.json
 
 # lo que baja `pets:royi`: las fotos del origen y el archivo que va acumulando
 # los ids ya publicados
