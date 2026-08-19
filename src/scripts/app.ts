@@ -9,6 +9,7 @@ import { initMarkerActions } from "./features/marker-actions";
 import { initMarkerSheet } from "./features/marker-sheet";
 import { initVolunteerPanel } from "./features/volunteer-panel";
 import { initOffersPanel } from "./features/offers-panel";
+import { initAccordion } from "./ui/accordion";
 import { initCenterForm } from "./features/center-form";
 import { initCenterHistory } from "./features/center-history";
 import { initReportForm } from "./features/report-form";
@@ -58,6 +59,9 @@ initReportList();
 initUpdatesFeed();
 initOffersPanel();
 initVolunteerPanel();
+initAccordion("report", "report-card");
+initAccordion("offers");
+initAccordion("volunteer");
 initSyncBadge();
 
 startTimeTicker();
